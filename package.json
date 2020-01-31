@@ -25,6 +25,7 @@
   "devDependencies": {
     "@babel/cli": "^7.8.4",
     "@babel/core": "^7.8.4",
+    "@babel/node": "^7.8.4",
     "@babel/polyfill": "^7.8.3",
     "@babel/preset-env": "^7.8.4",
     "@babel/register": "^7.8.3",
@@ -42,6 +43,10 @@
     "eslint-plugin-standard": "^4.0.1",
     "mocha": "^7.0.1",
     "sinon": "^8.1.1",
-    "sinon-chai": "^3.4.0"
+    "sinon-chai": "^3.4.0",
+    "yargs": "^15.1.0"
+  },
+  "dependencies": {
+    "request": "^2.88.0"
   }
 }

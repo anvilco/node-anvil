@@ -5,6 +5,7 @@
   "main": "lib/index.js",
   "scripts": {
     "test": "mocha --require test/environment.js 'test/**/*.test.js'",
+    "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
     "build": "babel src --out-dir lib",
     "prepare": "yarn build"
   },
@@ -42,6 +43,7 @@
     "eslint-plugin-react": "^7.18.0",
     "eslint-plugin-standard": "^4.0.1",
     "mocha": "^7.0.1",
+    "nodemon": "^2.0.2",
     "sinon": "^8.1.1",
     "sinon-chai": "^3.4.0",
     "yargs": "^15.1.0"

@@ -11,17 +11,18 @@ export default class Anvil {
   //   baseURL: 'https://app.useanvil.com'
   // }
   constructor (options) {
+    if (!options) throw new Error('options are required')
     this.options = Object.assign({}, defaultOptions, options)
     if (!options.apiKey && !options.accessToken) throw new Error('apiKey or accessToken required')
 
-    this.authHeader = options.accessToken
-      ? `Bearer ${Buffer.from(options.accessToken, 'ascii').toString('base64')}`
-      : `Basic ${Buffer.from(`${options.apiKey}:`, 'ascii').toString('base64')}`
+    const { apiKey, accessToken } = this.options
+    this.authHeader = accessToken
+      ? `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
+      : `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
   }
 
   fillPDF (castEid, payload) {
-    return this.requestREST({
-      url: this.url(`/api/v1/fill/${castEid}.pdf`),
+    return this.requestREST(`/api/v1/fill/${castEid}.pdf`, {
       method: 'POST',
       json: payload,
       encoding: null,
@@ -31,9 +32,13 @@ export default class Anvil {
 
   // Private
 
-  requestREST (options) {
+  requestREST (url, options) {
+    const optionsWithURL = {
+      ...options,
+      url: this.url(url),
+    }
     return new Promise((resolve, reject) => {
-      this.request(options, function (error, response, data) {
+      this.request(optionsWithURL, function (error, response, data) {
         if (error) return reject(error)
         const statusCode = response.statusCode
         resolve({ statusCode, data })

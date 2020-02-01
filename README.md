@@ -109,6 +109,7 @@ See the [PDF filling API docs](https://app.useanvil.com/api/fill-pdf) for more i
 
 ## Examples
 
+Check out the [example](https://github.com/anvilco/node-anvil/tree/master/example) folder for running usage examples!
 
 ## Development
 

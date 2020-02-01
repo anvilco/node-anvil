@@ -15,7 +15,8 @@
   },
   "keywords": [
     "pdf",
-    "pdf-fill"
+    "pdf-fill",
+    "json-to-pdf"
   ],
   "author": "Anvil Foundry Inc.",
   "license": "MIT",

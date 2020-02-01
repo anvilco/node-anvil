@@ -1,8 +1,11 @@
 import request from 'request'
+import { RateLimiter } from 'limiter'
 
 const defaultOptions = {
   baseURL: 'https://app.useanvil.com',
 }
+
+const failBufferMS = 50
 
 export default class Anvil {
   // {
@@ -19,6 +22,11 @@ export default class Anvil {
     this.authHeader = accessToken
       ? `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
       : `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
+
+    // Production apiKey rate limits: 200 in 5 seconds
+    this.requestLimit = 200
+    this.requestLimitMS = 5000
+    this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
   fillPDF (castEid, payload) {
@@ -32,16 +40,48 @@ export default class Anvil {
 
   // Private
 
-  requestREST (url, options) {
+  async requestREST (url, options) {
     const optionsWithURL = {
       ...options,
       url: this.url(url),
     }
+
+    return this.throttle(async (retry) => {
+      const { response, data } = await this.requestPromise(optionsWithURL)
+      const statusCode = response.statusCode
+      if (statusCode === 429) {
+        // console.log('Retrying in ms:', getRetryMS(response.headers['retry-after']))
+        return retry(getRetryMS(response.headers['retry-after']))
+      }
+      return { statusCode, data }
+    })
+  }
+
+  throttle (fn) {
     return new Promise((resolve, reject) => {
-      this.request(optionsWithURL, function (error, response, data) {
+      this.limiter.removeTokens(1, async (err, remainingRequests) => {
+        if (err) reject(err)
+        if (remainingRequests < 1) {
+          await sleep(this.requestLimitMS + failBufferMS)
+        }
+        const retry = async (ms) => {
+          await sleep(ms)
+          return this.throttle(fn)
+        }
+        try {
+          resolve(await fn(retry))
+        } catch (e) {
+          reject(e)
+        }
+      })
+    })
+  }
+
+  requestPromise (options) {
+    return new Promise((resolve, reject) => {
+      this.request(options, function (error, response, data) {
         if (error) return reject(error)
-        const statusCode = response.statusCode
-        resolve({ statusCode, data })
+        resolve({ response, data })
       })
     })
   }
@@ -53,4 +93,14 @@ export default class Anvil {
   url (path) {
     return this.options.baseURL + path
   }
+}
+
+function getRetryMS (retryAfterSeconds) {
+  return Math.round((Math.abs(parseFloat(retryAfterSeconds)) || 0) * 1000) + failBufferMS
+}
+
+function sleep (ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
 }

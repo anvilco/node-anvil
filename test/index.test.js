@@ -33,6 +33,7 @@ describe('Anvil API Client', function () {
 
     describe('requestREST', function () {
       let options, response, data, result
+
       it('returns statusCode and data when specified', async function () {
         options = { method: 'POST' }
         response = { statusCode: 200 }
@@ -49,6 +50,26 @@ describe('Anvil API Client', function () {
         options = { method: 'POST' }
         client.request.callsFake((options, cb) => cb(new Error('problem')))
         expect(client.requestREST('/test', options)).to.have.been.rejectedWith('problem')
+      })
+
+      it('retries when a 429 response', async function () {
+        options = { method: 'POST' }
+        data = { result: 'ok' }
+        const successResponse = { statusCode: 200 }
+        const errorResponse = {
+          statusCode: 429,
+          headers: {
+            'retry-after': '0.2', // in seconds
+          },
+        }
+        client.request.onCall(0).callsFake((options, cb) => cb(null, errorResponse, data))
+        client.request.onCall(1).callsFake((options, cb) => cb(null, successResponse, data))
+        result = await client.requestREST('/test', options)
+        expect(client.request).to.have.been.calledTwice
+        expect(result).to.eql({
+          statusCode: successResponse.statusCode,
+          data,
+        })
       })
     })
 

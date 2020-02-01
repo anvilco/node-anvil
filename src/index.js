@@ -29,8 +29,8 @@ export default class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  fillPDF (castEid, payload) {
-    return this.requestREST(`/api/v1/fill/${castEid}.pdf`, {
+  fillPDF (pdfTemplateEID, payload) {
+    return this.requestREST(`/api/v1/fill/${pdfTemplateEID}.pdf`, {
       method: 'POST',
       json: payload,
       encoding: null,
@@ -52,6 +52,9 @@ export default class Anvil {
       if (statusCode === 429) {
         // console.log('Retrying in ms:', getRetryMS(response.headers['retry-after']))
         return retry(getRetryMS(response.headers['retry-after']))
+      }
+      if (statusCode >= 300 && data && data.constructor.name === 'Object') {
+        return { statusCode, ...data }
       }
       return { statusCode, data }
     })

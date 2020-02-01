@@ -109,6 +109,19 @@ describe('Anvil API Client', function () {
           url: 'https://app.useanvil.com/api/v1/fill/cast123.pdf',
         })
       })
+
+      it('returns errors when not status code 200', async function () {
+        response = { statusCode: 400 }
+        data = { errors: [{ message: 'problem' }] }
+        payload = {}
+
+        result = await client.fillPDF('cast123', payload)
+        expect(result).to.eql({
+          statusCode: response.statusCode,
+          errors: data.errors,
+        })
+        expect(client.request).to.have.been.calledOnce
+      })
     })
   })
 })

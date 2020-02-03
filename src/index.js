@@ -29,8 +29,8 @@ export default class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  fillPDF (pdfTemplateEID, payload) {
-    return this.requestREST(`/api/v1/fill/${pdfTemplateEID}.pdf`, {
+  fillPDF (pdfTemplateID, payload) {
+    return this.requestREST(`/api/v1/fill/${pdfTemplateID}.pdf`, {
       method: 'POST',
       json: payload,
       encoding: null,

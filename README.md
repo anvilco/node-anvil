@@ -24,7 +24,7 @@ import fs from 'fs'
 import Anvil from '@anvilco/anvil'
 
 // The ID of the PDF template to fill
-const eid = 'kA6Da9CuGqUtc6QiBDRR'
+const pdfTemplateID = 'kA6Da9CuGqUtc6QiBDRR'
 // Your API key from your Anvil organization settings
 const apiKey = '7j2JuUWmN4fGjBxsCltWaybHOEy3UEtt'
 
@@ -38,7 +38,7 @@ const exampleData = {
   }
 }
 const anvilClient = new Anvil({ apiKey })
-const { statusCode, data } = await anvilClient.fillPDF(eid, exampleData)
+const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, exampleData)
 
 console.log(statusCode) // => 200
 
@@ -58,18 +58,18 @@ Creates an Anvil client instance.
 const anvilClient = new Anvil({ apiKey })
 ```
 
-### Anvil::fillPDF(pdfTemplateEID, payload)
+### Anvil::fillPDF(pdfTemplateID, payload)
 
 Fills a PDF with your JSON data.
 
-First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/api/fill-pdf). You can find the PDF template's eid on the `API Info` tab of your PDF template's page:
+First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/api/fill-pdf). You can find the PDF template's id on the `API Info` tab of your PDF template's page:
 
 <img width="725" alt="pdf-template-id" src="https://user-images.githubusercontent.com/69169/73693549-4a598280-468b-11ea-81a3-5df4472de8a4.png">
 
 An example:
 
 ```js
-const eid = 'kA6Da9CuGqUtc6QiBDRR'
+const pdfTemplateID = 'kA6Da9CuGqUtc6QiBDRR'
 // Your API key from your Anvil organization settings
 const apiKey = '7j2JuUWmN4fGjBxsCltWaybHOEy3UEtt'
 
@@ -83,10 +83,10 @@ const payload = {
   }
 }
 const anvilClient = new Anvil({ apiKey })
-const { statusCode, data } = await anvilClient.fillPDF(eid, payload)
+const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload)
 ```
 
-* `pdfTemplateEID` (String) - The eid of your PDF template from the Anvil UI
+* `pdfTemplateID` (String) - The id of your PDF template from the Anvil UI
 * `payload` (Object) - The JSON data that will fill the PDF template
   * `title` (String) - _optional_ Set the title encoded into the PDF document
   * `fontSize` (Number) - _optional_ Set the fontSize of all filled text. Default is 10.

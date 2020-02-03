@@ -1,8 +1,11 @@
 # Anvil API Client for Node
 
-[Anvil](https://useanvil.com) is a suite of tools for managing document-based workflows, including webforms that fill PDFs and request signatures, and a PDF filling API.
+[Anvil](https://useanvil.com) is a suite of tools for managing document-based workflows:
 
-At this time, the node client supports only Anvil's [PDF filling API](https://useanvil.com/pdf-filling-api) that allows you to fill any PDF with JSON data.
+1. Anvil [Workflows](https://useanvil.com) converts your PDF forms into simple, intuitive websites that fill the PDFs and gather signatures for you.
+2. Anvil [PDF Filling API](https://useanvil.com/pdf-filling-api) allows you to fill any PDF with JSON data.
+
+Currently, this node client only supports our PDF filling API.
 
 ## Usage
 
@@ -101,11 +104,11 @@ const { statusCode, data } = await anvilClient.fillPDF(eid, payload)
 
 Our API has request rate limits in place. This API client handles `429 Too Many Requests` errors by waiting until it can retry again, then retrying the request. The client attempts to avoid `429` errors by throttling requests after the number of requests within the specified time period has been reached.
 
-See the [Anvil API docs](https://app.useanvil.com/api/fill-pdf) for more information on the specifics of the rate limits.
+See the [Anvil API docs](https://useanvil.com/api/fill-pdf) for more information on the specifics of the rate limits.
 
 ### More Info
 
-See the [PDF filling API docs](https://app.useanvil.com/api/fill-pdf) for more information.
+See the [PDF filling API docs](https://useanvil.com/api/fill-pdf) for more information.
 
 ## Examples
 

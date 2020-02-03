@@ -59,11 +59,11 @@ const anvilClient = new Anvil({ apiKey })
 
 Fills a PDF with your JSON data.
 
-First, you will need to have uploaded a PDF to Anvil. On the `API Info` tab of your PDF template's page, you you find the PDF template's eid:
+First, you will need to have uploaded a PDF to Anvil. You can find the PDF template's eid on the `API Info` tab of your PDF template's page:
 
 <img width="725" alt="pdf-template-id" src="https://user-images.githubusercontent.com/69169/73583957-d8dec180-4449-11ea-9ea3-d426677cb881.png">
 
-An example
+An example:
 
 ```js
 const eid = 'kA6Da9CuGqUtc6QiBDRR'
@@ -71,7 +71,7 @@ const eid = 'kA6Da9CuGqUtc6QiBDRR'
 const apiKey = '7j2JuUWmN4fGjBxsCltWaybHOEy3UEtt'
 
 // JSON data to fill the PDF
-const exampleData = {
+const payload = {
   "title": "My PDF Title",
   "fontSize": 10,
   "textColor": "#CC0000",
@@ -80,7 +80,7 @@ const exampleData = {
   }
 }
 const anvilClient = new Anvil({ apiKey })
-const { statusCode, data } = await anvilClient.fillPDF(eid, exampleData)
+const { statusCode, data } = await anvilClient.fillPDF(eid, payload)
 ```
 
 * `pdfTemplateEID` (String) - The eid of your PDF template from the Anvil UI

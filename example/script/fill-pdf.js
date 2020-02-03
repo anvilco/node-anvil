@@ -27,7 +27,7 @@ import { run } from './env'
 import Anvil from '../../src/index'
 
 const argv = require('yargs')
-  .usage('Usage: $0 [-e local|staging|production] castEid token jsonPath.json')
+  .usage('Usage: $0 [-e local|production] castEid token jsonPath.json')
   .alias('e', 'endpoint')
   .demandCommand(3).argv
 
@@ -42,16 +42,14 @@ const baseURL = endpoints[endpointKey || 'production']
 const exampleData = JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8' }))
 
 async function main () {
-  const client = new Anvil({
-    baseURL,
-    apiKey,
-  })
+  const client = new Anvil({ baseURL, apiKey })
 
   const { statusCode, data } = await client.fillPDF(eid, exampleData)
 
   if (statusCode === 200) {
     const testDir = __dirname
-    fs.writeFileSync(path.join(testDir, 'fill.output.pdf'), data, { encoding: null })
+    const outputFilePath = path.join(testDir, 'fill.output.pdf')
+    fs.writeFileSync(outputFilePath, data, { encoding: null })
   } else {
     console.log(statusCode, JSON.stringify(data, null, 2))
   }

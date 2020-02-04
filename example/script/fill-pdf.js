@@ -44,14 +44,14 @@ const exampleData = JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8' }))
 async function main () {
   const client = new Anvil({ baseURL, apiKey })
 
-  const { statusCode, data } = await client.fillPDF(eid, exampleData)
+  const { statusCode, data, errors } = await client.fillPDF(eid, exampleData)
 
   if (statusCode === 200) {
     const testDir = __dirname
     const outputFilePath = path.join(testDir, 'fill.output.pdf')
     fs.writeFileSync(outputFilePath, data, { encoding: null })
   } else {
-    console.log(statusCode, JSON.stringify(data, null, 2))
+    console.log(statusCode, JSON.stringify(errors || data, null, 2))
   }
 }
 

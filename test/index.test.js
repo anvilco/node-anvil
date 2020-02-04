@@ -122,6 +122,19 @@ describe('Anvil API Client', function () {
         })
         expect(client.request).to.have.been.calledOnce
       })
+
+      it('returns errors when not status code 200 and single error', async function () {
+        response = { statusCode: 401 }
+        data = { name: 'AuthorizationError', message: 'problem' }
+        payload = {}
+
+        result = await client.fillPDF('cast123', payload)
+        expect(result).to.eql({
+          statusCode: response.statusCode,
+          errors: [data],
+        })
+        expect(client.request).to.have.been.calledOnce
+      })
     })
   })
 })

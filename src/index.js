@@ -53,8 +53,10 @@ export default class Anvil {
         // console.log('Retrying in ms:', getRetryMS(response.headers['retry-after']))
         return retry(getRetryMS(response.headers['retry-after']))
       }
-      if (statusCode >= 300 && data && data.constructor.name === 'Object') {
-        return { statusCode, ...data }
+      if (statusCode >= 300) {
+        const isObject = data && data.constructor.name === 'Object'
+        if (isObject && data.errors) return { statusCode, ...data }
+        else if (isObject && data.message) return { statusCode, errors: [data] }
       }
       return { statusCode, data }
     })

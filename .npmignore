@@ -1,5 +1,6 @@
 test/
 src/
+example/
 yarn.lock
 .babelrc
 .eslintrc.js

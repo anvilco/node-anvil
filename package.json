@@ -25,7 +25,8 @@
   },
   "homepage": "https://github.com/anvilco/node-anvil#readme",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org"
+    "registry": "https://registry.npmjs.org",
+    "@anvilco:registry": "https://registry.npmjs.org"
   },
   "devDependencies": {
     "@babel/cli": "^7.8.4",

@@ -2,12 +2,10 @@
   "name": "@anvilco/anvil",
   "version": "1.0.3",
   "description": "Anvil API Client",
-  "main": "lib/index.js",
+  "main": "src/index.js",
   "scripts": {
     "test": "mocha --require test/environment.js 'test/**/*.test.js'",
-    "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
-    "build": "babel src --out-dir lib",
-    "prepare": "yarn build"
+    "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'"
   },
   "repository": {
     "type": "git",
@@ -29,11 +27,6 @@
     "@anvilco:registry": "https://registry.npmjs.org"
   },
   "devDependencies": {
-    "@babel/cli": "^7.8.4",
-    "@babel/core": "^7.8.7",
-    "@babel/node": "^7.8.4",
-    "@babel/preset-env": "^7.8.4",
-    "@babel/register": "^7.8.3",
     "babel-eslint": "^10.0.3",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
@@ -49,8 +42,8 @@
     "eslint-plugin-standard": "^4.0.1",
     "mocha": "^7.1.1",
     "nodemon": "^2.0.2",
-    "sinon": "^8.1.1",
-    "sinon-chai": "^3.4.0",
+    "sinon": "^9.0.1",
+    "sinon-chai": "^3.5.0",
     "yargs": "^15.1.0"
   },
   "dependencies": {

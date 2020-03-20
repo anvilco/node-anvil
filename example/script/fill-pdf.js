@@ -37,7 +37,7 @@ async function main () {
   const { statusCode, data, errors } = await client.fillPDF(eid, exampleData)
 
   if (statusCode === 200) {
-    const scriptDir =
+    const scriptDir = __dirname
     const outputFilePath = path.join(scriptDir, 'fill.output.pdf')
     fs.writeFileSync(outputFilePath, data, { encoding: null })
   } else {

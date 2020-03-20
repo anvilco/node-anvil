@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "test": "mocha --require test/environment.js 'test/**/*.test.js'",
-    "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'"
+    "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
+    "version": "auto-changelog -p --template keepachangelog && git add CHANGELOG.md"
   },
   "repository": {
     "type": "git",
@@ -27,6 +28,7 @@
     "@anvilco:registry": "https://registry.npmjs.org"
   },
   "devDependencies": {
+    "auto-changelog": "^1.16.2",
     "babel-eslint": "^10.0.3",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
@@ -49,5 +51,8 @@
   "dependencies": {
     "limiter": "^1.1.5",
     "request": "^2.88.0"
+  },
+  "resolutions": {
+    "auto-changelog/handlebars/optimist/minimist": "^1.2.5"
   }
 }

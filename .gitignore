@@ -1,7 +1,6 @@
 .DS_STORE
 *.log
 
-lib/
 node_modules
 package-lock.json
 example/script/*.pdf

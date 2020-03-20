@@ -4,10 +4,10 @@
 // Usage example:
 //
 // # Fills a PDF then opens it in preview
-// yarn babel-node example/script/fill-pdf.js <pdfEID> <apiKey> <inputJSONFile>
+// yarn node example/script/fill-pdf.js <pdfTemplateID> <apiKey> <inputJSONFile>
 //
 // # An example
-// yarn babel-node example/script/fill-pdf.js eidabc123 apiKeydef345 ./payload.json && open example/script/fill.output.pdf
+// yarn node example/script/fill-pdf.js idabc123 apiKeydef345 ./payload.json && open example/script/fill.output.pdf
 //
 // `payload.json` is a json file with the JSON data used to fill the PDF. e.g.
 //
@@ -20,25 +20,15 @@
 //   }
 // }
 
-import fs from 'fs'
-import path from 'path'
-
-import { run } from './env'
-import Anvil from '../../src/index'
-
+const fs = require('fs')
+const path = require('path')
+const Anvil = require('../../src/index')
 const argv = require('yargs')
-  .usage('Usage: $0 [-e local|production] castEid token jsonPath.json')
-  .alias('e', 'endpoint')
+  .usage('Usage: $0 pdfTemplateID apiKey jsonPath.json')
   .demandCommand(3).argv
 
-const endpoints = {
-  local: 'http://localhost:3000',
-  production: 'https://app.useanvil.com',
-}
-
-const { endpoint: endpointKey } = argv
 const [eid, apiKey, jsonPath] = argv._
-const baseURL = endpoints[endpointKey || 'production']
+const baseURL = 'https://app.useanvil.com'
 const exampleData = JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8' }))
 
 async function main () {
@@ -47,12 +37,19 @@ async function main () {
   const { statusCode, data, errors } = await client.fillPDF(eid, exampleData)
 
   if (statusCode === 200) {
-    const testDir = __dirname
-    const outputFilePath = path.join(testDir, 'fill.output.pdf')
+    const scriptDir =
+    const outputFilePath = path.join(scriptDir, 'fill.output.pdf')
     fs.writeFileSync(outputFilePath, data, { encoding: null })
   } else {
     console.log(statusCode, JSON.stringify(errors || data, null, 2))
   }
 }
 
-run(main)
+main()
+  .then(() => {
+    process.exit(0)
+  })
+  .catch((err) => {
+    console.log(err.stack || err.message)
+    process.exit(1)
+  })

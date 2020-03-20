@@ -8,10 +8,10 @@ Usage example:
 
 ```sh
 # Fills a PDF then opens it in preview
-yarn babel-node example/script/fill-pdf.js <pdfEID> <apiKey> <inputJSONFile>
+yarn node example/script/fill-pdf.js <pdfTemplateID> <apiKey> <inputJSONFile>
 
 # An example
-yarn babel-node example/script/fill-pdf.js eidabc123 apiKeydef345 ./payload.json && open example/script/fill.output.pdf
+yarn node example/script/fill-pdf.js idabc123 apiKeydef345 ./payload.json && open example/script/fill.output.pdf
 ```
 
 `payload.json` is a json file with the JSON data used to fill the PDF. e.g.

@@ -1,4 +1,4 @@
-import Anvil from '../src/index'
+const Anvil = require('../src/index')
 
 describe('Anvil API Client', function () {
   describe('constructor', function () {

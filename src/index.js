@@ -1,5 +1,5 @@
-import request from 'request'
-import { RateLimiter } from 'limiter'
+const request = require('request')
+const RateLimiter = require('limiter').RateLimiter
 
 const defaultOptions = {
   baseURL: 'https://app.useanvil.com',
@@ -7,7 +7,7 @@ const defaultOptions = {
 
 const failBufferMS = 50
 
-export default class Anvil {
+class Anvil {
   // {
   //   apiKey: <yourAPIKey>,
   //   accessToken: <yourAPIKey>, // OR oauth access token
@@ -50,7 +50,6 @@ export default class Anvil {
       const { response, data } = await this.requestPromise(optionsWithURL)
       const statusCode = response.statusCode
       if (statusCode === 429) {
-        // console.log('Retrying in ms:', getRetryMS(response.headers['retry-after']))
         return retry(getRetryMS(response.headers['retry-after']))
       }
       if (statusCode >= 300) {
@@ -109,3 +108,5 @@ function sleep (ms) {
     setTimeout(resolve, ms)
   })
 }
+
+module.exports = Anvil

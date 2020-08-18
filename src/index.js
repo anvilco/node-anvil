@@ -35,7 +35,6 @@ class Anvil {
       {
         method: 'POST',
         body: JSON.stringify(payload),
-        // encoding: null,
         headers: {
           'Content-Type': 'application/json',
           Authorization: this.authHeader,
@@ -60,14 +59,12 @@ class Anvil {
         const json = await response.json()
         const errors = json.errors || (json.message && [json.message])
 
-        if (errors) {
-          return { statusCode, errors }
-        }
-        return { statusCode, ...json }
+        return errors ? { statusCode, errors } : { statusCode, ...json }
       }
 
       const { dataType } = clientOptions
       const data = dataType === 'stream' ? response.body : await response.buffer()
+
       return { statusCode, data }
     })
   }

@@ -1,4 +1,4 @@
-const request = require('request')
+const fetch = require('node-fetch')
 const RateLimiter = require('limiter').RateLimiter
 
 const defaultOptions = {
@@ -29,34 +29,45 @@ class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  fillPDF (pdfTemplateID, payload) {
-    return this.requestREST(`/api/v1/fill/${pdfTemplateID}.pdf`, {
-      method: 'POST',
-      json: payload,
-      encoding: null,
-      headers: { Authorization: this.authHeader },
-    })
+  fillPDF (pdfTemplateID, payload, clientOptions = {}) {
+    return this.requestREST(
+      `/api/v1/fill/${pdfTemplateID}.pdf`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        // encoding: null,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: this.authHeader,
+        },
+      },
+      clientOptions,
+    )
   }
 
   // Private
 
-  async requestREST (url, options) {
-    const optionsWithURL = {
-      ...options,
-      url: this.url(url),
-    }
-
+  async requestREST (url, options, clientOptions = {}) {
     return this.throttle(async (retry) => {
-      const { response, data } = await this.requestPromise(optionsWithURL)
-      const statusCode = response.statusCode
+      const response = await this.request(url, options)
+      const statusCode = response.status
+
       if (statusCode === 429) {
-        return retry(getRetryMS(response.headers['retry-after']))
+        return retry(getRetryMS(response.headers.get('retry-after')))
       }
+
       if (statusCode >= 300) {
-        const isObject = data && data.constructor.name === 'Object'
-        if (isObject && data.errors) return { statusCode, ...data }
-        else if (isObject && data.message) return { statusCode, errors: [data] }
+        const json = await response.json()
+        const errors = json.errors || (json.message && [json.message])
+
+        if (errors) {
+          return { statusCode, errors }
+        }
+        return { statusCode, ...json }
       }
+
+      const { dataType } = clientOptions
+      const data = dataType === 'stream' ? response.body : await response.buffer()
       return { statusCode, data }
     })
   }
@@ -81,17 +92,11 @@ class Anvil {
     })
   }
 
-  requestPromise (options) {
-    return new Promise((resolve, reject) => {
-      this.request(options, function (error, response, data) {
-        if (error) return reject(error)
-        resolve({ response, data })
-      })
-    })
-  }
-
-  request (options, cb) {
-    return request(options, cb)
+  request (url, options) {
+    if (!url.startsWith(this.options.baseURL)) {
+      url = this.url(url)
+    }
+    return fetch(url, options)
   }
 
   url (path) {

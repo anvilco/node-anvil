@@ -25,21 +25,43 @@ const path = require('path')
 const Anvil = require('../../src/index')
 const argv = require('yargs')
   .usage('Usage: $0 pdfTemplateID apiKey jsonPath.json')
+  .option('stream', {
+    alias: 's',
+    type: 'boolean',
+    description: 'Return the data as a stream (default is buffer)',
+  })
   .demandCommand(3).argv
 
 const [eid, apiKey, jsonPath] = argv._
+const returnAStream = argv.stream
+
 const baseURL = 'https://app.useanvil.com'
 const exampleData = JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8' }))
 
 async function main () {
   const client = new Anvil({ baseURL, apiKey })
 
-  const { statusCode, data, errors } = await client.fillPDF(eid, exampleData)
+  const options = {}
+  if (returnAStream) {
+    options.dataType = 'stream'
+  }
+
+  const { statusCode, data, errors } = await client.fillPDF(eid, exampleData, options)
 
   if (statusCode === 200) {
     const scriptDir = __dirname
     const outputFilePath = path.join(scriptDir, 'fill.output.pdf')
-    fs.writeFileSync(outputFilePath, data, { encoding: null })
+
+    if (returnAStream) {
+      const writeStream = fs.createWriteStream(outputFilePath, { encoding: null })
+      await new Promise((resolve, reject) => {
+        data.pipe(writeStream)
+        data.on('error', reject)
+        writeStream.on('finish', resolve)
+      })
+    } else {
+      fs.writeFileSync(outputFilePath, data, { encoding: null })
+    }
   } else {
     console.log(statusCode, JSON.stringify(errors || data, null, 2))
   }

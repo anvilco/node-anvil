@@ -25,6 +25,11 @@ const path = require('path')
 const Anvil = require('../../src/index')
 const argv = require('yargs')
   .usage('Usage: $0 pdfTemplateID apiKey jsonPath.json')
+  .option('user-agent', {
+    alias: 'a',
+    type: 'string',
+    description: 'Set the User-Agent on any requests made (default is "Anvil API Client")',
+  })
   .option('stream', {
     alias: 's',
     type: 'boolean',
@@ -34,19 +39,28 @@ const argv = require('yargs')
 
 const [eid, apiKey, jsonPath] = argv._
 const returnAStream = argv.stream
+const userAgent = argv['user-agent']
 
 const baseURL = 'https://app.useanvil.com'
 const exampleData = JSON.parse(fs.readFileSync(jsonPath, { encoding: 'utf8' }))
 
 async function main () {
-  const client = new Anvil({ baseURL, apiKey })
-
-  const options = {}
-  if (returnAStream) {
-    options.dataType = 'stream'
+  const clientOptions = {
+    baseURL,
+    apiKey,
+  }
+  if (userAgent) {
+    clientOptions.userAgent = userAgent
   }
 
-  const { statusCode, data, errors } = await client.fillPDF(eid, exampleData, options)
+  const client = new Anvil(clientOptions)
+
+  const fillOptions = {}
+  if (returnAStream) {
+    fillOptions.dataType = 'stream'
+  }
+
+  const { statusCode, data, errors } = await client.fillPDF(eid, exampleData, fillOptions)
 
   if (statusCode === 200) {
     const scriptDir = __dirname

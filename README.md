@@ -42,23 +42,35 @@ const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, exampleDat
 
 console.log(statusCode) // => 200
 
-// Data will be the filled PDF raw byes
+// Data will be the filled PDF raw bytes
 fs.writeFileSync('output.pdf', data, { encoding: null })
 ```
 
 ## API
 
-### new Anvil({ apiKey })
+### new Anvil(options)
 
 Creates an Anvil client instance.
 
-* `apiKey` (String) - your API key from your Anvil organization settings
+* `options` (Object) - [Options](#options) for the Anvil Client instance.
 
 ```js
-const anvilClient = new Anvil({ apiKey })
+const anvilClient = new Anvil({ apiKey: 'abc123' })
 ```
 
-### Anvil::fillPDF(pdfTemplateID, payload)
+### Options
+
+Options for the Anvil Client. Defaults are shown after each option key.
+
+```js
+{
+  apiKey: <your_api_key>, // Required. Your API key from your Anvil organization settings
+  baseUrl: 'https://app.useanvil.com', // Optional. String setting the base URL for all client requests
+  userAgent: 'Anvil API Client/<version_number>' // Optional. String setting the User-Agent header in all requests
+}
+```
+
+### Anvil::fillPDF(pdfTemplateID, payload[, options])
 
 Fills a PDF with your JSON data.
 
@@ -82,8 +94,12 @@ const payload = {
     "someFieldId": "Hello World!"
   }
 }
+// The 'options' parameter is optional
+const options = {
+  "dataType": "buffer"
+}
 const anvilClient = new Anvil({ apiKey })
-const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload)
+const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload, options)
 ```
 
 * `pdfTemplateID` (String) - The id of your PDF template from the Anvil UI
@@ -93,10 +109,11 @@ const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload)
   * `color` (String) - _optional_ Set the text color of all filled text. Default is dark blue.
   * `data` (Object) - The data to fill the PDF. The keys in this object will correspond to a field's ID in the PDF. These field IDs and their types are available on the `API Info` tab on your PDF template's page in the Anvil dashboard.
     * For example `{ "someFieldId": "Hello World!" }`
-  }
+* `options` (Object) - _optional_ Any additional options for the request
+  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'stream'` is also supported.
 * Returns a `Promise` that resolves to an `Object`
   * `statusCode` (Number) - the HTTP status code; `200` is success
-  * `data` (Buffer) - The raw binary data of the filled PDF if success
+  * `data` (Buffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer or a Stream, depending on `dataType` option supplied to the request.
   * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
     * `message` (String)
 

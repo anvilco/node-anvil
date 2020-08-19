@@ -1,8 +1,11 @@
 const fetch = require('node-fetch')
 const RateLimiter = require('limiter').RateLimiter
 
+const { version, description } = require('../package.json')
+
 const defaultOptions = {
   baseURL: 'https://app.useanvil.com',
+  userAgent: `${description}/${version}`,
 }
 
 const failBufferMS = 50
@@ -12,11 +15,13 @@ class Anvil {
   //   apiKey: <yourAPIKey>,
   //   accessToken: <yourAPIKey>, // OR oauth access token
   //   baseURL: 'https://app.useanvil.com'
+  //   userAgent: 'Anvil API Client/2.0.0'
   // }
   constructor (options) {
     if (!options) throw new Error('options are required')
-    this.options = Object.assign({}, defaultOptions, options)
     if (!options.apiKey && !options.accessToken) throw new Error('apiKey or accessToken required')
+
+    this.options = Object.assign({}, defaultOptions, options)
 
     const { apiKey, accessToken } = this.options
     this.authHeader = accessToken
@@ -93,11 +98,33 @@ class Anvil {
     if (!url.startsWith(this.options.baseURL)) {
       url = this.url(url)
     }
-    return fetch(url, options)
+    const opts = this.addDefaultHeaders(options)
+    return fetch(url, opts)
   }
 
   url (path) {
     return this.options.baseURL + path
+  }
+
+  addHeaders ({ options: existingOptions, headers: newHeaders }) {
+    const { headers: existingHeaders = {} } = existingOptions
+    return {
+      ...existingOptions,
+      headers: {
+        ...existingHeaders,
+        ...newHeaders,
+      },
+    }
+  }
+
+  addDefaultHeaders (options) {
+    const { userAgent } = this.options
+    return this.addHeaders({
+      options,
+      headers: {
+        'User-Agent': userAgent,
+      },
+    })
   }
 }
 

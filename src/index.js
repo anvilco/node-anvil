@@ -3,6 +3,10 @@ const RateLimiter = require('limiter').RateLimiter
 
 const { version, description } = require('../package.json')
 
+const DATA_TYPE_STREAM = 'stream'
+const DATA_TYPE_BUFFER = 'buffer'
+const DATA_TYPE_JSON = 'json'
+
 const defaultOptions = {
   baseURL: 'https://app.useanvil.com',
   userAgent: `${description}/${version}`,
@@ -35,6 +39,12 @@ class Anvil {
   }
 
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
+    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
+    const { dataType = DATA_TYPE_BUFFER } = clientOptions
+    if (dataType && !supportedDataTypes.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    }
+
     return this.requestREST(
       `/api/v1/fill/${pdfTemplateID}.pdf`,
       {
@@ -45,7 +55,10 @@ class Anvil {
           Authorization: this.authHeader,
         },
       },
-      clientOptions,
+      {
+        ...clientOptions,
+        dataType,
+      },
     )
   }
 
@@ -70,17 +83,17 @@ class Anvil {
       const { dataType } = clientOptions
       let data
       switch (dataType) {
-        case 'json':
-          data = response.json()
+        case DATA_TYPE_JSON:
+          data = await response.json()
           break
-        case 'stream':
+        case DATA_TYPE_STREAM:
           data = response.body
           break
-        case 'buffer':
-          data = response.buffer()
+        case DATA_TYPE_BUFFER:
+          data = await response.buffer()
           break
         default:
-          data = response.buffer()
+          data = await response.buffer()
           break
       }
 

@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "limiter": "^1.1.5",
-    "request": "^2.88.0"
+    "node-fetch": "^2.6.0"
   },
   "resolutions": {
     "auto-changelog/handlebars/optimist/minimist": "^1.2.5"

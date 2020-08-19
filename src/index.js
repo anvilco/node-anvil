@@ -1,8 +1,15 @@
-const request = require('request')
+const fetch = require('node-fetch')
 const RateLimiter = require('limiter').RateLimiter
+
+const { version, description } = require('../package.json')
+
+const DATA_TYPE_STREAM = 'stream'
+const DATA_TYPE_BUFFER = 'buffer'
+const DATA_TYPE_JSON = 'json'
 
 const defaultOptions = {
   baseURL: 'https://app.useanvil.com',
+  userAgent: `${description}/${version}`,
 }
 
 const failBufferMS = 50
@@ -12,11 +19,13 @@ class Anvil {
   //   apiKey: <yourAPIKey>,
   //   accessToken: <yourAPIKey>, // OR oauth access token
   //   baseURL: 'https://app.useanvil.com'
+  //   userAgent: 'Anvil API Client/2.0.0'
   // }
   constructor (options) {
     if (!options) throw new Error('options are required')
-    this.options = Object.assign({}, defaultOptions, options)
     if (!options.apiKey && !options.accessToken) throw new Error('apiKey or accessToken required')
+
+    this.options = Object.assign({}, defaultOptions, options)
 
     const { apiKey, accessToken } = this.options
     this.authHeader = accessToken
@@ -29,34 +38,65 @@ class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  fillPDF (pdfTemplateID, payload) {
-    return this.requestREST(`/api/v1/fill/${pdfTemplateID}.pdf`, {
-      method: 'POST',
-      json: payload,
-      encoding: null,
-      headers: { Authorization: this.authHeader },
-    })
+  fillPDF (pdfTemplateID, payload, clientOptions = {}) {
+    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
+    const { dataType = DATA_TYPE_BUFFER } = clientOptions
+    if (dataType && !supportedDataTypes.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    }
+
+    return this.requestREST(
+      `/api/v1/fill/${pdfTemplateID}.pdf`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: this.authHeader,
+        },
+      },
+      {
+        ...clientOptions,
+        dataType,
+      },
+    )
   }
 
   // Private
 
-  async requestREST (url, options) {
-    const optionsWithURL = {
-      ...options,
-      url: this.url(url),
-    }
-
+  async requestREST (url, options, clientOptions = {}) {
     return this.throttle(async (retry) => {
-      const { response, data } = await this.requestPromise(optionsWithURL)
-      const statusCode = response.statusCode
+      const response = await this.request(url, options)
+      const statusCode = response.status
+
       if (statusCode === 429) {
-        return retry(getRetryMS(response.headers['retry-after']))
+        return retry(getRetryMS(response.headers.get('retry-after')))
       }
+
       if (statusCode >= 300) {
-        const isObject = data && data.constructor.name === 'Object'
-        if (isObject && data.errors) return { statusCode, ...data }
-        else if (isObject && data.message) return { statusCode, errors: [data] }
+        const json = await response.json()
+        const errors = json.errors || (json.message && [json])
+
+        return errors ? { statusCode, errors } : { statusCode, ...json }
       }
+
+      const { dataType } = clientOptions
+      let data
+      switch (dataType) {
+        case DATA_TYPE_JSON:
+          data = await response.json()
+          break
+        case DATA_TYPE_STREAM:
+          data = response.body
+          break
+        case DATA_TYPE_BUFFER:
+          data = await response.buffer()
+          break
+        default:
+          data = await response.buffer()
+          break
+      }
+
       return { statusCode, data }
     })
   }
@@ -81,21 +121,37 @@ class Anvil {
     })
   }
 
-  requestPromise (options) {
-    return new Promise((resolve, reject) => {
-      this.request(options, function (error, response, data) {
-        if (error) return reject(error)
-        resolve({ response, data })
-      })
-    })
-  }
-
-  request (options, cb) {
-    return request(options, cb)
+  request (url, options) {
+    if (!url.startsWith(this.options.baseURL)) {
+      url = this.url(url)
+    }
+    const opts = this.addDefaultHeaders(options)
+    return fetch(url, opts)
   }
 
   url (path) {
     return this.options.baseURL + path
+  }
+
+  addHeaders ({ options: existingOptions, headers: newHeaders }) {
+    const { headers: existingHeaders = {} } = existingOptions
+    return {
+      ...existingOptions,
+      headers: {
+        ...existingHeaders,
+        ...newHeaders,
+      },
+    }
+  }
+
+  addDefaultHeaders (options) {
+    const { userAgent } = this.options
+    return this.addHeaders({
+      options,
+      headers: {
+        'User-Agent': userAgent,
+      },
+    })
   }
 }
 

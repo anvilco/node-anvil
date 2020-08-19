@@ -64,9 +64,7 @@ Options for the Anvil Client. Defaults are shown after each option key.
 
 ```js
 {
-  apiKey: <your_api_key>, // Required. Your API key from your Anvil organization settings
-  baseUrl: 'https://app.useanvil.com', // Optional. String setting the base URL for all client requests
-  userAgent: 'Anvil API Client/<version_number>' // Optional. String setting the User-Agent header in all requests
+  apiKey: <your_api_key> // Required. Your API key from your Anvil organization settings
 }
 ```
 

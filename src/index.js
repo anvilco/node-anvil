@@ -14,6 +14,47 @@ const defaultOptions = {
 
 const failBufferMS = 50
 
+const Mutation = `
+  mutation CreateEtchPacket (
+    $name: String,
+    $organizationEid: String!,
+    $files: [EtchFile!],
+    $send: Boolean,
+    $isTest: Boolean,
+    $signatureEmailSubject: String,
+    $signatureEmailBody: String,
+    $signaturePageOptions: JSON,
+    $signers: [JSON!],
+    $fillPayload: JSON,
+  ) {
+    createEtchPacket (
+      name: $name,
+      organizationEid: $organizationEid,
+      files: $files,
+      send: $send,
+      isTest: $isTest,
+      signatureEmailSubject: $signatureEmailSubject,
+      signatureEmailBody: $signatureEmailBody,
+      signaturePageOptions: $signaturePageOptions,
+      signers: $signers,
+      fillPayload: $fillPayload
+    ) {
+      id
+      eid
+      etchTemplate {
+        id
+        eid
+        config
+        casts {
+          id
+          eid
+          config
+        }
+      }
+    }
+  }
+`
+
 class Anvil {
   // {
   //   apiKey: <yourAPIKey>,
@@ -62,6 +103,24 @@ class Anvil {
     )
   }
 
+  getCurrentUser () {
+    const query = `
+      query {
+        currentUser {
+          id
+          email
+        }
+      }
+    `
+    const variables = {}
+
+    return this.requestGraphQL({ query, variables })
+  }
+
+  createEtchPacket () {
+
+  }
+
   // Private
 
   async requestREST (url, options, clientOptions = {}) {
@@ -99,6 +158,32 @@ class Anvil {
 
       return { statusCode, data }
     })
+  }
+
+  async requestGraphQL ({ query, variables = {} }) {
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: this.options.cookie,
+      },
+      body: JSON.stringify({
+        query,
+        variables,
+      }),
+    }
+
+    const response = await this.request('/graphql', options)
+
+    console.log({ response })
+
+    const data = await response.json()
+
+    console.log({ data })
+    return {
+      statusCode: response.status,
+      data,
+    }
   }
 
   throttle (fn) {

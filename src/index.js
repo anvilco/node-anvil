@@ -62,13 +62,27 @@ class Anvil {
 
       if (statusCode >= 300) {
         const json = await response.json()
-        const errors = json.errors || (json.message && [json.message])
+        const errors = json.errors || (json.message && [json])
 
         return errors ? { statusCode, errors } : { statusCode, ...json }
       }
 
       const { dataType } = clientOptions
-      const data = dataType === 'stream' ? response.body : await response.buffer()
+      let data
+      switch (dataType) {
+        case 'json':
+          data = response.json()
+          break
+        case 'stream':
+          data = response.body
+          break
+        case 'buffer':
+          data = response.buffer()
+          break
+        default:
+          data = response.buffer()
+          break
+      }
 
       return { statusCode, data }
     })

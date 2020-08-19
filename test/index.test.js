@@ -1,5 +1,34 @@
 const Anvil = require('../src/index')
 
+function mockNodeFetchResponse (options = {}) {
+  const {
+    status,
+    json,
+    buffer,
+    headers,
+  } = options
+
+  const mock = {
+    status,
+  }
+
+  if (json) {
+    mock.json = () => json
+  }
+
+  if (buffer) {
+    mock.buffer = () => buffer
+  }
+
+  if (headers) {
+    mock.headers = {
+      get: (header) => headers[header],
+    }
+  }
+
+  return mock
+}
+
 describe('Anvil API Client', function () {
   describe('constructor', function () {
     it('throws an error when no options specified', async function () {
@@ -32,39 +61,68 @@ describe('Anvil API Client', function () {
     })
 
     describe('requestREST', function () {
-      let options, response, data, result
+      let options, clientOptions, data, result
 
       it('returns statusCode and data when specified', async function () {
-        options = { method: 'POST' }
-        response = { statusCode: 200 }
+        options = {
+          method: 'POST',
+        }
+        clientOptions = {
+          dataType: 'json',
+        }
         data = { result: 'ok' }
-        client.request.callsFake((options, cb) => cb(null, response, data))
-        result = await client.requestREST('/test', options)
+
+        client.request.callsFake((url, options) => {
+          return Promise.resolve(
+            mockNodeFetchResponse({
+              status: 200,
+              json: data,
+            }),
+          )
+        })
+        const result = await client.requestREST('/test', options, clientOptions)
         expect(result).to.eql({
-          statusCode: response.statusCode,
+          statusCode: 200,
           data,
         })
       })
 
       it('rejects promise when error', async function () {
         options = { method: 'POST' }
-        client.request.callsFake((options, cb) => cb(new Error('problem')))
-        expect(client.requestREST('/test', options)).to.have.been.rejectedWith('problem')
+
+        client.request.callsFake((url, options) => {
+          throw new Error('problem')
+        })
+
+        await expect(client.requestREST('/test', options)).to.eventually.have.been.rejectedWith('problem')
       })
 
       it('retries when a 429 response', async function () {
         options = { method: 'POST' }
+        clientOptions = { dataType: 'json' }
         data = { result: 'ok' }
         const successResponse = { statusCode: 200 }
-        const errorResponse = {
-          statusCode: 429,
-          headers: {
-            'retry-after': '0.2', // in seconds
-          },
-        }
-        client.request.onCall(0).callsFake((options, cb) => cb(null, errorResponse, data))
-        client.request.onCall(1).callsFake((options, cb) => cb(null, successResponse, data))
-        result = await client.requestREST('/test', options)
+
+        client.request.onCall(0).callsFake((url, options) => {
+          return Promise.resolve(
+            mockNodeFetchResponse({
+              status: 429,
+              headers: {
+                'retry-after': '0.2', // in seconds
+              },
+            }),
+          )
+        })
+
+        client.request.onCall(1).callsFake((url, options) => {
+          return Promise.resolve(
+            mockNodeFetchResponse({
+              status: 200,
+              json: data,
+            }),
+          )
+        })
+        result = await client.requestREST('/test', options, clientOptions)
         expect(client.request).to.have.been.calledTwice
         expect(result).to.eql({
           statusCode: successResponse.statusCode,
@@ -79,7 +137,15 @@ describe('Anvil API Client', function () {
       beforeEach(async function () {
         response = { statusCode: 200 }
         data = 'The PDF file'
-        client.request.callsFake((options, cb) => cb(null, response, data))
+        client.request.callsFake((url, options) => {
+          return Promise.resolve(
+            mockNodeFetchResponse({
+              status: response.statusCode,
+              buffer: data,
+              json: data,
+            }),
+          )
+        })
       })
 
       it('returns statusCode and data when specified', async function () {
@@ -99,14 +165,15 @@ describe('Anvil API Client', function () {
         })
 
         expect(client.request).to.have.been.calledOnce
-        expect(client.request.lastCall.args[0]).to.eql({
-          encoding: null,
+        const [url, options] = client.request.lastCall.args
+        expect(url).to.eql('/api/v1/fill/cast123.pdf')
+        expect(options).to.eql({
+          method: 'POST',
+          body: JSON.stringify(payload),
           headers: {
+            'Content-Type': 'application/json',
             Authorization: client.authHeader,
           },
-          json: payload,
-          method: 'POST',
-          url: 'https://app.useanvil.com/api/v1/fill/cast123.pdf',
         })
       })
 

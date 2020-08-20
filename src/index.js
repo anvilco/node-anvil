@@ -132,7 +132,7 @@ class Anvil {
       data,
       errors,
     } = await this._wrapRequest(
-      async () => this._request(url, options),
+      () => this._request(url, options),
       clientOptions,
     )
 
@@ -215,9 +215,9 @@ class Anvil {
     return fetch(url, opts)
   }
 
-  async _wrapRequest (preparedRequest, clientOptions = {}) {
+  async _wrapRequest (retryableRequestFn, clientOptions = {}) {
     return this._throttle(async (retry) => {
-      const response = await preparedRequest()
+      const response = await retryableRequestFn()
       const statusCode = response.status
 
       if (statusCode >= 300) {

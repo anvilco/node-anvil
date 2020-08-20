@@ -4,10 +4,18 @@ const path = require('path')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
 const mime = require('mime-types')
-const extractFiles = require('extract-files').extractFiles
-const RateLimiter = require('limiter').RateLimiter
+const { extractFiles } = require('extract-files')
+const { RateLimiter } = require('limiter')
 
 const { version, description } = require('../package.json')
+
+const {
+  mutations: {
+    createEtchPacket: {
+      getMutation: getCreateEtchPacketMutation,
+    },
+  },
+} = require('./graphql')
 
 const DATA_TYPE_STREAM = 'stream'
 const DATA_TYPE_BUFFER = 'buffer'
@@ -19,47 +27,6 @@ const defaultOptions = {
 }
 
 const failBufferMS = 50
-
-const Mutation = `
-  mutation CreateEtchPacket (
-    $name: String,
-    $organizationEid: String!,
-    $files: [EtchFile!],
-    $send: Boolean,
-    $isTest: Boolean,
-    $signatureEmailSubject: String,
-    $signatureEmailBody: String,
-    $signaturePageOptions: JSON,
-    $signers: [JSON!],
-    $fillPayload: JSON,
-  ) {
-    createEtchPacket (
-      name: $name,
-      organizationEid: $organizationEid,
-      files: $files,
-      send: $send,
-      isTest: $isTest,
-      signatureEmailSubject: $signatureEmailSubject,
-      signatureEmailBody: $signatureEmailBody,
-      signaturePageOptions: $signaturePageOptions,
-      signers: $signers,
-      fillPayload: $fillPayload
-    ) {
-      id
-      eid
-      etchTemplate {
-        id
-        eid
-        config
-        casts {
-          id
-          eid
-          config
-        }
-      }
-    }
-  }
-`
 
 class Anvil {
   // {
@@ -85,18 +52,271 @@ class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  static prepareFile (path) {
-    const readStream = fs.createReadStream(path)
-    const fileName = this.getFilename(readStream)
-    const mimeType = this.getMimetype(readStream)
+  static addStream (pathOrStream) {
+    if (typeof pathOrStream === 'string') {
+      pathOrStream = fs.createReadStream(pathOrStream)
+    }
+    return this._prepareFile(pathOrStream)
+  }
+
+  static addBuffer (pathOrBuffer) {
+    if (typeof pathOrBuffer === 'string') {
+      pathOrBuffer = fs.readFileSync(pathOrBuffer)
+    }
+    return this._prepareFile(pathOrBuffer)
+  }
+
+  fillPDF (pdfTemplateID, payload, clientOptions = {}) {
+    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
+    const { dataType = DATA_TYPE_BUFFER } = clientOptions
+    if (dataType && !supportedDataTypes.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    }
+
+    return this._requestREST(
+      `/api/v1/fill/${pdfTemplateID}.pdf`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: this.authHeader,
+        },
+      },
+      {
+        ...clientOptions,
+        dataType,
+      },
+    )
+  }
+
+  // Just here for now to highlight authentication questions/concerns
+  getCurrentUser () {
+    const query = `
+      query {
+        currentUser {
+          id
+          email
+        }
+      }
+    `
+    return this._requestGraphQL({ query })
+  }
+
+  // QUESTION: maybe we want to keeep responseQuery to ourselves while we figure out how we want it to
+  // feel to the Users?
+  createEtchPacket ({ variables, responseQuery }) {
+    return this._requestGraphQL(
+      {
+        query: getCreateEtchPacketMutation(responseQuery),
+        variables,
+      },
+      { dataType: 'json' },
+    )
+  }
+
+  // ******************************************************************************
+  //     ___      _           __
+  //    / _ \____(_)  _____ _/ /____
+  //   / ___/ __/ / |/ / _ `/ __/ -_)
+  //  /_/  /_/ /_/|___/\_,_/\__/\__/
+  //
+  // ALL THE BELOW CODE IS CONSIDERED PRIVATE, AND THE API OR INTERNALS MAY CHANGE AT ANY TIME
+  // USERS OF THIS MODULE SHOULD NOT USE ANY OF THESE METHODS DIRECTLY
+  // ******************************************************************************
+
+  async _requestREST (url, options, clientOptions) {
+    const {
+      response,
+      statusCode,
+      data,
+      errors,
+    } = await this._wrapRequest(
+      async () => this._request(url, options),
+      clientOptions,
+    )
+
     return {
-      name: fileName,
-      mimetype: mimeType,
-      file: readStream,
+      response,
+      statusCode,
+      data,
+      errors,
     }
   }
 
-  static getFilename (thing, options = {}) {
+  async _requestGraphQL ({ query, variables = {} }, clientOptions) {
+    // Some helpful resources on how this came to be:
+    // https://github.com/jaydenseric/graphql-upload/issues/125#issuecomment-440853538
+    // https://zach.codes/building-a-file-upload-hook/
+    // https://github.com/jaydenseric/graphql-react/blob/1b1234de5de46b7a0029903a1446dcc061f37d09/src/universal/graphqlFetchOptions.mjs
+    // https://www.npmjs.com/package/extract-files
+
+    const options = {
+      method: 'POST',
+      headers: {
+        // FIXME: How does /graphql auth work?
+        Cookie: this.options.cookie,
+      },
+    }
+
+    const operation = { query, variables }
+
+    const {
+      clone: augmentedOperation,
+      files: filesMap,
+    } = extractFiles(operation, '', isExtractableFile)
+
+    const operationJSON = JSON.stringify(augmentedOperation)
+
+    if (filesMap.size) {
+      const form = new FormData()
+
+      form.append('operations', operationJSON)
+
+      const map = {}
+      let i = 0
+      filesMap.forEach(paths => {
+        map[++i] = paths
+      })
+      form.append('map', JSON.stringify(map))
+
+      i = 0
+      filesMap.forEach((paths, file) => {
+        form.append(`${++i}`, file)
+      })
+
+      options.body = form
+    } else {
+      options.headers['Content-Type'] = 'application/json'
+      options.body = operationJSON
+    }
+
+    const {
+      statusCode,
+      data,
+      errors,
+    } = await this._wrapRequest(
+      () => this._request('/graphql', options),
+      clientOptions,
+    )
+
+    return {
+      statusCode,
+      data,
+      errors,
+    }
+  }
+
+  _request (url, options) {
+    if (!url.startsWith(this.options.baseURL)) {
+      url = this._url(url)
+    }
+    const opts = this._addDefaultHeaders(options)
+    return fetch(url, opts)
+  }
+
+  async _wrapRequest (preparedRequest, clientOptions = {}) {
+    return this._throttle(async (retry) => {
+      const response = await preparedRequest()
+      const statusCode = response.status
+
+      if (statusCode >= 300) {
+        if (statusCode === 429) {
+          return retry(getRetryMS(response.headers.get('retry-after')))
+        }
+
+        const json = await response.json()
+        const errors = json.errors || (json.message && [json])
+
+        return errors ? { statusCode, errors } : { statusCode, ...json }
+      }
+
+      const { dataType } = clientOptions
+      let data
+
+      switch (dataType) {
+        case DATA_TYPE_STREAM:
+          data = response.body
+          break
+        case DATA_TYPE_BUFFER:
+          data = await response.buffer()
+          break
+        case DATA_TYPE_JSON:
+          data = await response.json()
+          break
+        default:
+          console.warn('Using default response dataType of "json". Please specifiy a dataType.')
+          data = await response.json()
+          break
+      }
+
+      return {
+        response,
+        data,
+        statusCode,
+      }
+    })
+  }
+
+  _url (path) {
+    return this.options.baseURL + path
+  }
+
+  _addHeaders ({ options: existingOptions, headers: newHeaders }) {
+    const { headers: existingHeaders = {} } = existingOptions
+    return {
+      ...existingOptions,
+      headers: {
+        ...existingHeaders,
+        ...newHeaders,
+      },
+    }
+  }
+
+  _addDefaultHeaders (options) {
+    const { userAgent } = this.options
+    return this._addHeaders({
+      options,
+      headers: {
+        'User-Agent': userAgent,
+      },
+    })
+  }
+
+  _throttle (fn) {
+    return new Promise((resolve, reject) => {
+      this.limiter.removeTokens(1, async (err, remainingRequests) => {
+        if (err) reject(err)
+        if (remainingRequests < 1) {
+          await sleep(this.requestLimitMS + failBufferMS)
+        }
+        const retry = async (ms) => {
+          await sleep(ms)
+          return this._throttle(fn)
+        }
+        try {
+          resolve(await fn(retry))
+        } catch (e) {
+          reject(e)
+        }
+      })
+    })
+  }
+
+  static _prepareFile (streamOrBuffer) {
+    const fileName = this._getFilename(streamOrBuffer)
+    const mimeType = this._getMimetype(streamOrBuffer)
+    return {
+      name: fileName,
+      mimetype: mimeType,
+      file: streamOrBuffer,
+    }
+  }
+
+  static _getFilename (thing, options = {}) {
+    // Very heavily influenced by:
+    // https://github.com/form-data/form-data/blob/55d90ce4a4c22b0ea0647991d85cb946dfb7395b/lib/form_data.js#L217
+
     if (typeof options.filepath === 'string') {
       // custom filepath for relative paths
       return path.normalize(options.filepath).replace(/\\/g, '/')
@@ -111,7 +331,10 @@ class Anvil {
     }
   }
 
-  static getMimetype (thing, options = {}) {
+  static _getMimetype (thing, options = {}) {
+    // Very heavily influenced by:
+    // https://github.com/form-data/form-data/blob/55d90ce4a4c22b0ea0647991d85cb946dfb7395b/lib/form_data.js#L243
+
     // use custom content-type above all
     if (typeof options.mimeType === 'string') {
       return options.mimeType
@@ -142,233 +365,11 @@ class Anvil {
       return 'application/octet-stream'
     }
   }
+}
 
-  fillPDF (pdfTemplateID, payload, clientOptions = {}) {
-    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
-    const { dataType = DATA_TYPE_BUFFER } = clientOptions
-    if (dataType && !supportedDataTypes.includes(dataType)) {
-      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
-    }
-
-    return this.requestREST(
-      `/api/v1/fill/${pdfTemplateID}.pdf`,
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: this.authHeader,
-        },
-      },
-      {
-        ...clientOptions,
-        dataType,
-      },
-    )
-  }
-
-  getCurrentUser () {
-    const query = `
-      query {
-        currentUser {
-          id
-          email
-        }
-      }
-    `
-    const variables = {}
-
-    return this.requestGraphQL({ query, variables })
-  }
-
-  createEtchPacket ({ variables }) {
-    return this.requestGraphQL({ query: Mutation, variables }, { dataType: 'json' })
-  }
-
-  // Private
-
-  async requestREST (url, options, clientOptions = {}) {
-    return this.throttle(async (retry) => {
-      const response = await this.request(url, options)
-      const statusCode = response.status
-
-      if (statusCode === 429) {
-        return retry(getRetryMS(response.headers.get('retry-after')))
-      }
-
-      if (statusCode >= 300) {
-        const json = await response.json()
-        const errors = json.errors || (json.message && [json])
-
-        return errors ? { statusCode, errors } : { statusCode, ...json }
-      }
-
-      const { dataType } = clientOptions
-      let data
-      switch (dataType) {
-        case DATA_TYPE_JSON:
-          data = await response.json()
-          break
-        case DATA_TYPE_STREAM:
-          data = response.body
-          break
-        case DATA_TYPE_BUFFER:
-          data = await response.buffer()
-          break
-        default:
-          data = await response.buffer()
-          break
-      }
-
-      return { statusCode, data }
-    })
-  }
-
-  async requestGraphQL ({ query, variables = {} }, clientOptions) {
-    const options = {
-      method: 'POST',
-      headers: {
-        // 'Content-Type': 'application/json',
-        Cookie: this.options.cookie,
-      },
-      // body: JSON.stringify({
-      //   query,
-      //   variables,
-      // }),
-    }
-
-    // const operation = {
-    //   query: Mutation,
-    //   variables,
-    // }
-
-    const { clone: augmentedOperation, files: filesMap } = extractFiles({ query, variables }, '', (value) => {
-      return value instanceof fs.ReadStream || value instanceof Buffer
-    })
-
-    const operationJSON = JSON.stringify(augmentedOperation)
-
-    // const options = {
-    //   url: '/graphql',
-    //   method: 'POST',
-    //   headers: {
-    //     Accept: 'application/json',
-    //   },
-    // }
-
-    if (filesMap.size) {
-      const form = new FormData()
-
-      form.append('operations', operationJSON)
-
-      const map = {}
-      let i = 0
-      filesMap.forEach(paths => {
-        map[++i] = paths
-      })
-      form.append('map', JSON.stringify(map))
-
-      i = 0
-      filesMap.forEach((paths, file) => {
-        form.append(`${++i}`, file)
-      })
-
-      console.log('map:', JSON.stringify(map))
-      console.log('filesMap:', JSON.stringify(filesMap))
-
-      console.log(JSON.stringify(form))
-      // console.log(form.getBuffer())
-      // console.log(form.toString())
-      // process.exit()
-
-      options.body = form
-    } else {
-      options.headers['Content-Type'] = 'application/json'
-      options.body = operationJSON
-    }
-
-    const response = await this.request('/graphql', options)
-
-    console.log({ response })
-
-    const statusCode = response.status
-
-    const { dataType } = clientOptions
-    let data
-    switch (dataType) {
-      case DATA_TYPE_JSON:
-        data = await response.json()
-        break
-      case DATA_TYPE_STREAM:
-        data = response.body
-        break
-      case DATA_TYPE_BUFFER:
-        data = await response.buffer()
-        break
-      default:
-        data = await response.buffer()
-        break
-    }
-
-    // console.log({ data })
-    return {
-      statusCode,
-      data,
-    }
-  }
-
-  throttle (fn) {
-    return new Promise((resolve, reject) => {
-      this.limiter.removeTokens(1, async (err, remainingRequests) => {
-        if (err) reject(err)
-        if (remainingRequests < 1) {
-          await sleep(this.requestLimitMS + failBufferMS)
-        }
-        const retry = async (ms) => {
-          await sleep(ms)
-          return this.throttle(fn)
-        }
-        try {
-          resolve(await fn(retry))
-        } catch (e) {
-          reject(e)
-        }
-      })
-    })
-  }
-
-  request (url, options) {
-    if (!url.startsWith(this.options.baseURL)) {
-      url = this.url(url)
-    }
-    const opts = this.addDefaultHeaders(options)
-    return fetch(url, opts)
-  }
-
-  url (path) {
-    return this.options.baseURL + path
-  }
-
-  addHeaders ({ options: existingOptions, headers: newHeaders }) {
-    const { headers: existingHeaders = {} } = existingOptions
-    return {
-      ...existingOptions,
-      headers: {
-        ...existingHeaders,
-        ...newHeaders,
-      },
-    }
-  }
-
-  addDefaultHeaders (options) {
-    const { userAgent } = this.options
-    return this.addHeaders({
-      options,
-      headers: {
-        'User-Agent': userAgent,
-      },
-    })
-  }
+// https://www.npmjs.com/package/extract-files/v/6.0.0#type-extractablefilematcher
+function isExtractableFile (value) {
+  return value instanceof fs.ReadStream || value instanceof Buffer
 }
 
 function getRetryMS (retryAfterSeconds) {

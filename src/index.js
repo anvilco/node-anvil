@@ -1,4 +1,10 @@
+const fs = require('fs')
+const path = require('path')
+
 const fetch = require('node-fetch')
+const FormData = require('form-data')
+const mime = require('mime-types')
+const extractFiles = require('extract-files').extractFiles
 const RateLimiter = require('limiter').RateLimiter
 
 const { version, description } = require('../package.json')
@@ -79,6 +85,64 @@ class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
+  static prepareFile (path) {
+    const readStream = fs.createReadStream(path)
+    const fileName = this.getFilename(readStream)
+    const mimeType = this.getMimetype(readStream)
+    return {
+      name: fileName,
+      mimetype: mimeType,
+      file: readStream,
+    }
+  }
+
+  static getFilename (thing, options = {}) {
+    if (typeof options.filepath === 'string') {
+      // custom filepath for relative paths
+      return path.normalize(options.filepath).replace(/\\/g, '/')
+    } else if (options.filename || thing.name || thing.path) {
+      // custom filename take precedence
+      // formidable and the browser add a name property
+      // fs- and request- streams have path property
+      return path.basename(options.filename || thing.name || thing.path)
+    } else if (thing.readable && Object.prototype.hasOwnProperty.call(thing, 'httpVersion')) {
+      // or try http response
+      return path.basename(thing.client._httpMessage.path || '')
+    }
+  }
+
+  static getMimetype (thing, options = {}) {
+    // use custom content-type above all
+    if (typeof options.mimeType === 'string') {
+      return options.mimeType
+    }
+
+    // or try `name` from formidable, browser
+    if (thing.name || thing.path) {
+      return mime.lookup(thing.name || thing.path)
+    }
+
+    // or try `path` from fs-, request- streams
+    if (thing.path) {
+      mime.lookup(thing.path)
+    }
+
+    // or if it's http-reponse
+    if (thing.readable && Object.prototype.hasOwnProperty.call(thing, 'httpVersion')) {
+      return thing.headers['content-type'] || thing.headers['Content-Type']
+    }
+
+    // or guess it from the filepath or filename
+    if ((options.filepath || options.filename)) {
+      mime.lookup(options.filepath || options.filename)
+    }
+
+    // fallback to the default content type if `value` is not simple value
+    if (typeof thing === 'object') {
+      return 'application/octet-stream'
+    }
+  }
+
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
@@ -117,8 +181,8 @@ class Anvil {
     return this.requestGraphQL({ query, variables })
   }
 
-  createEtchPacket () {
-
+  createEtchPacket ({ variables }) {
+    return this.requestGraphQL({ query: Mutation, variables }, { dataType: 'json' })
   }
 
   // Private
@@ -160,28 +224,95 @@ class Anvil {
     })
   }
 
-  async requestGraphQL ({ query, variables = {} }) {
+  async requestGraphQL ({ query, variables = {} }, clientOptions) {
     const options = {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        // 'Content-Type': 'application/json',
         Cookie: this.options.cookie,
       },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
+      // body: JSON.stringify({
+      //   query,
+      //   variables,
+      // }),
+    }
+
+    // const operation = {
+    //   query: Mutation,
+    //   variables,
+    // }
+
+    const { clone: augmentedOperation, files: filesMap } = extractFiles({ query, variables }, '', (value) => {
+      return value instanceof fs.ReadStream || value instanceof Buffer
+    })
+
+    const operationJSON = JSON.stringify(augmentedOperation)
+
+    // const options = {
+    //   url: '/graphql',
+    //   method: 'POST',
+    //   headers: {
+    //     Accept: 'application/json',
+    //   },
+    // }
+
+    if (filesMap.size) {
+      const form = new FormData()
+
+      form.append('operations', operationJSON)
+
+      const map = {}
+      let i = 0
+      filesMap.forEach(paths => {
+        map[++i] = paths
+      })
+      form.append('map', JSON.stringify(map))
+
+      i = 0
+      filesMap.forEach((paths, file) => {
+        form.append(`${++i}`, file)
+      })
+
+      console.log('map:', JSON.stringify(map))
+      console.log('filesMap:', JSON.stringify(filesMap))
+
+      console.log(JSON.stringify(form))
+      // console.log(form.getBuffer())
+      // console.log(form.toString())
+      // process.exit()
+
+      options.body = form
+    } else {
+      options.headers['Content-Type'] = 'application/json'
+      options.body = operationJSON
     }
 
     const response = await this.request('/graphql', options)
 
     console.log({ response })
 
-    const data = await response.json()
+    const statusCode = response.status
 
-    console.log({ data })
+    const { dataType } = clientOptions
+    let data
+    switch (dataType) {
+      case DATA_TYPE_JSON:
+        data = await response.json()
+        break
+      case DATA_TYPE_STREAM:
+        data = response.body
+        break
+      case DATA_TYPE_BUFFER:
+        data = await response.buffer()
+        break
+      default:
+        data = await response.buffer()
+        break
+    }
+
+    // console.log({ data })
     return {
-      statusCode: response.status,
+      statusCode,
       data,
     }
   }

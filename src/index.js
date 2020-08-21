@@ -17,6 +17,11 @@ const {
   },
 } = require('./graphql')
 
+const {
+  isFile,
+  graphQLUploadSchemaIsValid,
+} = require('./validation')
+
 const DATA_TYPE_STREAM = 'stream'
 const DATA_TYPE_BUFFER = 'buffer'
 const DATA_TYPE_JSON = 'json'
@@ -37,11 +42,15 @@ class Anvil {
   // }
   constructor (options) {
     if (!options) throw new Error('options are required')
-    if (!options.apiKey && !options.accessToken) throw new Error('apiKey or accessToken required')
 
-    this.options = Object.assign({}, defaultOptions, options)
+    this.options = {
+      ...defaultOptions,
+      ...options,
+    }
 
     const { apiKey, accessToken } = this.options
+    if (!(apiKey || accessToken)) throw new Error('apiKey or accessToken required')
+
     this.authHeader = accessToken
       ? `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
       : `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
@@ -73,7 +82,7 @@ class Anvil {
       throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
     }
 
-    return this._requestREST(
+    return this.requestREST(
       `/api/v1/fill/${pdfTemplateID}.pdf`,
       {
         method: 'POST',
@@ -90,23 +99,10 @@ class Anvil {
     )
   }
 
-  // Just here for now to highlight authentication questions/concerns
-  getCurrentUser () {
-    const query = `
-      query {
-        currentUser {
-          id
-          email
-        }
-      }
-    `
-    return this._requestGraphQL({ query })
-  }
-
   // QUESTION: maybe we want to keeep responseQuery to ourselves while we figure out how we want it to
   // feel to the Users?
   createEtchPacket ({ variables, responseQuery }) {
-    return this._requestGraphQL(
+    return this.requestGraphQL(
       {
         query: getCreateEtchPacketMutation(responseQuery),
         variables,
@@ -115,36 +111,7 @@ class Anvil {
     )
   }
 
-  // ******************************************************************************
-  //     ___      _           __
-  //    / _ \____(_)  _____ _/ /____
-  //   / ___/ __/ / |/ / _ `/ __/ -_)
-  //  /_/  /_/ /_/|___/\_,_/\__/\__/
-  //
-  // ALL THE BELOW CODE IS CONSIDERED PRIVATE, AND THE API OR INTERNALS MAY CHANGE AT ANY TIME
-  // USERS OF THIS MODULE SHOULD NOT USE ANY OF THESE METHODS DIRECTLY
-  // ******************************************************************************
-
-  async _requestREST (url, options, clientOptions) {
-    const {
-      response,
-      statusCode,
-      data,
-      errors,
-    } = await this._wrapRequest(
-      () => this._request(url, options),
-      clientOptions,
-    )
-
-    return {
-      response,
-      statusCode,
-      data,
-      errors,
-    }
-  }
-
-  async _requestGraphQL ({ query, variables = {} }, clientOptions) {
+  async requestGraphQL ({ query, variables = {} }, clientOptions) {
     // Some helpful resources on how this came to be:
     // https://github.com/jaydenseric/graphql-upload/issues/125#issuecomment-440853538
     // https://zach.codes/building-a-file-upload-hook/
@@ -159,16 +126,20 @@ class Anvil {
       },
     }
 
-    const operation = { query, variables }
+    const originalOperation = { query, variables }
 
     const {
       clone: augmentedOperation,
       files: filesMap,
-    } = extractFiles(operation, '', isExtractableFile)
+    } = extractFiles(originalOperation, '', isFile)
 
     const operationJSON = JSON.stringify(augmentedOperation)
 
     if (filesMap.size) {
+      if (!graphQLUploadSchemaIsValid(originalOperation)) {
+        throw new Error('Invalid File schema detected')
+      }
+
       const form = new FormData()
 
       form.append('operations', operationJSON)
@@ -207,6 +178,35 @@ class Anvil {
     }
   }
 
+  async requestREST (url, fetchOptions, clientOptions) {
+    const {
+      response,
+      statusCode,
+      data,
+      errors,
+    } = await this._wrapRequest(
+      () => this._request(url, fetchOptions),
+      clientOptions,
+    )
+
+    return {
+      response,
+      statusCode,
+      data,
+      errors,
+    }
+  }
+
+  // ******************************************************************************
+  //     ___      _           __
+  //    / _ \____(_)  _____ _/ /____
+  //   / ___/ __/ / |/ / _ `/ __/ -_)
+  //  /_/  /_/ /_/|___/\_,_/\__/\__/
+  //
+  // ALL THE BELOW CODE IS CONSIDERED PRIVATE, AND THE API OR INTERNALS MAY CHANGE AT ANY TIME
+  // USERS OF THIS MODULE SHOULD NOT USE ANY OF THESE METHODS DIRECTLY
+  // ******************************************************************************
+
   _request (url, options) {
     if (!url.startsWith(this.options.baseURL)) {
       url = this._url(url)
@@ -215,7 +215,7 @@ class Anvil {
     return fetch(url, opts)
   }
 
-  async _wrapRequest (retryableRequestFn, clientOptions = {}) {
+  _wrapRequest (retryableRequestFn, clientOptions = {}) {
     return this._throttle(async (retry) => {
       const response = await retryableRequestFn()
       const statusCode = response.status
@@ -365,11 +365,6 @@ class Anvil {
       return 'application/octet-stream'
     }
   }
-}
-
-// https://www.npmjs.com/package/extract-files/v/6.0.0#type-extractablefilematcher
-function isExtractableFile (value) {
-  return value instanceof fs.ReadStream || value instanceof Buffer
 }
 
 function getRetryMS (retryAfterSeconds) {

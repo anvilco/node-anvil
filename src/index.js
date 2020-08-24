@@ -1,9 +1,19 @@
 const fs = require('fs')
 const path = require('path')
 
+const _ = require('lodash')
+
 const fetch = require('node-fetch')
+const AbortController = require('abort-controller')
 const FormData = require('form-data')
+
 const mime = require('mime-types')
+const FileType = require('file-type')
+const {
+  promise: PeekStream,
+  BufferPeekStream,
+} = require('buffer-peek-stream')
+
 const { extractFiles } = require('extract-files')
 const { RateLimiter } = require('limiter')
 
@@ -19,6 +29,7 @@ const {
 
 const {
   isFile,
+  findFiles,
   graphQLUploadSchemaIsValid,
 } = require('./validation')
 
@@ -61,19 +72,22 @@ class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  static addStream (pathOrStream) {
+  static async addStream (pathOrStream, options = {}) {
     if (typeof pathOrStream === 'string') {
       pathOrStream = fs.createReadStream(pathOrStream)
     }
-    return this._prepareFile(pathOrStream)
+    return this._prepareFile(pathOrStream, options)
   }
 
-  static addBuffer (pathOrBuffer) {
+  static async addBuffer (pathOrBuffer, options) {
     if (typeof pathOrBuffer === 'string') {
       pathOrBuffer = fs.readFileSync(pathOrBuffer)
     }
-    return this._prepareFile(pathOrBuffer)
+    return this._prepareFile(pathOrBuffer, options)
   }
+
+
+
 
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
@@ -89,7 +103,6 @@ class Anvil {
         body: JSON.stringify(payload),
         headers: {
           'Content-Type': 'application/json',
-          Authorization: this.authHeader,
         },
       },
       {
@@ -120,10 +133,7 @@ class Anvil {
 
     const options = {
       method: 'POST',
-      headers: {
-        // FIXME: How does /graphql auth work?
-        Cookie: this.options.cookie,
-      },
+      headers: {},
     }
 
     const originalOperation = { query, variables }
@@ -135,11 +145,14 @@ class Anvil {
 
     const operationJSON = JSON.stringify(augmentedOperation)
 
-    if (filesMap.size) {
-      if (!graphQLUploadSchemaIsValid(originalOperation)) {
-        throw new Error('Invalid File schema detected')
-      }
+    const { isValid, abortController } = this._validateSchemaAndPrep(originalOperation)
+    if (!isValid) {
+      throw new Error('Invalid File schema detected')
+    }
 
+    options.signal = abortController.signal
+
+    if (filesMap.size) {
       const form = new FormData()
 
       form.append('operations', operationJSON)
@@ -153,7 +166,11 @@ class Anvil {
 
       i = 0
       filesMap.forEach((paths, file) => {
-        form.append(`${++i}`, file)
+        const pathPieces = paths[0].split('.')
+        pathPieces.pop()
+        const parent = _.get(originalOperation, pathPieces.join('.'))
+        const { mimetype: contentType, name: filename } = parent
+        form.append(`${++i}`, file, { filename, contentType })
       })
 
       options.body = form
@@ -206,6 +223,27 @@ class Anvil {
   // ALL THE BELOW CODE IS CONSIDERED PRIVATE, AND THE API OR INTERNALS MAY CHANGE AT ANY TIME
   // USERS OF THIS MODULE SHOULD NOT USE ANY OF THESE METHODS DIRECTLY
   // ******************************************************************************
+
+  _validateSchemaAndPrep (schema) {
+    const filesAndParents = findFiles(schema)
+    const isValid = graphQLUploadSchemaIsValid(schema, filesAndParents)
+    const abortController = new AbortController()
+
+    if (isValid) {
+      filesAndParents.forEach(([file]) => {
+        if (file instanceof fs.ReadStream || file instanceof BufferPeekStream) {
+          file.on('error', (err) => {
+            console.error(err)
+            abortController.abort()
+          })
+        }
+      })
+    }
+    return {
+      isValid,
+      abortController,
+    }
+  }
 
   _request (url, options) {
     if (!url.startsWith(this.options.baseURL)) {
@@ -279,6 +317,7 @@ class Anvil {
       options,
       headers: {
         'User-Agent': userAgent,
+        Authorization: this.authHeader,
       },
     })
   }
@@ -303,9 +342,20 @@ class Anvil {
     })
   }
 
-  static _prepareFile (streamOrBuffer) {
-    const fileName = this._getFilename(streamOrBuffer)
-    const mimeType = this._getMimetype(streamOrBuffer)
+  static async _prepareFile (streamOrBuffer, options = {}) {
+    // Do this before potentially messing with a stream
+    const fileName = (options && options.filename) || this._getFilename(streamOrBuffer)
+
+    if (!options.mimetype && streamOrBuffer instanceof fs.ReadStream) {
+      const [buffer, streamCopy] = await PeekStream(streamOrBuffer, 65536)
+      streamOrBuffer = streamCopy
+      const { mime } = await FileType.fromBuffer(buffer)
+      console.log('imimimimim', mime)
+      options.mimetype = mime
+    }
+
+    const mimeType = (options && options.mimetype) || await this._getMimetype(streamOrBuffer)
+
     return {
       name: fileName,
       mimetype: mimeType,
@@ -331,9 +381,24 @@ class Anvil {
     }
   }
 
-  static _getMimetype (thing, options = {}) {
+  static async _getMimetype (thing, options = {}) {
     // Very heavily influenced by:
     // https://github.com/form-data/form-data/blob/55d90ce4a4c22b0ea0647991d85cb946dfb7395b/lib/form_data.js#L243
+
+    if (thing instanceof Buffer) {
+      console.log('FROM BUFFER')
+      return (await FileType.fromBuffer(thing)).mime
+    }
+
+    if (thing instanceof fs.ReadStream || thing instanceof BufferPeekStream) {
+      console.log('FROM STREAM')
+      const [data, streamCopy] = await PeekStream(thing, 65536)
+      console.log({
+        data,
+        streamCopy,
+      })
+      return (await FileType.fromStream(thing)).mime
+    }
 
     // use custom content-type above all
     if (typeof options.mimeType === 'string') {

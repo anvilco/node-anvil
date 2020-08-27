@@ -63,37 +63,12 @@ class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  static prepareGraphQLStream (pathOrStream, options) {
-    if (typeof pathOrStream === 'string') {
-      pathOrStream = fs.createReadStream(pathOrStream)
+  static prepareGraphQLFile (pathOrStreamOrBuffer, options) {
+    if (pathOrStreamOrBuffer instanceof Buffer) {
+      return this._prepareGraphQLBuffer(pathOrStreamOrBuffer, options)
     }
 
-    return this._prepareGraphQLStreamOrBuffer(pathOrStream, options)
-  }
-
-  static prepareGraphQLBuffer (pathOrBuffer, options) {
-    if (typeof pathOrBuffer === 'string') {
-      pathOrBuffer = fs.readFileSync(pathOrBuffer)
-    }
-
-    return this._prepareGraphQLStreamOrBuffer(pathOrBuffer, options)
-  }
-
-  static prepareGraphQLBase64 (data, options = {}) {
-    const { filename, mimetype } = options
-    if (!filename) {
-      throw new Error('options.filename must be provided for Base64 upload')
-    }
-    if (!mimetype) {
-      throw new Error('options.mimetype must be provided for Base64 upload')
-    }
-
-    if (options.bufferize) {
-      const buffer = Buffer.from(data, 'base64')
-      return this.addBuffer(buffer, options)
-    }
-
-    return this._prepareGraphQLBase64(data, options)
+    return this._prepareGraphQLStream(pathOrStreamOrBuffer, options)
   }
 
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
@@ -348,14 +323,20 @@ class Anvil {
     })
   }
 
-  static _prepareGraphQLStreamOrBuffer (streamOrBuffer, options) {
-    const filename = this._getFilename(streamOrBuffer, options)
-    const mimetype = this._getMimetype(streamOrBuffer, options)
-    return {
-      name: filename,
-      mimetype,
-      file: streamOrBuffer,
+  static _prepareGraphQLStream (pathOrStream, options) {
+    if (typeof pathOrStream === 'string') {
+      pathOrStream = fs.createReadStream(pathOrStream)
     }
+
+    return this._prepareGraphQLStreamOrBuffer(pathOrStream, options)
+  }
+
+  static _prepareGraphQLBuffer (pathOrBuffer, options) {
+    if (typeof pathOrBuffer === 'string') {
+      pathOrBuffer = fs.readFileSync(pathOrBuffer)
+    }
+
+    return this._prepareGraphQLStreamOrBuffer(pathOrBuffer, options)
   }
 
   static _prepareGraphQLBase64 (data, options = {}) {
@@ -367,10 +348,25 @@ class Anvil {
       throw new Error('options.mimetype must be provided for Base64 upload')
     }
 
+    if (options.bufferize) {
+      const buffer = Buffer.from(data, 'base64')
+      return this._prepareGraphQLBuffer(buffer, options)
+    }
+
     return {
       data,
       filename,
       mimetype,
+    }
+  }
+
+  static _prepareGraphQLStreamOrBuffer (streamOrBuffer, options) {
+    const filename = this._getFilename(streamOrBuffer, options)
+    const mimetype = this._getMimetype(streamOrBuffer, options)
+    return {
+      name: filename,
+      mimetype,
+      file: streamOrBuffer,
     }
   }
 

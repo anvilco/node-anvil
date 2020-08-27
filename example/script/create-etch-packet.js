@@ -1,4 +1,3 @@
-const fs = require('fs')
 const path = require('path')
 const Anvil = require('../../src/index')
 const argv = require('yargs')
@@ -15,12 +14,9 @@ async function main () {
 
   const client = new Anvil(clientOptions)
 
-  // Stream example. Can also use prepareGraphQLBuffer for Buffers
-  const streamFile = Anvil.prepareGraphQLStream(pathToFile)
-
-  // Base64 data example. Filename and mimetype are required with a Base64 upload.
-  const base64Data = fs.readFileSync(pathToFile, { encoding: 'base64' })
-  const base64File = Anvil.prepareGraphQLBase64(base64Data, { filename: fileName, mimetype: 'application/pdf' })
+  // Example where pathToFile will be used to create a new Stream. Can also
+  // pass an existing Stream or Buffer
+  const streamFile = Anvil.prepareGraphQLFile(pathToFile)
 
   const variables = {
     organizationEid: orgEid,
@@ -85,24 +81,6 @@ async function main () {
         ],
       },
       {
-        id: 'base64upload',
-        title: 'Important PDF 2',
-        base64File: base64File,
-        fields: [
-          {
-            aliasId: 'anotherSignatureField',
-            type: 'signature',
-            pageNum: 1,
-            rect: {
-              x: 203.88,
-              y: 171.66,
-              width: 33.94,
-              height: 27.60,
-            },
-          },
-        ],
-      },
-      {
         id: 'preExistingCastReference',
         castEid: castEid,
       },
@@ -127,11 +105,13 @@ async function main () {
   }`
 
   const { statusCode, data, errors } = await client.createEtchPacket({ variables, responseQuery })
-  console.log({
-    statusCode,
-    data,
-    errors,
-  })
+  console.log(
+    JSON.stringify({
+      statusCode,
+      data,
+      errors,
+    }),
+  )
 }
 
 main()

@@ -114,23 +114,11 @@ Creates an Etch Packet and optionally sends it to the first signer. See the [API
 
 ### Class Methods
 
-##### prepareGraphQLStream(pathOrStream[, options])
-A nice helper to prepare a Stream-backed file upload for use with our GraphQL API.
-* `pathOrStream` (Stream | String) - Either an existing `Stream` or a string representing a fully resolved path to a file to be read into a new `Stream`.
+##### prepareGraphQLFile(pathOrStreamOrBuffer[, options])
+A nice helper to prepare a Stream-backed or Buffer-backed file upload for use with our GraphQL API.
+* `pathOrStream` (String | Stream | Buffer) - An existing `Stream` OR an existing `Buffer` OR a string representing a fully resolved path to a file to be read into a new `Stream`.
 * `options` (Object) - [UploadOptions](#uploadoptions) for the resulting object.
 * Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever an `Upload` type is required.
-
-##### prepareGraphQLBuffer(pathOrBuffer[, options])
-A nice helper to prepare a Buffer-backed file upload for use with our GraphQL API.
-* `pathOrBuffer` (Buffer | String) - Either an existing `Buffer` or a string representing a fully resolved path to a file to be read into a new `Buffer`.
-* `options` (Object) - [UploadOptions](#uploadoptions) for the resulting object.
-* Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever an `Upload` type is required.
-
-##### prepareGraphQLBase64(data, options)
-A nice helper to prepare a Base64-encoded-string-backed upload for use with our GraphQL API.
-* `data` (String) - A `base64`-encoded string.
-* `options` (Object) - [UploadOptions](#uploadoptions) for the resulting object. Also supports a `bufferize (Boolean)` option - set to `true` to convert the data to a `Buffer` and then call `prepareGraphQLBuffer`.
-* Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever a `Base64Upload` type is required.
 
 ### Types
 

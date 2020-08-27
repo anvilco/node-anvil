@@ -108,9 +108,12 @@ const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload, o
   * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
     * `message` (String)
 
-##### createEtchPacket(variables[, responseQuery])
+##### createEtchPacket(options)
 
-Creates an Etch Packet and optionally sends it to the first signer. See the [API Documentation](#api-documentation) area for details. See [Examples](#examples) area for examples.
+Creates an Etch Packet and optionally sends it to the first signer.
+* `options` (Object) - An object with the following structure:
+  * `variables` (Object) - See the [API Documentation](#api-documentation) area for details. See [Examples](#examples) area for examples.
+  * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the mutation response. Can be left out to use default.
 
 ### Class Methods
 

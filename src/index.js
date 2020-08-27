@@ -94,8 +94,6 @@ class Anvil {
     )
   }
 
-  // QUESTION: maybe we want to keeep responseQuery to ourselves while we figure out how we want it to
-  // feel to the Users?
   createEtchPacket ({ variables, responseQuery }) {
     return this.requestGraphQL(
       {

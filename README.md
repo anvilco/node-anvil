@@ -160,7 +160,7 @@ Our API has request rate limits in place. This API client handles `429 Too Many 
 
 See the [Anvil API docs](https://useanvil.com/api/fill-pdf) for more information on the specifics of the rate limits.
 
-### API Documentation
+## API Documentation
 
 Our general API Documentation can be found [here](https://www.useanvil.com/api/). It's the best resource for up-to-date information about our API and its capabilities.
 

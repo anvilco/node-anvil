@@ -62,23 +62,23 @@ class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  static prepareStream (pathOrStream, options) {
+  static prepareGraphQLStream (pathOrStream, options) {
     if (typeof pathOrStream === 'string') {
       pathOrStream = fs.createReadStream(pathOrStream)
     }
 
-    return this._prepareStreamOrBuffer(pathOrStream, options)
+    return this._prepareGraphQLStreamOrBuffer(pathOrStream, options)
   }
 
-  static prepareBuffer (pathOrBuffer, options) {
+  static prepareGraphQLBuffer (pathOrBuffer, options) {
     if (typeof pathOrBuffer === 'string') {
       pathOrBuffer = fs.readFileSync(pathOrBuffer)
     }
 
-    return this._prepareStreamOrBuffer(pathOrBuffer, options)
+    return this._prepareGraphQLStreamOrBuffer(pathOrBuffer, options)
   }
 
-  static prepareBase64 (data, options = {}) {
+  static prepareGraphQLBase64 (data, options = {}) {
     const { filename, mimetype } = options
     if (!filename) {
       throw new Error('options.filename must be provided for Base64 upload')
@@ -92,7 +92,7 @@ class Anvil {
       return this.addBuffer(buffer, options)
     }
 
-    return this._prepareBase64(data, options)
+    return this._prepareGraphQLBase64(data, options)
   }
 
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
@@ -337,7 +337,7 @@ class Anvil {
     })
   }
 
-  static _prepareStreamOrBuffer (streamOrBuffer, options) {
+  static _prepareGraphQLStreamOrBuffer (streamOrBuffer, options) {
     const filename = this._getFilename(streamOrBuffer, options)
     const mimetype = this._getMimetype(streamOrBuffer, options)
     return {
@@ -347,7 +347,7 @@ class Anvil {
     }
   }
 
-  static _prepareBase64 (data, options = {}) {
+  static _prepareGraphQLBase64 (data, options = {}) {
     const { filename, mimetype } = options
     if (!filename) {
       throw new Error('options.filename must be provided for Base64 upload')

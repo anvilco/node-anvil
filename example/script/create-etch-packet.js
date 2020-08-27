@@ -15,12 +15,12 @@ async function main () {
 
   const client = new Anvil(clientOptions)
 
-  // Stream example. Can also use prepareBuffer for Buffers
-  const streamFile = Anvil.prepareStream(pathToFile)
+  // Stream example. Can also use prepareGraphQLBuffer for Buffers
+  const streamFile = Anvil.prepareGraphQLStream(pathToFile)
 
   // Base64 data example. Filename and mimetype are required with a Base64 upload.
   const base64Data = fs.readFileSync(pathToFile, { encoding: 'base64' })
-  const base64File = Anvil.prepareBase64(base64Data, { filename: fileName, mimetype: 'application/pdf' })
+  const base64File = Anvil.prepareGraphQLBase64(base64Data, { filename: fileName, mimetype: 'application/pdf' })
 
   const variables = {
     organizationEid: orgEid,

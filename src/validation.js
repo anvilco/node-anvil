@@ -10,7 +10,7 @@ function graphQLUploadSchemaIsValid (schema, parent, key) {
     return true
   }
 
-  // Not a great/easy/worthwhile way to determine if a string is base64-encoded data,
+  // There is not a great/easy/worthwhile way to determine if a string is base64-encoded data,
   // so our best proxy is to check the keyname
   if (key !== 'base64File') {
     if (schema instanceof Array) {

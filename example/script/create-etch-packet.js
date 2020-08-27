@@ -87,24 +87,7 @@ async function main () {
     ],
   }
 
-  // Show this to the world?
-  const responseQuery = `{
-    id
-    eid
-    payload
-    etchTemplate {
-      id
-      eid
-      config
-      casts {
-        id
-        eid
-        config
-      }
-    }
-  }`
-
-  const { statusCode, data, errors } = await client.createEtchPacket({ variables, responseQuery })
+  const { statusCode, data, errors } = await client.createEtchPacket({ variables })
   console.log(
     JSON.stringify({
       statusCode,

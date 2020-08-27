@@ -5,6 +5,7 @@ const get = require('lodash.get')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
 const Mime = require('mime-types')
+const AbortController = require('abort-controller')
 const { extractFiles } = require('extract-files')
 const { RateLimiter } = require('limiter')
 
@@ -157,6 +158,7 @@ class Anvil {
     }
 
     if (filesMap.size) {
+      const abortController = new AbortController()
       const form = new FormData()
 
       form.append('operations', operationJSON)
@@ -170,12 +172,21 @@ class Anvil {
 
       i = 0
       filesMap.forEach((paths, file) => {
+        // If this is a Stream, will attach a listener to the 'error' event so that we
+        // can cancel the API call if something goes wrong
+        if (file instanceof fs.ReadStream) {
+          file.on('error', (err) => {
+            console.warn(err)
+            abortController.abort()
+          })
+        }
         // Pass in some things explicitly to the form.append so that we get the
         // desired/expected filename and mimetype, etc
         const appendOptions = extractFormAppendOptions({ paths, object: originalOperation })
         form.append(`${++i}`, file, appendOptions)
       })
 
+      options.signal = abortController.signal
       options.body = form
     } else {
       options.headers['Content-Type'] = 'application/json'

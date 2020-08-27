@@ -49,6 +49,7 @@
     "yargs": "^15.1.0"
   },
   "dependencies": {
+    "abort-controller": "^3.0.0",
     "extract-files": "^6",
     "form-data": "^3.0.0",
     "limiter": "^1.1.5",

@@ -3,30 +3,25 @@ const path = require('path')
 const Anvil = require('../../src/index')
 const argv = require('yargs')
   .usage('Usage: $0 apiKey orgEid castEid, fileName')
-  .option('user-agent', {
-    alias: 'a',
-    type: 'string',
-    description: 'Set the User-Agent on any requests made (default is "Anvil API Client")',
-  })
   .demandCommand(4).argv
 
 const [apiKey, orgEid, castEid, fileName] = argv._
-const userAgent = argv['user-agent']
-
 const pathToFile = path.resolve(__dirname, fileName)
 
 async function main () {
   const clientOptions = {
     apiKey,
   }
-  if (userAgent) {
-    clientOptions.userAgent = userAgent
-  }
 
   const client = new Anvil(clientOptions)
 
-  const fileStream = await Anvil.addStream(pathToFile)
-  const base64File = fs.readFileSync(pathToFile, { encoding: 'base64' })
+  // Stream example. Can also use prepareBuffer for Buffers
+  const streamFile = Anvil.prepareStream(pathToFile)
+
+  // Base64 data example. Filename and mimetype are required with a Base64 upload.
+  const base64Data = fs.readFileSync(pathToFile, { encoding: 'base64' })
+  const base64File = Anvil.prepareBase64(base64Data, { filename: fileName, mimetype: 'application/pdf' })
+
   const variables = {
     organizationEid: orgEid,
     send: false,
@@ -63,7 +58,7 @@ async function main () {
       {
         id: 'fileUpload',
         title: 'Important PDF One',
-        file: fileStream,
+        file: streamFile,
         fields: [
           {
             aliasId: 'aDateField',
@@ -92,11 +87,7 @@ async function main () {
       {
         id: 'base64upload',
         title: 'Important PDF 2',
-        base64File: {
-          filename: fileName,
-          mimetype: 'application/pdf',
-          data: base64File,
-        },
+        base64File: base64File,
         fields: [
           {
             aliasId: 'anotherSignatureField',
@@ -118,6 +109,7 @@ async function main () {
     ],
   }
 
+  // Show this to the world?
   const responseQuery = `{
     id
     eid
@@ -135,8 +127,11 @@ async function main () {
   }`
 
   const { statusCode, data, errors } = await client.createEtchPacket({ variables, responseQuery })
-
-  console.log(statusCode, JSON.stringify(errors || data, null, 2))
+  console.log({
+    statusCode,
+    data,
+    errors,
+  })
 }
 
 main()

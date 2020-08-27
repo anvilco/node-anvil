@@ -48,7 +48,9 @@ fs.writeFileSync('output.pdf', data, { encoding: null })
 
 ## API
 
-### new Anvil(options)
+### Instance Methods
+
+##### new Anvil(options)
 
 Creates an Anvil client instance.
 
@@ -57,18 +59,9 @@ Creates an Anvil client instance.
 ```js
 const anvilClient = new Anvil({ apiKey: 'abc123' })
 ```
+<br />
 
-### Options
-
-Options for the Anvil Client. Defaults are shown after each option key.
-
-```js
-{
-  apiKey: <your_api_key> // Required. Your API key from your Anvil organization settings
-}
-```
-
-### Anvil::fillPDF(pdfTemplateID, payload[, options])
+##### fillPDF(pdfTemplateID, payload[, options])
 
 Fills a PDF with your JSON data.
 
@@ -115,15 +108,63 @@ const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload, o
   * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
     * `message` (String)
 
+##### createEtchPacket(variables[, responseQuery])
+
+Creates an Etch Packet and optionally sends it to the first signer. See the [API Documentation](#api-documentation) area for details. See [Examples](#examples) area for examples.
+
+### Class Methods
+
+##### prepareGraphQLStream(pathOrStream[, options])
+A nice helper to prepare a Stream-backed file upload for use with our GraphQL API.
+* `pathOrStream` (Stream | String) - Either an existing `Stream` or a string representing a fully resolved path to a file to be read into a new `Stream`.
+* `options` (Object) - [UploadOptions](#uploadoptions) for the resulting object.
+* Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever an `Upload` type is required.
+
+##### prepareGraphQLBuffer(pathOrBuffer[, options])
+A nice helper to prepare a Buffer-backed file upload for use with our GraphQL API.
+* `pathOrBuffer` (Buffer | String) - Either an existing `Buffer` or a string representing a fully resolved path to a file to be read into a new `Buffer`.
+* `options` (Object) - [UploadOptions](#uploadoptions) for the resulting object.
+* Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever an `Upload` type is required.
+
+##### prepareGraphQLBase64(data, options)
+A nice helper to prepare a Base64-encoded-string-backed upload for use with our GraphQL API.
+* `data` (String) - A `base64`-encoded string.
+* `options` (Object) - [UploadOptions](#uploadoptions) for the resulting object. Also supports a `bufferize (Boolean)` option - set to `true` to convert the data to a `Buffer` and then call `prepareGraphQLBuffer`.
+* Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever a `Base64Upload` type is required.
+
+### Types
+
+##### Options
+
+Options for the Anvil Client. Defaults are shown after each option key.
+
+```js
+{
+  apiKey: <your_api_key> // Required. Your API key from your Anvil organization settings
+}
+```
+
+##### UploadOptions
+
+Options for the upload preparation class methods.
+```js
+{
+  filename: <filename>, // String
+  mimetype: <mimetype> // String
+}
+```
+
 ### Rate Limits
 
 Our API has request rate limits in place. This API client handles `429 Too Many Requests` errors by waiting until it can retry again, then retrying the request. The client attempts to avoid `429` errors by throttling requests after the number of requests within the specified time period has been reached.
 
 See the [Anvil API docs](https://useanvil.com/api/fill-pdf) for more information on the specifics of the rate limits.
 
-### More Info
+### API Documentation
 
-See the [PDF filling API docs](https://useanvil.com/api/fill-pdf) for more information.
+Our general API Documentation can be found [here](https://www.useanvil.com/api/). It's the best resource for up-to-date information about our API and its capabilities.
+
+See the [PDF filling API docs](https://useanvil.com/api/fill-pdf) for more information about the `fillPDF` method.
 
 ## Examples
 

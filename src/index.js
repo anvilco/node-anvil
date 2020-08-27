@@ -1,9 +1,10 @@
 const fs = require('fs')
 const path = require('path')
 
+const get = require('lodash.get')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
-const mime = require('mime-types')
+const Mime = require('mime-types')
 const { extractFiles } = require('extract-files')
 const { RateLimiter } = require('limiter')
 
@@ -61,18 +62,37 @@ class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  static addStream (pathOrStream) {
+  static prepareStream (pathOrStream, options) {
     if (typeof pathOrStream === 'string') {
       pathOrStream = fs.createReadStream(pathOrStream)
     }
-    return this._prepareFile(pathOrStream)
+
+    return this._prepareStreamOrBuffer(pathOrStream, options)
   }
 
-  static addBuffer (pathOrBuffer) {
+  static prepareBuffer (pathOrBuffer, options) {
     if (typeof pathOrBuffer === 'string') {
       pathOrBuffer = fs.readFileSync(pathOrBuffer)
     }
-    return this._prepareFile(pathOrBuffer)
+
+    return this._prepareStreamOrBuffer(pathOrBuffer, options)
+  }
+
+  static prepareBase64 (data, options = {}) {
+    const { filename, mimetype } = options
+    if (!filename) {
+      throw new Error('options.filename must be provided for Base64 upload')
+    }
+    if (!mimetype) {
+      throw new Error('options.mimetype must be provided for Base64 upload')
+    }
+
+    if (options.bufferize) {
+      const buffer = Buffer.from(data, 'base64')
+      return this.addBuffer(buffer, options)
+    }
+
+    return this._prepareBase64(data, options)
   }
 
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
@@ -89,7 +109,6 @@ class Anvil {
         body: JSON.stringify(payload),
         headers: {
           'Content-Type': 'application/json',
-          Authorization: this.authHeader,
         },
       },
       {
@@ -107,7 +126,7 @@ class Anvil {
         query: getCreateEtchPacketMutation(responseQuery),
         variables,
       },
-      { dataType: 'json' },
+      { dataType: DATA_TYPE_JSON },
     )
   }
 
@@ -120,10 +139,7 @@ class Anvil {
 
     const options = {
       method: 'POST',
-      headers: {
-        // FIXME: How does /graphql auth work?
-        Cookie: this.options.cookie,
-      },
+      headers: {},
     }
 
     const originalOperation = { query, variables }
@@ -135,11 +151,12 @@ class Anvil {
 
     const operationJSON = JSON.stringify(augmentedOperation)
 
-    if (filesMap.size) {
-      if (!graphQLUploadSchemaIsValid(originalOperation)) {
-        throw new Error('Invalid File schema detected')
-      }
+    // Checks for both File uploads and Base64 uploads
+    if (!graphQLUploadSchemaIsValid(originalOperation)) {
+      throw new Error('Invalid File schema detected')
+    }
 
+    if (filesMap.size) {
       const form = new FormData()
 
       form.append('operations', operationJSON)
@@ -153,7 +170,10 @@ class Anvil {
 
       i = 0
       filesMap.forEach((paths, file) => {
-        form.append(`${++i}`, file)
+        // Pass in some things explicitly to the form.append so that we get the
+        // desired/expected filename and mimetype, etc
+        const appendOptions = extractFormAppendOptions({ paths, object: originalOperation })
+        form.append(`${++i}`, file, appendOptions)
       })
 
       options.body = form
@@ -262,8 +282,18 @@ class Anvil {
     return this.options.baseURL + path
   }
 
-  _addHeaders ({ options: existingOptions, headers: newHeaders }) {
+  _addHeaders ({ options: existingOptions, headers: newHeaders }, internalOptions = {}) {
     const { headers: existingHeaders = {} } = existingOptions
+    const { defaults = false } = internalOptions
+
+    newHeaders = defaults ? newHeaders : Object.entries(newHeaders).reduce((acc, [key, val]) => {
+      if (val != null) {
+        acc[key] = val
+      }
+
+      return acc
+    }, {})
+
     return {
       ...existingOptions,
       headers: {
@@ -275,12 +305,16 @@ class Anvil {
 
   _addDefaultHeaders (options) {
     const { userAgent } = this.options
-    return this._addHeaders({
-      options,
-      headers: {
-        'User-Agent': userAgent,
+    return this._addHeaders(
+      {
+        options,
+        headers: {
+          'User-Agent': userAgent,
+          Authorization: this.authHeader,
+        },
       },
-    })
+      { defaults: true },
+    )
   }
 
   _throttle (fn) {
@@ -303,13 +337,29 @@ class Anvil {
     })
   }
 
-  static _prepareFile (streamOrBuffer) {
-    const fileName = this._getFilename(streamOrBuffer)
-    const mimeType = this._getMimetype(streamOrBuffer)
+  static _prepareStreamOrBuffer (streamOrBuffer, options) {
+    const filename = this._getFilename(streamOrBuffer, options)
+    const mimetype = this._getMimetype(streamOrBuffer, options)
     return {
-      name: fileName,
-      mimetype: mimeType,
+      name: filename,
+      mimetype,
       file: streamOrBuffer,
+    }
+  }
+
+  static _prepareBase64 (data, options = {}) {
+    const { filename, mimetype } = options
+    if (!filename) {
+      throw new Error('options.filename must be provided for Base64 upload')
+    }
+    if (!mimetype) {
+      throw new Error('options.mimetype must be provided for Base64 upload')
+    }
+
+    return {
+      data,
+      filename,
+      mimetype,
     }
   }
 
@@ -320,15 +370,19 @@ class Anvil {
     if (typeof options.filepath === 'string') {
       // custom filepath for relative paths
       return path.normalize(options.filepath).replace(/\\/g, '/')
-    } else if (options.filename || thing.name || thing.path) {
+    }
+    if (options.filename || thing.name || thing.path) {
       // custom filename take precedence
       // formidable and the browser add a name property
       // fs- and request- streams have path property
       return path.basename(options.filename || thing.name || thing.path)
-    } else if (thing.readable && Object.prototype.hasOwnProperty.call(thing, 'httpVersion')) {
+    }
+    if (thing.readable && Object.prototype.hasOwnProperty.call(thing, 'httpVersion')) {
       // or try http response
       return path.basename(thing.client._httpMessage.path || '')
     }
+
+    throw new Error('Unable to determine file name for this upload. Please pass it via options.filename.')
   }
 
   static _getMimetype (thing, options = {}) {
@@ -336,18 +390,13 @@ class Anvil {
     // https://github.com/form-data/form-data/blob/55d90ce4a4c22b0ea0647991d85cb946dfb7395b/lib/form_data.js#L243
 
     // use custom content-type above all
-    if (typeof options.mimeType === 'string') {
-      return options.mimeType
+    if (typeof options.mimetype === 'string') {
+      return options.mimetype
     }
 
     // or try `name` from formidable, browser
     if (thing.name || thing.path) {
-      return mime.lookup(thing.name || thing.path)
-    }
-
-    // or try `path` from fs-, request- streams
-    if (thing.path) {
-      mime.lookup(thing.path)
+      return Mime.lookup(thing.name || thing.path)
     }
 
     // or if it's http-reponse
@@ -357,13 +406,10 @@ class Anvil {
 
     // or guess it from the filepath or filename
     if ((options.filepath || options.filename)) {
-      mime.lookup(options.filepath || options.filename)
+      Mime.lookup(options.filepath || options.filename)
     }
 
-    // fallback to the default content type if `value` is not simple value
-    if (typeof thing === 'object') {
-      return 'application/octet-stream'
-    }
+    throw new Error('Unable to determine mime type for this upload. Please pass it via options.mimetype.')
   }
 }
 
@@ -375,6 +421,25 @@ function sleep (ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
+}
+
+function extractFormAppendOptions ({ paths, object }) {
+  const length = paths.length
+  if (length !== 1) {
+    if (length === 0) {
+      throw new Error('No file map paths received')
+    }
+    console.warn(`WARNING: received ${length} file map paths. Expected exactly 1.`)
+  }
+  const path = paths[0].split('.')
+  path.pop()
+
+  const parent = get(object, path.join('.'))
+
+  return {
+    filename: parent.name,
+    contentType: parent.mimetype,
+  }
 }
 
 module.exports = Anvil

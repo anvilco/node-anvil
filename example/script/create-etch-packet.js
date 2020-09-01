@@ -22,6 +22,7 @@ async function main () {
     organizationEid: orgEid,
     send: false,
     isTest: true,
+    signatureEmailSubject: 'Test Create Packet',
     signers: [
       {
         id: 'signerOne',
@@ -29,11 +30,11 @@ async function main () {
         email: 'sally@example.com',
         fields: [
           {
-            fileId: 'fileOne',
+            fileId: 'fileUpload',
             fieldId: 'aDateField',
           },
           {
-            fileId: 'fileOne',
+            fileId: 'fileUpload',
             fieldId: 'aSignatureField',
           },
         ],
@@ -44,12 +45,44 @@ async function main () {
         email: 'scotty@example.com',
         fields: [
           {
-            fileId: 'base64upload',
+            fileId: 'fileUpload',
             fieldId: 'anotherSignatureField',
+          },
+          {
+            fileId: 'preExistingCastReference',
+            fieldId: 'signature1',
+          },
+          {
+            fileId: 'preExistingCastReference',
+            fieldId: 'signatureDate1',
           },
         ],
       },
     ],
+    fillPayload: {
+      payloads: {
+        fileUpload: {
+          textColor: '#CC0000',
+          data: {
+            myShortText: 'Something Filled',
+          },
+        },
+        preExistingCastReference: {
+          textColor: '#00CC00',
+          data: {
+            name: {
+              firstName: 'Robin',
+              lastName: 'Smith',
+            },
+            dateOfBirth: '2020-09-01',
+            socialSecurityNumber: '456454567',
+            primaryPhone: {
+              num: '5554443333',
+            },
+          },
+        },
+      },
+    },
     files: [
       {
         id: 'fileUpload',
@@ -57,25 +90,50 @@ async function main () {
         file: streamFile,
         fields: [
           {
-            aliasId: 'aDateField',
-            type: 'signatureDate',
-            pageNum: 1,
+            id: 'myShortText',
+            type: 'shortText',
+            pageNum: 0,
             rect: {
-              x: 203.88,
-              y: 171.66,
-              width: 33.94,
-              height: 27.60,
+              x: 20,
+              y: 100,
+              width: 100,
+              height: 30,
             },
           },
           {
-            aliasId: 'aSignatureField',
+            id: 'aDateField',
+            type: 'signatureDate',
+            pageNum: 1,
+            name: 'Some Date',
+            rect: {
+              x: 200,
+              y: 170,
+              width: 100,
+              height: 30,
+            },
+          },
+          {
+            id: 'aSignatureField',
             type: 'signature',
+            name: 'Some Sig',
             pageNum: 1,
             rect: {
-              x: 203.88,
-              y: 121.66,
-              width: 33.94,
-              height: 27.60,
+              x: 200,
+              y: 120,
+              width: 100,
+              height: 30,
+            },
+          },
+          {
+            id: 'anotherSignatureField',
+            type: 'signature',
+            name: 'Another Sig',
+            pageNum: 1,
+            rect: {
+              x: 200,
+              y: 400,
+              width: 100,
+              height: 30,
             },
           },
         ],

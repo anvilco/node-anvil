@@ -1,7 +1,7 @@
 const path = require('path')
 const Anvil = require('../../src/index')
 const argv = require('yargs')
-  .usage('Usage: $0 apiKey orgEid castEid, fileName')
+  .usage('Usage: $0 apiKey orgEid castEid fileName')
   .demandCommand(4).argv
 
 const [apiKey, orgEid, castEid, fileName] = argv._
@@ -20,7 +20,7 @@ async function main () {
 
   const variables = {
     organizationEid: orgEid,
-    send: false,
+    send: true,
     isTest: true,
     signatureEmailSubject: 'Test Create Packet',
     signers: [
@@ -38,6 +38,8 @@ async function main () {
             fieldId: 'aSignatureField',
           },
         ],
+        signerType: 'embedded',
+        redirectURL: 'https://useanvil.com/etch-free-e-signatures',
       },
       {
         id: 'signerTwo',
@@ -57,6 +59,8 @@ async function main () {
             fieldId: 'signatureDate1',
           },
         ],
+        signerType: 'embedded',
+        redirectURL: 'https://www.useanvil.com/pdf-filling-api',
       },
     ],
     fillPayload: {
@@ -151,7 +155,7 @@ async function main () {
       statusCode,
       data,
       errors,
-    }),
+    }, null, 2),
   )
 }
 

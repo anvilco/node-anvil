@@ -26,3 +26,32 @@ yarn node example/script/fill-pdf.js idabc123 apiKeydef345 ./payload.json && ope
   }
 }
 ```
+
+## create-etch-packet.js script
+
+Calls the createEtchPacket Anvil endpoint with data specified to generate an Etch Packet with the Anvil API. Returns 
+the status and the generated packet. 
+
+Usage example:
+
+```sh
+# Creates an Etch Packet with given information, either a castEid or filename must be supplied
+yarn node example/script/create-etch-packet.js <apiKey> <orgEid> <castEid> <filename>
+
+# An exmaple
+yarn node example/script/create-etch-packet.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ YYM3dnCZuD3in6AjICsE 99u7QvvHr8hDQ4BW9GYv ../../../simple-with-form-filled.pdf
+```
+
+## generate-etch-sign-url.js script
+
+Calls the generateEtchSignUrl Anvil endpoint with data specified to generate an Etch sign link with the Anvil API. Returns the sign link.
+
+Usage example:
+
+```sh
+# Generates a sign link for the given signer and client.
+yarn node example/script/generate-etch-sign-url.js <apiKey> <signerEid> <clientUserId>
+
+# An example
+yarn node example/script/generate-etch-sign-url.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ ZTlbNhxP2lGkNFsNzcus eBim2Vsv2GqCTJxpjTru
+```

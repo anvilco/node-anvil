@@ -39,7 +39,7 @@ Usage example:
 yarn node example/script/create-etch-packet.js <apiKey> <orgEid> <castEid> <filename>
 
 # An exmaple
-yarn node example/script/create-etch-packet.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ YYM3dnCZuD3in6AjICsE 99u7QvvHr8hDQ4BW9GYv ../../../simple-with-form-filled.pdf
+yarn node example/script/create-etch-packet.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ YYM3dnCZuD3in6AjICsE 99u7QvvHr8hDQ4BW9GYv ../../../simple-anvil-finovate-non-qualified.pdf
 ```
 
 ## generate-etch-sign-url.js script

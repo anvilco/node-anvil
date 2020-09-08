@@ -2,14 +2,16 @@
 const defaultResponseQuery = `{
   id
   eid
-  etchTemplate {
+  name
+  documentGroup {
     id
     eid
-    config
-    casts {
+    files
+    signers {
       id
       eid
-      config
+      name
+      email
     }
   }
 }`

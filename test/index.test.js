@@ -1,4 +1,8 @@
+const FormData = require('form-data')
+const AbortSignal = require('abort-controller').AbortSignal
 const Anvil = require('../src/index')
+
+const validationModule = require('../src/validation')
 
 function mockNodeFetchResponse (options = {}) {
   const {
@@ -208,6 +212,165 @@ describe('Anvil API Client', function () {
   })
 
   describe('GraphQL', function () {
+    const client = new Anvil({ apiKey: 'abc123' })
 
+    describe('requestGraphQL', function () {
+      beforeEach(function () {
+        sinon.stub(client, '_wrapRequest')
+        client._wrapRequest.callsFake(async () => ({}))
+        sinon.stub(client, '_request')
+      })
+
+      afterEach(function () {
+        client._wrapRequest.restore()
+        client._request.restore()
+      })
+
+      describe('without files', function () {
+        it('stringifies query and variables', function () {
+          const query = { foo: 'bar' }
+          const variables = { baz: 'bop' }
+          const clientOptions = { yo: 'mtvRaps' }
+
+          client.requestGraphQL({ query, variables }, clientOptions)
+
+          expect(client._wrapRequest).to.have.been.calledOnce
+
+          const [fn, clientOptionsReceived] = client._wrapRequest.lastCall.args
+          expect(clientOptions).to.eql(clientOptionsReceived)
+
+          fn()
+
+          expect(client._request).to.have.been.calledOnce
+          const [, options] = client._request.lastCall.args
+          const {
+            method,
+            headers,
+            body,
+          } = options
+
+          expect(method).to.eql('POST')
+          expect(headers).to.eql({ 'Content-Type': 'application/json' })
+          expect(body).to.eql(JSON.stringify({ query, variables }))
+        })
+      })
+
+      describe('with files', function () {
+        beforeEach(function () {
+          sinon.spy(FormData.prototype, 'append')
+        })
+
+        afterEach(function () {
+          FormData.prototype.append.restore()
+        })
+
+        context('schema is good', function () {
+          const query = { foo: 'bar' }
+          const variables = {
+            aNested: {
+              name: 'aFileName',
+              mimetype: 'application/pdf',
+              file: Buffer.from(''),
+            },
+          }
+          const clientOptions = { yo: 'mtvRaps' }
+
+          it('creates a FormData and appends the files map', function () {
+            client.requestGraphQL({ query, variables }, clientOptions)
+
+            expect(client._wrapRequest).to.have.been.calledOnce
+
+            const [fn, clientOptionsReceived] = client._wrapRequest.lastCall.args
+            expect(clientOptions).to.eql(clientOptionsReceived)
+
+            fn()
+
+            expect(client._request).to.have.been.calledOnce
+            const [, options] = client._request.lastCall.args
+
+            const {
+              method,
+              headers,
+              body,
+              signal,
+            } = options
+
+            expect(method).to.eql('POST')
+            expect(headers).to.eql({}) // node-fetch will add appropriate header
+            expect(body).to.be.an.instanceof(FormData)
+            expect(signal).to.be.an.instanceof(AbortSignal)
+            expect(
+              FormData.prototype.append.withArgs(
+                'map',
+                JSON.stringify({ 1: ['variables.aNested.file'] }),
+              ),
+            ).calledOnce
+          })
+        })
+
+        context('schema is not good', function () {
+          it('throws error about the schema', async function () {
+            const query = { foo: 'bar' }
+            const variables = {
+              file: Buffer.from(''),
+            }
+
+            await expect(client.requestGraphQL({ query, variables })).to.eventually.be.rejectedWith('Invalid File schema detected')
+          })
+        })
+      })
+    })
+
+    describe('createEtchPacket', function () {
+      beforeEach(function () {
+        sinon.stub(client, 'requestGraphQL')
+      })
+
+      afterEach(function () {
+        client.requestGraphQL.restore()
+      })
+
+      context('no responseQuery specified', function () {
+        it('calls requestGraphQL with default responseQuery', function () {
+          const variables = { foo: 'bar' }
+
+          client.createEtchPacket({ variables })
+
+          expect(client.requestGraphQL).to.have.been.calledOnce
+          const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+          const {
+            query,
+            variables: variablesReceived,
+          } = options
+
+          expect(variables).to.eql(variablesReceived)
+          expect(query).to.include('documentGroup {') // "documentGroup" is in the default responseQuery
+          expect(clientOptions).to.eql({ dataType: 'json' })
+        })
+      })
+
+      context('responseQuery specified', function () {
+        it('calls requestGraphQL with overridden responseQuery', function () {
+          const variables = { foo: 'bar' }
+
+          const responseQuery = 'onlyInATest {}'
+
+          client.createEtchPacket({ variables, responseQuery })
+
+          expect(client.requestGraphQL).to.have.been.calledOnce
+          const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+          const {
+            query,
+            variables: variablesReceived,
+          } = options
+
+          expect(variables).to.eql(variablesReceived)
+          expect(query).to.include(responseQuery)
+          expect(clientOptions).to.eql({ dataType: 'json' })
+        })
+      })
+    })
   })
 })

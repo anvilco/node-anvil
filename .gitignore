@@ -5,3 +5,5 @@ node_modules
 package-lock.json
 example/script/*.pdf
 example/script/*.json
+
+scratch/

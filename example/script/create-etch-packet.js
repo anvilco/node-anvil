@@ -60,7 +60,7 @@ async function main () {
           },
         ],
         signerType: 'embedded',
-        redirectURL: 'https://www.useanvil.com/pdf-filling-api',
+        redirectURL: 'https://useanvil.com/pdf-filling-api',
       },
     ],
     fillPayload: {

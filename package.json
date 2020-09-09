@@ -4,7 +4,7 @@
   "description": "Anvil API Client",
   "main": "src/index.js",
   "scripts": {
-    "test": "mocha --require test/environment.js 'test/**/*.test.js'",
+    "test": "mocha --config ./test/mocha.js",
     "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
     "version": "auto-changelog -p --template keepachangelog && git add CHANGELOG.md"
   },
@@ -30,6 +30,7 @@
   "devDependencies": {
     "auto-changelog": "^1.16.2",
     "babel-eslint": "^10.0.3",
+    "bdd-lazy-var": "^2.5.4",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
     "eslint": "^6.8.0",

@@ -1,4 +1,8 @@
+const FormData = require('form-data')
+const AbortSignal = require('abort-controller').AbortSignal
 const Anvil = require('../src/index')
+
+const validationModule = require('../src/validation')
 
 function mockNodeFetchResponse (options = {}) {
   const {
@@ -57,7 +61,7 @@ describe('Anvil API Client', function () {
 
     beforeEach(async function () {
       client = new Anvil({ apiKey: 'abc123' })
-      sinon.stub(client, 'request')
+      sinon.stub(client, '_request')
     })
 
     describe('requestREST', function () {
@@ -72,7 +76,7 @@ describe('Anvil API Client', function () {
         }
         data = { result: 'ok' }
 
-        client.request.callsFake((url, options) => {
+        client._request.callsFake((url, options) => {
           return Promise.resolve(
             mockNodeFetchResponse({
               status: 200,
@@ -81,16 +85,16 @@ describe('Anvil API Client', function () {
           )
         })
         const result = await client.requestREST('/test', options, clientOptions)
-        expect(result).to.eql({
-          statusCode: 200,
-          data,
-        })
+
+        expect(client._request).to.have.been.calledOnce
+        expect(result.statusCode).to.eql(200)
+        expect(result.data).to.eql(data)
       })
 
       it('rejects promise when error', async function () {
         options = { method: 'POST' }
 
-        client.request.callsFake((url, options) => {
+        client._request.callsFake((url, options) => {
           throw new Error('problem')
         })
 
@@ -101,9 +105,8 @@ describe('Anvil API Client', function () {
         options = { method: 'POST' }
         clientOptions = { dataType: 'json' }
         data = { result: 'ok' }
-        const successResponse = { statusCode: 200 }
 
-        client.request.onCall(0).callsFake((url, options) => {
+        client._request.onCall(0).callsFake((url, options) => {
           return Promise.resolve(
             mockNodeFetchResponse({
               status: 429,
@@ -114,7 +117,7 @@ describe('Anvil API Client', function () {
           )
         })
 
-        client.request.onCall(1).callsFake((url, options) => {
+        client._request.onCall(1).callsFake((url, options) => {
           return Promise.resolve(
             mockNodeFetchResponse({
               status: 200,
@@ -122,85 +125,251 @@ describe('Anvil API Client', function () {
             }),
           )
         })
+
         result = await client.requestREST('/test', options, clientOptions)
-        expect(client.request).to.have.been.calledTwice
-        expect(result).to.eql({
-          statusCode: successResponse.statusCode,
-          data,
-        })
+
+        expect(client._request).to.have.been.calledTwice
+        expect(result.statusCode).to.eql(200)
+        expect(result.data).to.eql(data)
       })
     })
 
     describe('fillPDF', function () {
-      let response, data, result, payload
+      def('statusCode', 200)
 
       beforeEach(async function () {
-        response = { statusCode: 200 }
-        data = 'The PDF file'
-        client.request.callsFake((url, options) => {
+        client._request.callsFake((url, options) => {
           return Promise.resolve(
             mockNodeFetchResponse({
-              status: response.statusCode,
-              buffer: data,
-              json: data,
+              status: $.statusCode,
+              buffer: $.buffer,
+              json: $.json,
             }),
           )
         })
       })
 
-      it('returns statusCode and data when specified', async function () {
-        payload = {
-          title: 'Test',
-          fontSize: 8,
-          textColor: '#CC0000',
-          data: {
-            helloId: 'hello!',
-          },
-        }
+      context('everything goes well', function () {
+        def('buffer', 'This would be PDF data...')
 
-        result = await client.fillPDF('cast123', payload)
-        expect(result).to.eql({
-          statusCode: response.statusCode,
-          data,
-        })
+        it('returns data', async function () {
+          const payload = {
+            title: 'Test',
+            fontSize: 8,
+            textColor: '#CC0000',
+            data: {
+              helloId: 'hello!',
+            },
+          }
 
-        expect(client.request).to.have.been.calledOnce
-        const [url, options] = client.request.lastCall.args
-        expect(url).to.eql('/api/v1/fill/cast123.pdf')
-        expect(options).to.eql({
-          method: 'POST',
-          body: JSON.stringify(payload),
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: client.authHeader,
-          },
+          const result = await client.fillPDF('cast123', payload)
+
+          expect(result.statusCode).to.eql(200)
+          expect(result.data).to.eql('This would be PDF data...')
+
+          expect(client._request).to.have.been.calledOnce
+
+          const [url, options] = client._request.lastCall.args
+          expect(url).to.eql('/api/v1/fill/cast123.pdf')
+          expect(options).to.eql({
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
         })
       })
 
-      it('returns errors when not status code 200', async function () {
-        response = { statusCode: 400 }
-        data = { errors: [{ message: 'problem' }] }
-        payload = {}
+      context('server 400s with errors array in JSON', function () {
+        const errors = [{ message: 'problem' }]
+        def('statusCode', 400)
+        def('json', { errors })
 
-        result = await client.fillPDF('cast123', payload)
-        expect(result).to.eql({
-          statusCode: response.statusCode,
-          errors: data.errors,
+        it('finds errors and puts them in response', async function () {
+          const result = await client.fillPDF('cast123', {})
+
+          expect(client._request).to.have.been.calledOnce
+          expect(result.statusCode).to.eql(400)
+          expect(result.errors).to.eql(errors)
         })
-        expect(client.request).to.have.been.calledOnce
       })
 
-      it('returns errors when not status code 200 and single error', async function () {
-        response = { statusCode: 401 }
-        data = { name: 'AuthorizationError', message: 'problem' }
-        payload = {}
+      context('server 401s with single error in response', function () {
+        const error = { name: 'AuthorizationError', message: 'problem' }
+        def('statusCode', 401)
+        def('json', error)
 
-        result = await client.fillPDF('cast123', payload)
-        expect(result).to.eql({
-          statusCode: response.statusCode,
-          errors: [data],
+        it('finds error and puts it in the response', async function () {
+          const result = await client.fillPDF('cast123', {})
+
+          expect(client._request).to.have.been.calledOnce
+          expect(result.statusCode).to.eql(401)
+          expect(result.errors).to.eql([error])
         })
-        expect(client.request).to.have.been.calledOnce
+      })
+    })
+  })
+
+  describe('GraphQL', function () {
+    const client = new Anvil({ apiKey: 'abc123' })
+
+    describe('requestGraphQL', function () {
+      beforeEach(function () {
+        sinon.stub(client, '_wrapRequest')
+        client._wrapRequest.callsFake(async () => ({}))
+        sinon.stub(client, '_request')
+      })
+
+      afterEach(function () {
+        client._wrapRequest.restore()
+        client._request.restore()
+      })
+
+      describe('without files', function () {
+        it('stringifies query and variables', function () {
+          const query = { foo: 'bar' }
+          const variables = { baz: 'bop' }
+          const clientOptions = { yo: 'mtvRaps' }
+
+          client.requestGraphQL({ query, variables }, clientOptions)
+
+          expect(client._wrapRequest).to.have.been.calledOnce
+
+          const [fn, clientOptionsReceived] = client._wrapRequest.lastCall.args
+          expect(clientOptions).to.eql(clientOptionsReceived)
+
+          fn()
+
+          expect(client._request).to.have.been.calledOnce
+          const [, options] = client._request.lastCall.args
+          const {
+            method,
+            headers,
+            body,
+          } = options
+
+          expect(method).to.eql('POST')
+          expect(headers).to.eql({ 'Content-Type': 'application/json' })
+          expect(body).to.eql(JSON.stringify({ query, variables }))
+        })
+      })
+
+      describe('with files', function () {
+        beforeEach(function () {
+          sinon.spy(FormData.prototype, 'append')
+        })
+
+        afterEach(function () {
+          FormData.prototype.append.restore()
+        })
+
+        context('schema is good', function () {
+          const query = { foo: 'bar' }
+          const variables = {
+            aNested: {
+              name: 'aFileName',
+              mimetype: 'application/pdf',
+              file: Buffer.from(''),
+            },
+          }
+          const clientOptions = { yo: 'mtvRaps' }
+
+          it('creates a FormData and appends the files map', function () {
+            client.requestGraphQL({ query, variables }, clientOptions)
+
+            expect(client._wrapRequest).to.have.been.calledOnce
+
+            const [fn, clientOptionsReceived] = client._wrapRequest.lastCall.args
+            expect(clientOptions).to.eql(clientOptionsReceived)
+
+            fn()
+
+            expect(client._request).to.have.been.calledOnce
+            const [, options] = client._request.lastCall.args
+
+            const {
+              method,
+              headers,
+              body,
+              signal,
+            } = options
+
+            expect(method).to.eql('POST')
+            expect(headers).to.eql({}) // node-fetch will add appropriate header
+            expect(body).to.be.an.instanceof(FormData)
+            expect(signal).to.be.an.instanceof(AbortSignal)
+            expect(
+              FormData.prototype.append.withArgs(
+                'map',
+                JSON.stringify({ 1: ['variables.aNested.file'] }),
+              ),
+            ).calledOnce
+          })
+        })
+
+        context('schema is not good', function () {
+          it('throws error about the schema', async function () {
+            const query = { foo: 'bar' }
+            const variables = {
+              file: Buffer.from(''),
+            }
+
+            await expect(client.requestGraphQL({ query, variables })).to.eventually.be.rejectedWith('Invalid File schema detected')
+          })
+        })
+      })
+    })
+
+    describe('createEtchPacket', function () {
+      beforeEach(function () {
+        sinon.stub(client, 'requestGraphQL')
+      })
+
+      afterEach(function () {
+        client.requestGraphQL.restore()
+      })
+
+      context('no responseQuery specified', function () {
+        it('calls requestGraphQL with default responseQuery', function () {
+          const variables = { foo: 'bar' }
+
+          client.createEtchPacket({ variables })
+
+          expect(client.requestGraphQL).to.have.been.calledOnce
+          const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+          const {
+            query,
+            variables: variablesReceived,
+          } = options
+
+          expect(variables).to.eql(variablesReceived)
+          expect(query).to.include('documentGroup {') // "documentGroup" is in the default responseQuery
+          expect(clientOptions).to.eql({ dataType: 'json' })
+        })
+      })
+
+      context('responseQuery specified', function () {
+        it('calls requestGraphQL with overridden responseQuery', function () {
+          const variables = { foo: 'bar' }
+
+          const responseQuery = 'onlyInATest {}'
+
+          client.createEtchPacket({ variables, responseQuery })
+
+          expect(client.requestGraphQL).to.have.been.calledOnce
+          const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+          const {
+            query,
+            variables: variablesReceived,
+          } = options
+
+          expect(variables).to.eql(variablesReceived)
+          expect(query).to.include(responseQuery)
+          expect(clientOptions).to.eql({ dataType: 'json' })
+        })
       })
     })
   })

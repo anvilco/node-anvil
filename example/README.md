@@ -50,8 +50,8 @@ Usage example:
 
 ```sh
 # Generates a sign link for the given signer and client.
-yarn node example/script/generate-etch-sign-url.js <apiKey> <signerEid> <clientUserId>
+yarn node example/script/generate-etch-sign-url.js <apiKey> <clientUserId> <signerEid>
 
 # An example
-yarn node example/script/generate-etch-sign-url.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ ZTlbNhxP2lGkNFsNzcus eBim2Vsv2GqCTJxpjTru
+yarn node example/script/generate-etch-sign-url.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ eBim2Vsv2GqCTJxpjTru ZTlbNhxP2lGkNFsNzcus
 ```

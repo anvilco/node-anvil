@@ -1,9 +1,9 @@
 const Anvil = require('../../src/index')
 const argv = require('yargs')
-  .usage('Usage: $0 apiKey signerEid clientUserId')
+  .usage('Usage: $0 apiKey clientUserId signerEid')
   .demandCommand(3).argv
 
-const [apiKey, signerEid, clientUserId] = argv._
+const [apiKey, clientUserId, signerEid] = argv._
 
 async function main () {
   const clientOptions = {
@@ -13,8 +13,8 @@ async function main () {
   const client = new Anvil(clientOptions)
 
   const variables = {
-    signerEid,
     clientUserId,
+    signerEid,
   }
 
   const { statusCode, data, errors } = await client.generateEtchSignUrl({ variables })

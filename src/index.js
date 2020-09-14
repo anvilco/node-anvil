@@ -107,14 +107,19 @@ class Anvil {
     )
   }
 
-  generateEtchSignUrl ({ variables }) {
-    return this.requestGraphQL(
+  async generateEtchSignUrl ({ variables }) {
+    const { statusCode, data, errors } = await this.requestGraphQL(
       {
         query: getGenerateEtchSignUrlMutation(),
         variables,
       },
       { dataType: DATA_TYPE_JSON },
     )
+    return {
+      statusCode,
+      url: data.data.generateEtchSignURL,
+      errors,
+    }
   }
 
   async requestGraphQL ({ query, variables = {} }, clientOptions) {

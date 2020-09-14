@@ -17,11 +17,11 @@ async function main () {
     signerEid,
   }
 
-  const { statusCode, data, errors } = await client.generateEtchSignUrl({ variables })
+  const { statusCode, url, errors } = await client.generateEtchSignUrl({ variables })
   console.log(
     JSON.stringify({
       statusCode,
-      data,
+      url,
       errors,
     }, null, 2),
   )

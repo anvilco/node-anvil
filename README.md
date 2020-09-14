@@ -115,6 +115,14 @@ Creates an Etch Packet and optionally sends it to the first signer.
   * `variables` (Object) - See the [API Documentation](#api-documentation) area for details. See [Examples](#examples) area for examples.
   * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the mutation response. Can be left out to use default.
 
+##### generateEtchSignUrl(options)
+
+Generates an Etch sign URL for an Etch Packet signer. The Etch Packet and its signers must have already been created.
+* `options` (Object) - An object with the following structure:
+  * `variables` (Object) - Requires `clientUserId` and `signerEid`
+    * `clientUserId` (String) - your user eid
+    * `signerEid` (String) - the eid of the Etch Packet signer, found in the response of the `createEtchPacket` instance method
+
 ### Class Methods
 
 ##### prepareGraphQLFile(pathOrStreamOrBuffer[, options])

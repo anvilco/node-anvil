@@ -377,13 +377,9 @@ class Anvil {
   }
 
   static _prepareGraphQLStreamOrBuffer (streamOrBuffer, options) {
-    const filename = this._getFilename(streamOrBuffer, options)
-    const mimetype = this._getMimetype(streamOrBuffer, options)
-    return {
-      name: filename,
-      mimetype,
-      file: streamOrBuffer,
-    }
+    this._getFilename(streamOrBuffer, options)
+    this._getMimetype(streamOrBuffer, options)
+    return streamOrBuffer
   }
 
   static _getFilename (thing, options = {}) {

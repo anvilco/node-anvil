@@ -37,7 +37,7 @@ function graphQLUploadSchemaIsValid (schema, parent, key) {
       return false
     }
 
-    return ['name', 'mimetype'].every((requiredKey) => parent[requiredKey])
+    return true
   }
 
   // Base64 Upload

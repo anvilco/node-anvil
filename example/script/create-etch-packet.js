@@ -23,7 +23,6 @@ async function main () {
     send: true,
     isTest: true,
     signatureEmailSubject: 'Test Create Packet',
-    disableEtchCompleteEmail: true,
     signers: [
       {
         id: 'signerOne',
@@ -41,7 +40,7 @@ async function main () {
         ],
         signerType: 'embedded',
         redirectURL: 'https://useanvil.com/etch-free-e-signatures',
-        disableSignerCompleteEmail: true,
+        enableEmails: ['etchComplete'],
       },
       {
         id: 'signerTwo',
@@ -63,7 +62,7 @@ async function main () {
         ],
         signerType: 'embedded',
         redirectURL: 'https://useanvil.com/pdf-filling-api',
-        disableSignerCompleteEmail: true,
+        enableEmails: false,
       },
     ],
     fillPayload: {

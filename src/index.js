@@ -115,9 +115,14 @@ class Anvil {
       },
       { dataType: DATA_TYPE_JSON },
     )
+    const {
+      data: {
+        generateEtchSignURL,
+      },
+    } = data
     return {
       statusCode,
-      url: data.data.generateEtchSignURL,
+      url: generateEtchSignURL,
       errors,
     }
   }

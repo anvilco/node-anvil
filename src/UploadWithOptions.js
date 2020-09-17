@@ -11,10 +11,6 @@ class UploadWithOptions {
   get file () {
     return this.streamLikeThing
   }
-
-  appendToForm (form, fieldName) {
-    form.append(fieldName, this.streamLikeThing, this.formDataAppendOptions)
-  }
 }
 
 module.exports = UploadWithOptions

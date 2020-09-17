@@ -1,6 +1,5 @@
 const fs = require('fs')
 
-const get = require('lodash.get')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
 const AbortController = require('abort-controller')
@@ -182,7 +181,7 @@ class Anvil {
       filesMap.forEach((paths, file) => {
         let appendOptions = {}
         if (file instanceof UploadWithOptions) {
-          appendOptions = file.formDataAppendOptions
+          appendOptions = file.options
           file = file.file
         }
         // If this is a stream-like thing, attach a listener to the 'error' event so that we

@@ -6,6 +6,7 @@ const defaultResponseQuery = `{
   documentGroup {
     id
     eid
+    status
     files
     signers {
       id

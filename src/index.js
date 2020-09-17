@@ -16,6 +16,9 @@ const {
     createEtchPacket: {
       getMutation: getCreateEtchPacketMutation,
     },
+    generateEtchSignUrl: {
+      getMutation: getGenerateEtchSignUrlMutation,
+    },
   },
 } = require('./graphql')
 
@@ -102,6 +105,26 @@ class Anvil {
       },
       { dataType: DATA_TYPE_JSON },
     )
+  }
+
+  async generateEtchSignUrl ({ variables }) {
+    const { statusCode, data, errors } = await this.requestGraphQL(
+      {
+        query: getGenerateEtchSignUrlMutation(),
+        variables,
+      },
+      { dataType: DATA_TYPE_JSON },
+    )
+    const {
+      data: {
+        generateEtchSignURL,
+      },
+    } = data
+    return {
+      statusCode,
+      url: generateEtchSignURL,
+      errors,
+    }
   }
 
   async requestGraphQL ({ query, variables = {} }, clientOptions) {
@@ -359,13 +382,9 @@ class Anvil {
   }
 
   static _prepareGraphQLStreamOrBuffer (streamOrBuffer, options) {
-    const filename = this._getFilename(streamOrBuffer, options)
-    const mimetype = this._getMimetype(streamOrBuffer, options)
-    return {
-      name: filename,
-      mimetype,
-      file: streamOrBuffer,
-    }
+    this._getFilename(streamOrBuffer, options)
+    this._getMimetype(streamOrBuffer, options)
+    return streamOrBuffer
   }
 
   static _getFilename (thing, options = {}) {

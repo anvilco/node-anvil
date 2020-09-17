@@ -55,7 +55,6 @@
     "form-data": "^3.0.0",
     "limiter": "^1.1.5",
     "lodash.get": "^4.4.2",
-    "mime-types": "^2.1.27",
     "node-fetch": "^2.6.0"
   },
   "resolutions": {

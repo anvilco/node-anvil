@@ -125,10 +125,11 @@ Generates an Etch sign URL for an Etch Packet signer. The Etch Packet and its si
 
 ### Class Methods
 
-##### prepareGraphQLFile(pathOrStreamOrBuffer[, options])
+##### prepareGraphQLFile(pathOrStreamLikeThing[, options])
 A nice helper to prepare a Stream-backed or Buffer-backed file upload for use with our GraphQL API.
-* `pathOrStream` (String | Stream | Buffer) - An existing `Stream` OR an existing `Buffer` OR a string representing a fully resolved path to a file to be read into a new `Stream`.
-* `options` (Object) - [UploadOptions](#uploadoptions) for the resulting object.
+* `pathOrStreamLikeThing` (String | Stream | Buffer) - An existing `Stream`, `Buffer` or other Stream-like thing supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-) OR a string representing a fully resolved path to a file to be read into a new `Stream`.
+* `options` (Object) - Anything supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-). Likely required when providing a non-standard stream. From the `form-data` docs:
+  > Form-Data can recognize and fetch all the required information from common types of streams (fs.readStream, http.response and mikeal's request), for some other types of streams you'd need to provide "file"-related information manually
 * Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever an `Upload` type is required.
 
 ### Types
@@ -140,16 +141,6 @@ Options for the Anvil Client. Defaults are shown after each option key.
 ```js
 {
   apiKey: <your_api_key> // Required. Your API key from your Anvil organization settings
-}
-```
-
-##### UploadOptions
-
-Options for the upload preparation class methods.
-```js
-{
-  filename: <filename>, // String
-  mimetype: <mimetype> // String
 }
 ```
 

@@ -1,8 +1,13 @@
+const fs = require('fs')
+const path = require('path')
+
 const FormData = require('form-data')
 const AbortSignal = require('abort-controller').AbortSignal
 const Anvil = require('../src/index')
 
 const validationModule = require('../src/validation')
+
+const assetsDir = path.join(__dirname, 'assets')
 
 function mockNodeFetchResponse (options = {}) {
   const {
@@ -264,20 +269,11 @@ describe('Anvil API Client', function () {
           FormData.prototype.append.restore()
         })
 
-        context('schema is good', function () {
+        describe('schema is good', function () {
           const query = { foo: 'bar' }
-          const variables = {
-            aNested: {
-              name: 'aFileName',
-              mimetype: 'application/pdf',
-              file: Buffer.from(''),
-            },
-          }
           const clientOptions = { yo: 'mtvRaps' }
 
-          it('creates a FormData and appends the files map', function () {
-            client.requestGraphQL({ query, variables }, clientOptions)
-
+          afterEach(function () {
             expect(client._wrapRequest).to.have.been.calledOnce
 
             const [fn, clientOptionsReceived] = client._wrapRequest.lastCall.args
@@ -296,26 +292,82 @@ describe('Anvil API Client', function () {
             } = options
 
             expect(method).to.eql('POST')
-            expect(headers).to.eql({}) // node-fetch will add appropriate header
-            expect(body).to.be.an.instanceof(FormData)
-            expect(signal).to.be.an.instanceof(AbortSignal)
-            expect(
-              FormData.prototype.append.withArgs(
-                'map',
-                JSON.stringify({ 1: ['variables.aNested.file'] }),
-              ),
-            ).calledOnce
+            if ($.isBase64) {
+              expect(headers).to.eql({
+                'Content-Type': 'application/json',
+              })
+              // Vars are untouched
+              expect(JSON.parse(body).variables).to.eql($.variables)
+            } else {
+              expect(headers).to.eql({}) // node-fetch will add appropriate header
+              expect(body).to.be.an.instanceof(FormData)
+              expect(signal).to.be.an.instanceof(AbortSignal)
+              expect(
+                FormData.prototype.append.withArgs(
+                  'map',
+                  JSON.stringify({ 1: ['variables.aNested.file'] }),
+                ),
+              ).calledOnce
+            }
+          })
+
+          context('file is a Buffer', function () {
+            def('variables', () => ({
+              aNested: {
+                file: Buffer.from(''),
+              },
+            }))
+
+            it('creates a FormData and appends the files map', function () {
+              client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+            })
+          })
+
+          context('file is a Stream', function () {
+            def('variables', () => {
+              const file = fs.createReadStream(path.join(assetsDir, 'dummy.pdf'))
+              return {
+                aNested: {
+                  file,
+                },
+              }
+            })
+
+            it('creates a FormData and appends the files map', function () {
+              client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+            })
+          })
+
+          context('file is a base64 upload', function () {
+            def('isBase64', () => true)
+            def('variables', () => {
+              return {
+                aNested: {
+                  file: {
+                    data: Buffer.from('Base64 Data').toString('base64'),
+                    filename: 'omgwow.pdf',
+                    mimetype: 'application/pdf',
+                  },
+                },
+              }
+            })
+
+            it('does not touch the variables at all', function () {
+              client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+            })
           })
         })
 
-        context('schema is not good', function () {
-          it('throws error about the schema', async function () {
-            const query = { foo: 'bar' }
-            const variables = {
-              file: Buffer.from(''),
-            }
+        describe('schema is not good', function () {
+          context('file is not a stream or buffer', function () {
+            it('throws error about the schema', async function () {
+              const query = { foo: 'bar' }
+              const variables = {
+                file: 'i am not a file',
+              }
 
-            await expect(client.requestGraphQL({ query, variables })).to.eventually.be.rejectedWith('Invalid File schema detected')
+              await expect(client.requestGraphQL({ query, variables })).to.eventually.be.rejectedWith('Invalid File schema detected')
+            })
           })
         })
       })

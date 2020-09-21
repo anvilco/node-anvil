@@ -29,7 +29,7 @@ module.exports = {
       $signatureEmailBody: String,
       $signaturePageOptions: JSON,
       $signers: [JSON!],
-      $fillPayload: JSON,
+      $data: JSON,
     ) {
       createEtchPacket (
         name: $name,
@@ -41,7 +41,7 @@ module.exports = {
         signatureEmailBody: $signatureEmailBody,
         signaturePageOptions: $signaturePageOptions,
         signers: $signers,
-        fillPayload: $fillPayload
+        data: $data
       ) ${responseQuery}
     }`,
 }

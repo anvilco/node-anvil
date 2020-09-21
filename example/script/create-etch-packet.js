@@ -65,7 +65,7 @@ async function main () {
         enableEmails: false,
       },
     ],
-    fillPayload: {
+    data: {
       payloads: {
         fileUpload: {
           textColor: '#CC0000',

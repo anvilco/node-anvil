@@ -1,14 +1,12 @@
 const fs = require('fs')
-const path = require('path')
 
-const get = require('lodash.get')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
-const Mime = require('mime-types')
 const AbortController = require('abort-controller')
 const { extractFiles } = require('extract-files')
 const { RateLimiter } = require('limiter')
 
+const UploadWithOptions = require('./UploadWithOptions')
 const { version, description } = require('../package.json')
 
 const {
@@ -66,12 +64,25 @@ class Anvil {
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 
-  static prepareGraphQLFile (pathOrStreamOrBuffer, options) {
-    if (pathOrStreamOrBuffer instanceof Buffer) {
-      return this._prepareGraphQLBuffer(pathOrStreamOrBuffer, options)
+  /**
+   * Perform some handy/necessary things for a GraphQL file upload to make it work
+   * with this client and with our backend
+   *
+   * @param  {string|Buffer|Stream-like-thing} pathOrStreamLikeThing - Either a string path to a file,
+   *   a Buffer, or a Stream-like thing that is compatible with form-data as an append.
+   * @param  {object} formDataAppendOptions - User can specify options to be passed to the form-data.append
+   *   call. This should be done if a stream-like thing is not one of the common types that
+   *   form-data can figure out on its own.
+   *
+   * @return {UploadWithOptions} - A class that wraps the stream-like-thing and any options
+   *   up together nicely in a way that we can also tell that it was us who did it.
+   */
+  static prepareGraphQLFile (pathOrStreamLikeThing, formDataAppendOptions) {
+    if (typeof pathOrStreamLikeThing === 'string') {
+      pathOrStreamLikeThing = fs.createReadStream(pathOrStreamLikeThing)
     }
 
-    return this._prepareGraphQLStream(pathOrStreamOrBuffer, options)
+    return new UploadWithOptions(pathOrStreamLikeThing, formDataAppendOptions)
   }
 
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
@@ -115,14 +126,10 @@ class Anvil {
       },
       { dataType: DATA_TYPE_JSON },
     )
-    const {
-      data: {
-        generateEtchSignURL,
-      },
-    } = data
+
     return {
       statusCode,
-      url: generateEtchSignURL,
+      url: data?.data?.generateEtchSignURL,
       errors,
     }
   }
@@ -168,17 +175,22 @@ class Anvil {
 
       i = 0
       filesMap.forEach((paths, file) => {
-        // If this is a Stream, will attach a listener to the 'error' event so that we
+        let appendOptions = {}
+        if (file instanceof UploadWithOptions) {
+          appendOptions = file.options
+          file = file.file
+        }
+        // If this is a stream-like thing, attach a listener to the 'error' event so that we
         // can cancel the API call if something goes wrong
-        if (file instanceof fs.ReadStream) {
+        if (typeof file.on === 'function') {
           file.on('error', (err) => {
             console.warn(err)
             abortController.abort()
           })
         }
+
         // Pass in some things explicitly to the form.append so that we get the
         // desired/expected filename and mimetype, etc
-        const appendOptions = extractFormAppendOptions({ paths, object: originalOperation })
         form.append(`${++i}`, file, appendOptions)
       })
 
@@ -344,22 +356,6 @@ class Anvil {
     })
   }
 
-  static _prepareGraphQLStream (pathOrStream, options) {
-    if (typeof pathOrStream === 'string') {
-      pathOrStream = fs.createReadStream(pathOrStream)
-    }
-
-    return this._prepareGraphQLStreamOrBuffer(pathOrStream, options)
-  }
-
-  static _prepareGraphQLBuffer (pathOrBuffer, options) {
-    if (typeof pathOrBuffer === 'string') {
-      pathOrBuffer = fs.readFileSync(pathOrBuffer)
-    }
-
-    return this._prepareGraphQLStreamOrBuffer(pathOrBuffer, options)
-  }
-
   static _prepareGraphQLBase64 (data, options = {}) {
     const { filename, mimetype } = options
     if (!filename) {
@@ -380,61 +376,6 @@ class Anvil {
       mimetype,
     }
   }
-
-  static _prepareGraphQLStreamOrBuffer (streamOrBuffer, options) {
-    this._getFilename(streamOrBuffer, options)
-    this._getMimetype(streamOrBuffer, options)
-    return streamOrBuffer
-  }
-
-  static _getFilename (thing, options = {}) {
-    // Very heavily influenced by:
-    // https://github.com/form-data/form-data/blob/55d90ce4a4c22b0ea0647991d85cb946dfb7395b/lib/form_data.js#L217
-
-    if (typeof options.filepath === 'string') {
-      // custom filepath for relative paths
-      return path.normalize(options.filepath).replace(/\\/g, '/')
-    }
-    if (options.filename || thing.name || thing.path) {
-      // custom filename take precedence
-      // formidable and the browser add a name property
-      // fs- and request- streams have path property
-      return path.basename(options.filename || thing.name || thing.path)
-    }
-    if (thing.readable && Object.prototype.hasOwnProperty.call(thing, 'httpVersion')) {
-      // or try http response
-      return path.basename(thing.client._httpMessage.path || '')
-    }
-
-    throw new Error('Unable to determine file name for this upload. Please pass it via options.filename.')
-  }
-
-  static _getMimetype (thing, options = {}) {
-    // Very heavily influenced by:
-    // https://github.com/form-data/form-data/blob/55d90ce4a4c22b0ea0647991d85cb946dfb7395b/lib/form_data.js#L243
-
-    // use custom content-type above all
-    if (typeof options.mimetype === 'string') {
-      return options.mimetype
-    }
-
-    // or try `name` from formidable, browser
-    if (thing.name || thing.path) {
-      return Mime.lookup(thing.name || thing.path)
-    }
-
-    // or if it's http-reponse
-    if (thing.readable && Object.prototype.hasOwnProperty.call(thing, 'httpVersion')) {
-      return thing.headers['content-type'] || thing.headers['Content-Type']
-    }
-
-    // or guess it from the filepath or filename
-    if ((options.filepath || options.filename)) {
-      Mime.lookup(options.filepath || options.filename)
-    }
-
-    throw new Error('Unable to determine mime type for this upload. Please pass it via options.mimetype.')
-  }
 }
 
 function getRetryMS (retryAfterSeconds) {
@@ -445,25 +386,6 @@ function sleep (ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
-}
-
-function extractFormAppendOptions ({ paths, object }) {
-  const length = paths.length
-  if (length !== 1) {
-    if (length === 0) {
-      throw new Error('No file map paths received')
-    }
-    console.warn(`WARNING: received ${length} file map paths. Expected exactly 1.`)
-  }
-  const path = paths[0].split('.')
-  path.pop()
-
-  const parent = get(object, path.join('.'))
-
-  return {
-    filename: parent.name,
-    contentType: parent.mimetype,
-  }
 }
 
 module.exports = Anvil

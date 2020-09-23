@@ -2,7 +2,7 @@ const path = require('path')
 const Anvil = require('../../src/index')
 const argv = require('yargs')
   .usage('Usage: $0 apiKey castEid fileName')
-  .demandCommand(4).argv
+  .demandCommand(3).argv
 
 const [apiKey, castEid, fileName] = argv._
 const pathToFile = path.resolve(__dirname, fileName)

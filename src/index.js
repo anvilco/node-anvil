@@ -129,7 +129,7 @@ class Anvil {
 
     return {
       statusCode,
-      url: data?.data?.generateEtchSignURL,
+      url: data && data.data && data.data.generateEtchSignURL,
       errors,
     }
   }

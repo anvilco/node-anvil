@@ -1,10 +1,10 @@
 const path = require('path')
 const Anvil = require('../../src/index')
 const argv = require('yargs')
-  .usage('Usage: $0 apiKey orgEid castEid fileName')
+  .usage('Usage: $0 apiKey castEid fileName')
   .demandCommand(4).argv
 
-const [apiKey, orgEid, castEid, fileName] = argv._
+const [apiKey, castEid, fileName] = argv._
 const pathToFile = path.resolve(__dirname, fileName)
 
 async function main () {
@@ -19,7 +19,6 @@ async function main () {
   const streamFile = Anvil.prepareGraphQLFile(pathToFile)
 
   const variables = {
-    organizationEid: orgEid,
     send: true,
     isTest: true,
     signatureEmailSubject: 'Test Create Packet',

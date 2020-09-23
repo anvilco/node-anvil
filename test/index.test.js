@@ -5,8 +5,6 @@ const FormData = require('form-data')
 const AbortSignal = require('abort-controller').AbortSignal
 const Anvil = require('../src/index')
 
-const validationModule = require('../src/validation')
-
 const assetsDir = path.join(__dirname, 'assets')
 
 function mockNodeFetchResponse (options = {}) {

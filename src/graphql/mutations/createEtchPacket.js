@@ -21,7 +21,6 @@ module.exports = {
   getMutation: (responseQuery = defaultResponseQuery) => `
     mutation CreateEtchPacket (
       $name: String,
-      $organizationEid: String!,
       $files: [EtchFile!],
       $send: Boolean,
       $isTest: Boolean,
@@ -33,7 +32,6 @@ module.exports = {
     ) {
       createEtchPacket (
         name: $name,
-        organizationEid: $organizationEid,
         files: $files,
         send: $send,
         isTest: $isTest,

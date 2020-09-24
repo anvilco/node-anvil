@@ -22,7 +22,7 @@ module.exports = {
     mutation CreateEtchPacket (
       $name: String,
       $files: [EtchFile!],
-      $send: Boolean,
+      $draft: Boolean,
       $isTest: Boolean,
       $signatureEmailSubject: String,
       $signatureEmailBody: String,
@@ -33,7 +33,7 @@ module.exports = {
       createEtchPacket (
         name: $name,
         files: $files,
-        send: $send,
+        draft: $draft,
         isTest: $isTest,
         signatureEmailSubject: $signatureEmailSubject,
         signatureEmailBody: $signatureEmailBody,

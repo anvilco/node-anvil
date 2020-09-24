@@ -19,7 +19,7 @@ async function main () {
   const streamFile = Anvil.prepareGraphQLFile(pathToFile)
 
   const variables = {
-    draft: false,
+    isDraft: false,
     isTest: true,
     signatureEmailSubject: 'Test Create Packet',
     signers: [

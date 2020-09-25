@@ -11,6 +11,8 @@ const defaultResponseQuery = `{
     signers {
       id
       eid
+      aliasId
+      routingOrder
       name
       email
     }

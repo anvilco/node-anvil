@@ -380,6 +380,27 @@ describe('Anvil API Client', function () {
         client.requestGraphQL.restore()
       })
 
+      context('mutation is specified', function () {
+        it('calls requestGraphQL with overridden mutation', function () {
+          const variables = { foo: 'bar' }
+          const mutationOverride = 'createEtchPacketOverride()'
+
+          client.createEtchPacket({ variables, mutation: mutationOverride })
+
+          expect(client.requestGraphQL).to.have.been.calledOnce
+          const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+          const {
+            query,
+            variables: variablesReceived,
+          } = options
+
+          expect(variables).to.eql(variablesReceived)
+          expect(query).to.include(mutationOverride)
+          expect(clientOptions).to.eql({ dataType: 'json' })
+        })
+      })
+
       context('no responseQuery specified', function () {
         it('calls requestGraphQL with default responseQuery', function () {
           const variables = { foo: 'bar' }
@@ -403,7 +424,6 @@ describe('Anvil API Client', function () {
       context('responseQuery specified', function () {
         it('calls requestGraphQL with overridden responseQuery', function () {
           const variables = { foo: 'bar' }
-
           const responseQuery = 'onlyInATest {}'
 
           client.createEtchPacket({ variables, responseQuery })

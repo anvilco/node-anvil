@@ -114,6 +114,22 @@ Creates an Etch Packet and optionally sends it to the first signer.
 * `options` (Object) - An object with the following structure:
   * `variables` (Object) - See the [API Documentation](#api-documentation) area for details. See [Examples](#examples) area for examples.
   * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the mutation response. Can be left out to use default.
+  * `mutation` (String) - _optional_ If you'd like complete control of the GraphQL mutation, you can pass in a GraphQL Mutation compliant string that will be used in the mutation call. This string should also include your response query, as the `responseQuery` param is ignored if `mutation` is passed. Example:
+    ```graphql
+      mutation CreateEtchPacket (
+        $name: String,
+        ...
+      ) {
+        createEtchPacket (
+          name: $name,
+          ...
+        ) {
+          id
+          eid
+          ...
+        }
+      }
+    ```
 
 ##### generateEtchSignUrl(options)
 

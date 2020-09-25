@@ -12,6 +12,7 @@ const defaultResponseQuery = `{
       id
       eid
       aliasId
+      routingOrder
       name
       email
     }

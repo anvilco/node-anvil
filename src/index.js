@@ -108,10 +108,10 @@ class Anvil {
     )
   }
 
-  createEtchPacket ({ variables, responseQuery }) {
+  createEtchPacket ({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
       {
-        query: getCreateEtchPacketMutation(responseQuery),
+        query: mutation || getCreateEtchPacketMutation(responseQuery),
         variables,
       },
       { dataType: DATA_TYPE_JSON },

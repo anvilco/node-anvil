@@ -18,6 +18,11 @@ const {
       getMutation: getGenerateEtchSignUrlMutation,
     },
   },
+  queries: {
+    etchPacket: {
+      getQuery: getEtchPacketQuery,
+    },
+  },
 } = require('./graphql')
 
 const {
@@ -112,6 +117,16 @@ class Anvil {
     return this.requestGraphQL(
       {
         query: mutation || getCreateEtchPacketMutation(responseQuery),
+        variables,
+      },
+      { dataType: DATA_TYPE_JSON },
+    )
+  }
+
+  getEtchPacket ({ variables, responseQuery, query }) {
+    return this.requestGraphQL(
+      {
+        query: query || getEtchPacketQuery(responseQuery),
         variables,
       },
       { dataType: DATA_TYPE_JSON },

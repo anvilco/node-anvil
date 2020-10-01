@@ -42,6 +42,20 @@ yarn node example/script/create-etch-packet.js <apiKey> <castEid> <filename>
 yarn node example/script/create-etch-packet.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ 99u7QvvHr8hDQ4BW9GYv ../../../simple-anvil-finovate-non-qualified.pdf
 ```
 
+## get-etch-packet.js script
+
+Calls the etchPacket Anvil endpoint with the specified Etch packet eid to get the packet details. 
+
+Usage example:
+
+```sh
+# Gets the details of an Etch Packet, a packet eid must be supplied
+yarn node example/script/get-etch-packet.js <apiKey> <etchPacketEid>
+
+# An example
+yarn node example/script/get-etch-packet.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ QJhbdpK75RHRQcgPz5Fc
+```
+
 ## generate-etch-sign-url.js script
 
 Calls the generateEtchSignUrl Anvil endpoint with data specified to generate an Etch sign link with the Anvil API. Returns the sign link.

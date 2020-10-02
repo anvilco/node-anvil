@@ -7,6 +7,7 @@ const defaultResponseQuery = `{
     eid
     status
     files
+    providerConfig
     signers {
       id
       eid

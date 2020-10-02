@@ -15,7 +15,7 @@ const {
       generateMutation: generateCreateEtchPacketMutation,
     },
     generateEtchSignUrl: {
-      generateMutation: generateGenerateEtchSignUrlMutation,
+      generateMutation: generateEtchSignUrlMutation,
     },
   },
   queries: {
@@ -136,7 +136,7 @@ class Anvil {
   async generateEtchSignUrl ({ variables }) {
     const { statusCode, data, errors } = await this.requestGraphQL(
       {
-        query: generateGenerateEtchSignUrlMutation(),
+        query: generateEtchSignUrlMutation(),
         variables,
       },
       { dataType: DATA_TYPE_JSON },

@@ -15,6 +15,7 @@ const defaultResponseQuery = `{
       routingOrder
       name
       email
+      status
     }
   }
 }`

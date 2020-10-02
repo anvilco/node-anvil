@@ -8,6 +8,7 @@ const defaultResponseQuery = `{
     eid
     status
     files
+    providerConfig
     signers {
       id
       eid
@@ -15,6 +16,7 @@ const defaultResponseQuery = `{
       routingOrder
       name
       email
+      status
     }
   }
 }`

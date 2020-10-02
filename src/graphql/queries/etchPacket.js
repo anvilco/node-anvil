@@ -19,7 +19,7 @@ const defaultResponseQuery = `{
 }`
 
 module.exports = {
-  getQuery: (responseQuery = defaultResponseQuery) => `
+  generateQuery: (responseQuery = defaultResponseQuery) => `
     query GetEtchPacket (
       $eid: String!,
     ) {

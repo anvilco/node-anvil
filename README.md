@@ -137,17 +137,7 @@ Gets the details of an Etch Packet.
 * `options` (Object) - An object with the following structure:
   * `variables` (Object) - Requires `eid`
     * `eid` (String) - your Etch Packet eid
-  * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the mutation response. Can be left out to use default.
-  * `query` (String) - _optional_ If you'd like complete control of the GraphQL query, you can pass in a GraphQL Query compliant string that will be used in the query call. This string should also include your response query, as the `responseQuery` param is ignored if `query` is passed. Example:
-    ```graphql
-      query GetEtchPacket (
-        $eid: String!,
-      ) {
-        etchPacket (
-          eid: $eid,
-        ) ${responseQuery}
-      }
-    ```
+  * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the query response. Can be left out to use default.
 
 ##### generateEtchSignUrl(options)
 

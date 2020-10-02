@@ -20,7 +20,7 @@ const defaultResponseQuery = `{
 }`
 
 module.exports = {
-  getMutation: (responseQuery = defaultResponseQuery) => `
+  generateMutation: (responseQuery = defaultResponseQuery) => `
     mutation CreateEtchPacket (
       $name: String,
       $files: [EtchFile!],

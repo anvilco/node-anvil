@@ -1,5 +1,5 @@
 module.exports = {
-  getMutation: () => `
+  generateMutation: () => `
     mutation GenerateEtchSignURL (
       $signerEid: String!,
       $clientUserId: String!,

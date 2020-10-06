@@ -2,6 +2,7 @@ const defaultResponseQuery = `{
   id
   eid
   name
+  etchPacketDetailsURL
   documentGroup {
     id
     eid

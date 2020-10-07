@@ -17,6 +17,7 @@ const defaultResponseQuery = `{
       name
       email
       status
+      signActionType
     }
   }
 }`

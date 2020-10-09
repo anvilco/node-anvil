@@ -149,6 +149,10 @@ class Anvil {
     }
   }
 
+  async downloadDocumentGroup (documentGroupEid, clientOptions = { dataType: DATA_TYPE_BUFFER }) {
+    return this.requestREST(`/api/document-group/${documentGroupEid}.zip`, { method: 'GET' }, clientOptions)
+  }
+
   async requestGraphQL ({ query, variables = {} }, clientOptions) {
     // Some helpful resources on how this came to be:
     // https://github.com/jaydenseric/graphql-upload/issues/125#issuecomment-440853538

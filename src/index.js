@@ -151,7 +151,7 @@ class Anvil {
 
   downloadDocuments (documentGroupEid) {
     return this.requestREST(
-      `/api/document-group/${documentGroupEid}.zip`,
+      `/api/client/document-group/${documentGroupEid}.zip`,
       { method: 'GET' },
       { dataType: DATA_TYPE_STREAM })
   }

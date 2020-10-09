@@ -149,8 +149,11 @@ class Anvil {
     }
   }
 
-  async downloadDocumentGroup (documentGroupEid, clientOptions = { dataType: DATA_TYPE_BUFFER }) {
-    return this.requestREST(`/api/document-group/${documentGroupEid}.zip`, { method: 'GET' }, clientOptions)
+  downloadDocuments (documentGroupEid) {
+    return this.requestREST(
+      `/api/document-group/${documentGroupEid}.zip`,
+      { method: 'GET' },
+      { dataType: DATA_TYPE_STREAM })
   }
 
   async requestGraphQL ({ query, variables = {} }, clientOptions) {

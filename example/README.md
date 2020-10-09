@@ -69,3 +69,17 @@ yarn node example/script/generate-etch-sign-url.js <apiKey> <clientUserId> <sign
 # An example
 yarn node example/script/generate-etch-sign-url.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ eBim2Vsv2GqCTJxpjTru ZTlbNhxP2lGkNFsNzcus
 ```
+
+## download-documents.js script
+
+Calls the downloadDocuments Anvil endpoint to download documents with the specified documentGroupEid in Zip file format. Outputs the downloaded Zip file in `example/script/{documentGroupName}.zip`
+
+Usage example:
+
+```sh
+# Downloads a Document Group in a Zip file and outputs in the example/script folder
+yarn node example/script/download-documents.js <apiKey> <documentGroupEid>
+
+# An example
+yarn node example/script/download-documents.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ uQiXw4P4DTmXV1eNDmzH
+```

@@ -8,7 +8,6 @@ const defaultResponseQuery = `{
     eid
     status
     files
-    downloadZipURL
     signers {
       id
       eid

@@ -72,7 +72,7 @@ yarn node example/script/generate-etch-sign-url.js WHG3ylq0EE930IR2LZDtgoqgl55M3
 
 ## download-documents.js script
 
-Calls the downloadDocuments Anvil endpoint to download documents with the specified documentGroupEid in Zip file format. Outputs the downloaded Zip file in `example/script/{etchPacketName}.zip`
+Calls the downloadDocuments Anvil endpoint to download documents with the specified documentGroupEid in Zip file format. Outputs the downloaded Zip file in `example/script/{etchPacketName}.zip`. The default response data is returned in the form of a buffer. This can be changed by adding the `-s` flag to instead be returned as a PassThrough stream.
 
 Usage example:
 

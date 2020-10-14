@@ -149,11 +149,20 @@ class Anvil {
     }
   }
 
-  downloadDocuments (documentGroupEid) {
+  downloadDocuments (documentGroupEid, clientOptions = {}) {
+    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
+    const { dataType = DATA_TYPE_BUFFER } = clientOptions
+    if (dataType && !supportedDataTypes.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    }
     return this.requestREST(
       `/api/document-group/${documentGroupEid}.zip`,
       { method: 'GET' },
-      { dataType: DATA_TYPE_STREAM })
+      {
+        ...clientOptions,
+        dataType,
+      },
+    )
   }
 
   async requestGraphQL ({ query, variables = {} }, clientOptions) {

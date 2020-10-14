@@ -2,7 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const Anvil = require('../../src/index')
 const argv = require('yargs')
-  .usage('Usage: $0 apiKey documentGroupEid')
+  .usage('Usage: $0 apiKey documentGroupEid [-s]')
   .option('stream', {
     alias: 's',
     type: 'boolean',

@@ -156,7 +156,7 @@ Returns a Buffer or Stream of the document group specified by the documentGroupE
 * Returns a `Promise` that resolves to an `Object`
    * `statusCode` (Number) - the HTTP status code, `200` is success
    * `response` (Object) - the Response object resulting from the client's request to the Anvil app
-   * `data` (Buffer | Stream) - The raw binary data of the downloaded document if success. Will be in the format of either a Buffer or a Stream, depending on `dataType` option supplied to the request.
+   * `data` (Buffer | Stream) - The raw binary data of the downloaded documents if success. Will be in the format of either a Buffer or a Stream, depending on `dataType` option supplied to the request.
    * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
       * `message` (String)
 

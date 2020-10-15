@@ -254,7 +254,7 @@ describe('Anvil API Client', function () {
       })
 
       context('unsupported options', function () {
-        it('returns data as buffer', async function () {
+        it('raises appropriate error', async function () {
           try {
             await client.downloadDocuments('docGroupEid123', { dataType: 'json' })
           } catch (e) {

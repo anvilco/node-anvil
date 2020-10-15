@@ -149,14 +149,14 @@ Generates an Etch sign URL for an Etch Packet signer. The Etch Packet and its si
 
 ##### downloadDocuments(documentGroupEid[, options])
 
-Returns the PassThrough stream of the document group specified by the documentGroupEid in Zip file format.
+Returns a Buffer or Stream of the document group specified by the documentGroupEid in Zip file format.
 * `documentGroupEid` (string) - the eid of the document group to download
 * `options` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'stream'` is also supported.
 * Returns a `Promise` that resolves to an `Object`
    * `statusCode` (Number) - the HTTP status code, `200` is success
    * `response` (Object) - the Response object resulting from the client's request to the Anvil app
-   * `data` (object) - a PassThrough Stream object containing the document group's data in Zip file format
+   * `data` (Buffer | Stream) - The raw binary data of the downloaded document if success. Will be in the format of either a Buffer or a Stream, depending on `dataType` option supplied to the request.
    * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
       * `message` (String)
 

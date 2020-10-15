@@ -131,6 +131,14 @@ Creates an Etch Packet and optionally sends it to the first signer.
       }
     ```
 
+##### getEtchPacket(options)
+
+Gets the details of an Etch Packet.
+* `options` (Object) - An object with the following structure:
+  * `variables` (Object) - Requires `eid`
+    * `eid` (String) - your Etch Packet eid
+  * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the query response. Can be left out to use default.
+
 ##### generateEtchSignUrl(options)
 
 Generates an Etch sign URL for an Etch Packet signer. The Etch Packet and its signers must have already been created.
@@ -138,6 +146,19 @@ Generates an Etch sign URL for an Etch Packet signer. The Etch Packet and its si
   * `variables` (Object) - Requires `clientUserId` and `signerEid`
     * `clientUserId` (String) - your user eid
     * `signerEid` (String) - the eid of the Etch Packet signer, found in the response of the `createEtchPacket` instance method
+
+##### downloadDocuments(documentGroupEid[, options])
+
+Returns a Buffer or Stream of the document group specified by the documentGroupEid in Zip file format.
+* `documentGroupEid` (string) - the eid of the document group to download
+* `options` (Object) - _optional_ Any additional options for the request
+  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'stream'` is also supported.
+* Returns a `Promise` that resolves to an `Object`
+   * `statusCode` (Number) - the HTTP status code, `200` is success
+   * `response` (Object) - the Response object resulting from the client's request to the Anvil app
+   * `data` (Buffer | Stream) - The raw binary data of the downloaded documents if success. Will be in the format of either a Buffer or a Stream, depending on `dataType` option supplied to the request.
+   * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
+      * `message` (String)
 
 ### Class Methods
 

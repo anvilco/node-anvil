@@ -42,6 +42,20 @@ yarn node example/script/create-etch-packet.js <apiKey> <castEid> <filename>
 yarn node example/script/create-etch-packet.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ 99u7QvvHr8hDQ4BW9GYv ../../../simple-anvil-finovate-non-qualified.pdf
 ```
 
+## get-etch-packet.js script
+
+Calls the etchPacket Anvil endpoint with the specified Etch packet eid to get the packet details. 
+
+Usage example:
+
+```sh
+# Gets the details of an Etch Packet, a packet eid must be supplied
+yarn node example/script/get-etch-packet.js <apiKey> <etchPacketEid>
+
+# An example
+yarn node example/script/get-etch-packet.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ QJhbdpK75RHRQcgPz5Fc
+```
+
 ## generate-etch-sign-url.js script
 
 Calls the generateEtchSignUrl Anvil endpoint with data specified to generate an Etch sign link with the Anvil API. Returns the sign link.
@@ -54,4 +68,18 @@ yarn node example/script/generate-etch-sign-url.js <apiKey> <clientUserId> <sign
 
 # An example
 yarn node example/script/generate-etch-sign-url.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ eBim2Vsv2GqCTJxpjTru ZTlbNhxP2lGkNFsNzcus
+```
+
+## download-documents.js script
+
+Calls the downloadDocuments Anvil endpoint to download documents with the specified documentGroupEid in Zip file format. Outputs the downloaded Zip file in `example/script/{etchPacketName}.zip`. The default response data is returned in the form of a buffer. This can be changed by adding the `-s` flag to instead be returned as a PassThrough stream.
+
+Usage example:
+
+```sh
+# Downloads a Document Group in a Zip file and outputs in the example/script folder
+yarn node example/script/download-documents.js <apiKey> <documentGroupEid>
+
+# An example
+yarn node example/script/download-documents.js WHG3ylq0EE930IR2LZDtgoqgl55M3TwQ uQiXw4P4DTmXV1eNDmzH
 ```

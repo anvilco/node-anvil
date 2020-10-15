@@ -13,6 +13,7 @@ function mockNodeFetchResponse (options = {}) {
     json,
     buffer,
     headers,
+    body,
   } = options
 
   const mock = {
@@ -25,6 +26,10 @@ function mockNodeFetchResponse (options = {}) {
 
   if (buffer) {
     mock.buffer = () => buffer
+  }
+
+  if (body) {
+    mock.body = body
   }
 
   if (headers) {
@@ -209,6 +214,80 @@ describe('Anvil API Client', function () {
           expect(client._request).to.have.been.calledOnce
           expect(result.statusCode).to.eql(401)
           expect(result.errors).to.eql([error])
+        })
+      })
+    })
+
+    describe('downloadDocuments', function () {
+      def('statusCode', 200)
+      def('buffer', 'This would be Zip file data buffer...')
+      def('body', 'This would be Zip file data stream')
+      def('nodeFetchResponse', () => mockNodeFetchResponse({
+        status: $.statusCode,
+        buffer: $.buffer,
+        body: $.body,
+        json: $.json,
+      }))
+
+      beforeEach(async function () {
+        client._request.callsFake((url, options) => {
+          return Promise.resolve($.nodeFetchResponse)
+        })
+      })
+
+      context('everything goes well', function () {
+        it('returns data as buffer', async function () {
+          const { statusCode, response, data, errors } = await client.downloadDocuments('docGroupEid123')
+          expect(statusCode).to.eql(200)
+          expect(response).to.deep.eql($.nodeFetchResponse)
+          expect(data).to.eql($.buffer)
+          expect(errors).to.be.undefined
+        })
+
+        it('returns data as stream', async function () {
+          const { statusCode, response, data, errors } = await client.downloadDocuments('docGroupEid123', { dataType: 'stream' })
+          expect(statusCode).to.eql(200)
+          expect(response).to.deep.eql($.nodeFetchResponse)
+          expect(data).to.eql($.body)
+          expect(errors).to.be.undefined
+        })
+      })
+
+      context('unsupported options', function () {
+        it('raises appropriate error', async function () {
+          try {
+            await client.downloadDocuments('docGroupEid123', { dataType: 'json' })
+          } catch (e) {
+            expect(e.message).to.eql('dataType must be one of: stream|buffer')
+          }
+        })
+      })
+
+      context('server 400s with errors array in JSON', function () {
+        const errors = [{ message: 'problem' }]
+        def('statusCode', 400)
+        def('json', { errors })
+
+        it('finds errors and puts them in response', async function () {
+          const { statusCode, errors } = await client.downloadDocuments('docGroupEid123')
+
+          expect(client._request).to.have.been.calledOnce
+          expect(statusCode).to.eql(400)
+          expect(errors).to.eql(errors)
+        })
+      })
+
+      context('server 401s with single error in response', function () {
+        const error = { name: 'AuthorizationError', message: 'problem' }
+        def('statusCode', 401)
+        def('json', error)
+
+        it('finds error and puts it in the response', async function () {
+          const { statusCode, errors } = await client.downloadDocuments('docGroupEid123')
+
+          expect(client._request).to.have.been.calledOnce
+          expect(statusCode).to.eql(401)
+          expect(errors).to.eql([error])
         })
       })
     })
@@ -437,6 +516,105 @@ describe('Anvil API Client', function () {
           } = options
 
           expect(variables).to.eql(variablesReceived)
+          expect(query).to.include(responseQuery)
+          expect(clientOptions).to.eql({ dataType: 'json' })
+        })
+      })
+    })
+
+    describe('generateEtchSignUrl', function () {
+      def('statusCode', 200)
+      beforeEach(async function () {
+        sinon.stub(client, '_request')
+        client._request.callsFake((url, options) => {
+          return Promise.resolve($.nodeFetchResponse)
+        })
+      })
+      afterEach(function () {
+        client._request.restore()
+      })
+
+      context('everything goes well', function () {
+        def('data', {
+          data: {
+            generateEtchSignURL: 'http://www.testing.com',
+          },
+        })
+        def('nodeFetchResponse', () => mockNodeFetchResponse({
+          status: $.statusCode,
+          json: $.data,
+        }))
+
+        it('returns url successfully', async function () {
+          const variables = { clientUserId: 'foo', signerEid: 'bar' }
+          const { statusCode, url, errors } = await client.generateEtchSignUrl({ variables })
+          expect(statusCode).to.eql(200)
+          expect(url).to.be.eql($.data.data.generateEtchSignURL)
+          expect(errors).to.be.undefined
+        })
+      })
+
+      context('generate URL failures', function () {
+        def('data', {
+          data: {},
+        })
+        def('nodeFetchResponse', () => mockNodeFetchResponse({
+          status: $.statusCode,
+          json: $.data,
+        }))
+
+        it('returns undefined url', async function () {
+          const variables = { clientUserId: 'foo', signerEid: 'bar' }
+          const { statusCode, url, errors } = await client.generateEtchSignUrl({ variables })
+          expect(statusCode).to.eql(200)
+          expect(url).to.be.undefined
+          expect(errors).to.be.undefined
+        })
+      })
+    })
+
+    describe('getEtchPacket', function () {
+      def('variables', { eid: 'etchPacketEid123' })
+      beforeEach(function () {
+        sinon.stub(client, 'requestGraphQL')
+      })
+
+      afterEach(function () {
+        client.requestGraphQL.restore()
+      })
+
+      context('no responseQuery specified', function () {
+        it('calls requestGraphQL with default responseQuery', async function () {
+          client.getEtchPacket({ variables: $.variables })
+
+          expect(client.requestGraphQL).to.have.been.calledOnce
+          const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+          const {
+            query,
+            variables: variablesReceived,
+          } = options
+
+          expect($.variables).to.eql(variablesReceived)
+          expect(query).to.include('documentGroup {')
+          expect(clientOptions).to.eql({ dataType: 'json' })
+        })
+      })
+
+      context('responseQuery specified', function () {
+        it('calls requestGraphQL with overridden responseQuery', async function () {
+          const responseQuery = 'myCustomResponseQuery'
+          client.getEtchPacket({ variables: $.variables, responseQuery })
+
+          expect(client.requestGraphQL).to.have.been.calledOnce
+          const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+          const {
+            query,
+            variables: variablesReceived,
+          } = options
+
+          expect($.variables).to.eql(variablesReceived)
           expect(query).to.include(responseQuery)
           expect(clientOptions).to.eql({ dataType: 'json' })
         })

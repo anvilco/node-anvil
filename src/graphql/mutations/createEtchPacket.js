@@ -3,6 +3,7 @@ const defaultResponseQuery = `{
   id
   eid
   name
+  detailsURL
   documentGroup {
     id
     eid
@@ -15,12 +16,14 @@ const defaultResponseQuery = `{
       routingOrder
       name
       email
+      status
+      signActionType
     }
   }
 }`
 
 module.exports = {
-  getMutation: (responseQuery = defaultResponseQuery) => `
+  generateMutation: (responseQuery = defaultResponseQuery) => `
     mutation CreateEtchPacket (
       $name: String,
       $files: [EtchFile!],

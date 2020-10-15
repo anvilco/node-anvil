@@ -12,10 +12,15 @@ const { version, description } = require('../package.json')
 const {
   mutations: {
     createEtchPacket: {
-      getMutation: getCreateEtchPacketMutation,
+      generateMutation: generateCreateEtchPacketMutation,
     },
     generateEtchSignUrl: {
-      getMutation: getGenerateEtchSignUrlMutation,
+      generateMutation: generateEtchSignUrlMutation,
+    },
+  },
+  queries: {
+    etchPacket: {
+      generateQuery: generateEtchPacketQuery,
     },
   },
 } = require('./graphql')
@@ -111,7 +116,17 @@ class Anvil {
   createEtchPacket ({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
       {
-        query: mutation || getCreateEtchPacketMutation(responseQuery),
+        query: mutation || generateCreateEtchPacketMutation(responseQuery),
+        variables,
+      },
+      { dataType: DATA_TYPE_JSON },
+    )
+  }
+
+  getEtchPacket ({ variables, responseQuery }) {
+    return this.requestGraphQL(
+      {
+        query: generateEtchPacketQuery(responseQuery),
         variables,
       },
       { dataType: DATA_TYPE_JSON },
@@ -121,7 +136,7 @@ class Anvil {
   async generateEtchSignUrl ({ variables }) {
     const { statusCode, data, errors } = await this.requestGraphQL(
       {
-        query: getGenerateEtchSignUrlMutation(),
+        query: generateEtchSignUrlMutation(),
         variables,
       },
       { dataType: DATA_TYPE_JSON },
@@ -132,6 +147,22 @@ class Anvil {
       url: data && data.data && data.data.generateEtchSignURL,
       errors,
     }
+  }
+
+  downloadDocuments (documentGroupEid, clientOptions = {}) {
+    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
+    const { dataType = DATA_TYPE_BUFFER } = clientOptions
+    if (dataType && !supportedDataTypes.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    }
+    return this.requestREST(
+      `/api/document-group/${documentGroupEid}.zip`,
+      { method: 'GET' },
+      {
+        ...clientOptions,
+        dataType,
+      },
+    )
   }
 
   async requestGraphQL ({ query, variables = {} }, clientOptions) {

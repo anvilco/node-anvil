@@ -1,12 +1,12 @@
 {
   "name": "@anvilco/anvil",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Anvil API Client",
   "main": "src/index.js",
   "scripts": {
     "test": "mocha --config ./test/mocha.js",
     "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
-    "version": "auto-changelog -p --template keepachangelog && git add CHANGELOG.md"
+    "version": "auto-changelog -p --template keepachangelog && read -p \"\nAutomated changes made to CHANGELOG.md. Please make any necessary adjustments, then hit any key to continue.\n\" && git add CHANGELOG.md"
   },
   "repository": {
     "type": "git",
@@ -28,7 +28,7 @@
     "@anvilco:registry": "https://registry.npmjs.org"
   },
   "devDependencies": {
-    "auto-changelog": "^1.16.2",
+    "auto-changelog": "^2.2.1",
     "babel-eslint": "^10.0.3",
     "bdd-lazy-var": "^2.5.4",
     "chai": "^4.2.0",

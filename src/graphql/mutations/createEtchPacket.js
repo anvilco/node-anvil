@@ -31,6 +31,7 @@ module.exports = {
       $isTest: Boolean,
       $signatureEmailSubject: String,
       $signatureEmailBody: String,
+      $signatureProvider: String,
       $signaturePageOptions: JSON,
       $signers: [JSON!],
       $data: JSON,
@@ -42,6 +43,7 @@ module.exports = {
         isTest: $isTest,
         signatureEmailSubject: $signatureEmailSubject,
         signatureEmailBody: $signatureEmailBody,
+        signatureProvider: $signatureProvider,
         signaturePageOptions: $signaturePageOptions,
         signers: $signers,
         data: $data

@@ -72,7 +72,11 @@ First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/docs
 An example:
 
 ```js
+const fs = require('fs')
+
+// PDF template you uploaded to Anvil
 const pdfTemplateID = 'kA6Da9CuGqUtc6QiBDRR'
+
 // Your API key from your Anvil organization settings
 const apiKey = '7j2JuUWmN4fGjBxsCltWaybHOEy3UEtt'
 
@@ -91,6 +95,9 @@ const options = {
 }
 const anvilClient = new Anvil({ apiKey })
 const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload, options)
+
+// Be sure to write the file as raw bytes
+fs.writeFileSync('filled.pdf', data, { encoding: null })
 ```
 
 * `pdfTemplateID` (String) - The id of your PDF template from the Anvil UI

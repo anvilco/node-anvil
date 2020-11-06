@@ -65,7 +65,7 @@ const anvilClient = new Anvil({ apiKey: 'abc123' })
 
 Fills a PDF with your JSON data.
 
-First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/api/fill-pdf). You can find the PDF template's id on the `API Info` tab of your PDF template's page:
+First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/docs/api/fill-pdf#creating-a-pdf-template). You can find the PDF template's id on the `API Info` tab of your PDF template's page:
 
 <img width="725" alt="pdf-template-id" src="https://user-images.githubusercontent.com/69169/73693549-4a598280-468b-11ea-81a3-5df4472de8a4.png">
 
@@ -241,13 +241,13 @@ Options for the Anvil Client. Defaults are shown after each option key.
 
 Our API has request rate limits in place. This API client handles `429 Too Many Requests` errors by waiting until it can retry again, then retrying the request. The client attempts to avoid `429` errors by throttling requests after the number of requests within the specified time period has been reached.
 
-See the [Anvil API docs](https://useanvil.com/api/fill-pdf) for more information on the specifics of the rate limits.
+See the [Anvil API docs](https://useanvil.com/docs/api/fill-pdf) for more information on the specifics of the rate limits.
 
 ## API Documentation
 
 Our general API Documentation can be found [here](https://www.useanvil.com/api/). It's the best resource for up-to-date information about our API and its capabilities.
 
-See the [PDF filling API docs](https://useanvil.com/api/fill-pdf) for more information about the `fillPDF` method.
+See the [PDF filling API docs](https://useanvil.com/docs/api/fill-pdf) for more information about the `fillPDF` method.
 
 ## Examples
 

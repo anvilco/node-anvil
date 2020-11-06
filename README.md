@@ -108,6 +108,62 @@ const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload, o
   * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
     * `message` (String)
 
+##### generatePDF(payload[, options])
+
+Dynamically generate a new PDF with your JSON data. Useful for agreements, invoices, disclosures, or any other text-heavy documents. This does not require you do anything in the Anvil UI other than setup your API key, just send it data, get a PDF. See [the generate PDF docs](https://useanvil.com/api/generate-pdf) for full details.
+
+An example:
+
+```js
+const fs = require('fs')
+
+// Your API key from your Anvil organization settings
+const apiKey = '7j2JuUWmN4fGjBxsCltWaybHOEy3UEtt'
+
+// JSON data for the new PDF
+const payload = {
+  title: 'Example Invoice',
+  data: [{
+    label: 'Name',
+    content: 'Sally Jones',
+  }, {
+    content: 'Lorem **ipsum** dolor sit _amet_',
+  }, {
+    table: {
+      firstRowHeaders: true,
+      rows: [
+        ['Description', 'Quantity', 'Price'],
+        ['4x Large Widgets', '4', '$40.00'],
+        ['10x Medium Sized Widgets in dark blue', '10', '$100.00'],
+        ['10x Small Widgets in white', '6', '$60.00'],
+      ],
+    },
+  }],
+}
+// The 'options' parameter is optional
+const options = {
+  "dataType": "buffer"
+}
+const anvilClient = new Anvil({ apiKey })
+const { statusCode, data } = await anvilClient.generatePDF(payload, options)
+
+// Be sure to write the file as raw bytes
+fs.writeFileSync('generated.pdf', data, { encoding: null })
+```
+
+* `pdfTemplateID` (String) - The id of your PDF template from the Anvil UI
+* `payload` (Object) - The JSON data that will fill the PDF template
+  * `title` (String) - _optional_ Set the title encoded into the PDF document
+  * `data` (Array of Objects) - The data that generates the PDF. See [the docs](https://useanvil.com/docs/api/generate-pdf#supported-format-of-data) for all supported objects
+    * For example `[{ "label": "Hello World!", "content": "Test" }]`
+* `options` (Object) - _optional_ Any additional options for the request
+  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'stream'` is also supported.
+* Returns a `Promise` that resolves to an `Object`
+  * `statusCode` (Number) - the HTTP status code; `200` is success
+  * `data` (Buffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer or a Stream, depending on `dataType` option supplied to the request.
+  * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
+    * `message` (String)
+
 ##### createEtchPacket(options)
 
 Creates an Etch Packet and optionally sends it to the first signer.

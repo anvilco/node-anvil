@@ -63,7 +63,7 @@ const anvilClient = new Anvil({ apiKey: 'abc123' })
 
 ##### fillPDF(pdfTemplateID, payload[, options])
 
-Fills a PDF with your JSON data.
+Fills a PDF template with your JSON data.
 
 First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/docs/api/fill-pdf#creating-a-pdf-template). You can find the PDF template's id on the `API Info` tab of your PDF template's page:
 

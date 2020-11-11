@@ -63,16 +63,20 @@ const anvilClient = new Anvil({ apiKey: 'abc123' })
 
 ##### fillPDF(pdfTemplateID, payload[, options])
 
-Fills a PDF with your JSON data.
+Fills a PDF template with your JSON data.
 
-First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/api/fill-pdf). You can find the PDF template's id on the `API Info` tab of your PDF template's page:
+First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/docs/api/fill-pdf#creating-a-pdf-template). You can find the PDF template's id on the `API Info` tab of your PDF template's page:
 
 <img width="725" alt="pdf-template-id" src="https://user-images.githubusercontent.com/69169/73693549-4a598280-468b-11ea-81a3-5df4472de8a4.png">
 
 An example:
 
 ```js
+const fs = require('fs')
+
+// PDF template you uploaded to Anvil
 const pdfTemplateID = 'kA6Da9CuGqUtc6QiBDRR'
+
 // Your API key from your Anvil organization settings
 const apiKey = '7j2JuUWmN4fGjBxsCltWaybHOEy3UEtt'
 
@@ -91,6 +95,9 @@ const options = {
 }
 const anvilClient = new Anvil({ apiKey })
 const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload, options)
+
+// Be sure to write the file as raw bytes
+fs.writeFileSync('filled.pdf', data, { encoding: null })
 ```
 
 * `pdfTemplateID` (String) - The id of your PDF template from the Anvil UI
@@ -100,6 +107,61 @@ const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, payload, o
   * `color` (String) - _optional_ Set the text color of all filled text. Default is dark blue.
   * `data` (Object) - The data to fill the PDF. The keys in this object will correspond to a field's ID in the PDF. These field IDs and their types are available on the `API Info` tab on your PDF template's page in the Anvil dashboard.
     * For example `{ "someFieldId": "Hello World!" }`
+* `options` (Object) - _optional_ Any additional options for the request
+  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'stream'` is also supported.
+* Returns a `Promise` that resolves to an `Object`
+  * `statusCode` (Number) - the HTTP status code; `200` is success
+  * `data` (Buffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer or a Stream, depending on `dataType` option supplied to the request.
+  * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
+    * `message` (String)
+
+##### generatePDF(payload[, options])
+
+Dynamically generate a new PDF with your JSON data. Useful for agreements, invoices, disclosures, or any other text-heavy documents. This does not require you do anything in the Anvil UI other than setup your API key, just send it data, get a PDF. See [the generate PDF docs](https://useanvil.com/api/generate-pdf) for full details.
+
+An example:
+
+```js
+const fs = require('fs')
+
+// Your API key from your Anvil organization settings
+const apiKey = '7j2JuUWmN4fGjBxsCltWaybHOEy3UEtt'
+
+// JSON data for the new PDF
+const payload = {
+  title: 'Example Invoice',
+  data: [{
+    label: 'Name',
+    content: 'Sally Jones',
+  }, {
+    content: 'Lorem **ipsum** dolor sit _amet_',
+  }, {
+    table: {
+      firstRowHeaders: true,
+      rows: [
+        ['Description', 'Quantity', 'Price'],
+        ['4x Large Widgets', '4', '$40.00'],
+        ['10x Medium Sized Widgets in dark blue', '10', '$100.00'],
+        ['10x Small Widgets in white', '6', '$60.00'],
+      ],
+    },
+  }],
+}
+// The 'options' parameter is optional
+const options = {
+  "dataType": "buffer"
+}
+const anvilClient = new Anvil({ apiKey })
+const { statusCode, data } = await anvilClient.generatePDF(payload, options)
+
+// Be sure to write the file as raw bytes
+fs.writeFileSync('generated.pdf', data, { encoding: null })
+```
+
+* `payload` (Object) - The JSON data that will fill the PDF template
+  * `title` (String) - _optional_ Set the title encoded into the PDF document
+  * `data` (Array of Objects) - The data that generates the PDF. See [the docs](https://useanvil.com/docs/api/generate-pdf#supported-format-of-data) for all supported objects
+    * For example `[{ "label": "Hello World!", "content": "Test" }]`
 * `options` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'stream'` is also supported.
 * Returns a `Promise` that resolves to an `Object`
@@ -185,13 +247,13 @@ Options for the Anvil Client. Defaults are shown after each option key.
 
 Our API has request rate limits in place. This API client handles `429 Too Many Requests` errors by waiting until it can retry again, then retrying the request. The client attempts to avoid `429` errors by throttling requests after the number of requests within the specified time period has been reached.
 
-See the [Anvil API docs](https://useanvil.com/api/fill-pdf) for more information on the specifics of the rate limits.
+See the [Anvil API docs](https://useanvil.com/docs/api/fill-pdf) for more information on the specifics of the rate limits.
 
 ## API Documentation
 
 Our general API Documentation can be found [here](https://www.useanvil.com/api/). It's the best resource for up-to-date information about our API and its capabilities.
 
-See the [PDF filling API docs](https://useanvil.com/api/fill-pdf) for more information about the `fillPDF` method.
+See the [PDF filling API docs](https://useanvil.com/docs/api/fill-pdf) for more information about the `fillPDF` method.
 
 ## Examples
 

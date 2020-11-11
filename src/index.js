@@ -113,6 +113,29 @@ class Anvil {
     )
   }
 
+  generatePDF (payload, clientOptions = {}) {
+    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
+    const { dataType = DATA_TYPE_BUFFER } = clientOptions
+    if (dataType && !supportedDataTypes.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    }
+
+    return this.requestREST(
+      '/api/v1/generate-pdf',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+      {
+        ...clientOptions,
+        dataType,
+      },
+    )
+  }
+
   createEtchPacket ({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
       {

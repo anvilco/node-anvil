@@ -3,10 +3,10 @@
 //
 // Usage example:
 //
-// # Fills a PDF then opens it in preview
+// # Fills a PDF
 // yarn node example/script/fill-pdf.js <pdfTemplateID> <apiKey> <inputJSONFile>
 //
-// # An example
+// # An example that fills then opens the PDF in preview
 // yarn node example/script/fill-pdf.js idabc123 apiKeydef345 ./payload.json && open example/script/fill.output.pdf
 //
 // `payload.json` is a json file with the JSON data used to fill the PDF. e.g.

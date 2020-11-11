@@ -158,7 +158,6 @@ const { statusCode, data } = await anvilClient.generatePDF(payload, options)
 fs.writeFileSync('generated.pdf', data, { encoding: null })
 ```
 
-* `pdfTemplateID` (String) - The id of your PDF template from the Anvil UI
 * `payload` (Object) - The JSON data that will fill the PDF template
   * `title` (String) - _optional_ Set the title encoded into the PDF document
   * `data` (Array of Objects) - The data that generates the PDF. See [the docs](https://useanvil.com/docs/api/generate-pdf#supported-format-of-data) for all supported objects

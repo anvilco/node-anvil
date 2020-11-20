@@ -34,6 +34,7 @@ module.exports = {
       $signatureProvider: String,
       $signaturePageOptions: JSON,
       $signers: [JSON!],
+      $webhookURL: String,
       $data: JSON,
     ) {
       createEtchPacket (
@@ -46,6 +47,7 @@ module.exports = {
         signatureProvider: $signatureProvider,
         signaturePageOptions: $signaturePageOptions,
         signers: $signers,
+        webhookURL: $webhookURL,
         data: $data
       ) ${responseQuery}
     }`,

@@ -140,11 +140,6 @@ class Anvil {
   }
 
   getPDFInfo ({ variables }) {
-    console.log({
-      getPDFInfo: {
-        variables,
-      }
-    })
     return this.requestGraphQL(
       {
         query: generateGetPDFInfoQuery(),

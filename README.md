@@ -201,6 +201,14 @@ Gets the details of an Etch Packet.
     * `eid` (String) - your Etch Packet eid
   * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the query response. Can be left out to use default.
 
+##### getPDFInfo(options)
+
+Gets the details of a PDF.
+* `options` (Object) - An object with the following structure:
+  * `variables` (Object) - An object with the following structure:
+    * `castEid`: The EID of an existing Cast.
+    * `file`: Either a binary file (see [`prepareGraphQLFile`](#preparegraphqlfilepathorstreamlikething-options)) or a base64-encoded string in the same structure we support for the `createEtchPacket` mutation. See the [API Documentation](#api-documentation) for more.
+
 ##### generateEtchSignUrl(options)
 
 Generates an Etch sign URL for an Etch Packet signer. The Etch Packet and its signers must have already been created.

@@ -1,16 +1,13 @@
 
 const defaultResponseQuery = `{
-  id
   eid
   name
   detailsURL
   documentGroup {
-    id
     eid
     status
     files
     signers {
-      id
       eid
       aliasId
       routingOrder

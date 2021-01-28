@@ -22,6 +22,9 @@ const {
     etchPacket: {
       generateQuery: generateEtchPacketQuery,
     },
+    getPDFInfo: {
+      generateQuery: generateGetPDFInfoQuery,
+    },
   },
 } = require('./graphql')
 
@@ -133,6 +136,16 @@ class Anvil {
         ...clientOptions,
         dataType,
       },
+    )
+  }
+
+  getPDFInfo ({ variables }) {
+    return this.requestGraphQL(
+      {
+        query: generateGetPDFInfoQuery(),
+        variables,
+      },
+      { dataType: DATA_TYPE_JSON },
     )
   }
 

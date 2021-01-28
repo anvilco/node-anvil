@@ -42,6 +42,12 @@ function mockNodeFetchResponse (options = {}) {
 }
 
 describe('Anvil API Client', function () {
+  const sandbox = sinon.createSandbox()
+
+  afterEach(async function () {
+    sandbox.restore()
+  })
+
   describe('constructor', function () {
     it('throws an error when no options specified', async function () {
       expect(() => new Anvil()).to.throw('options are required')
@@ -69,7 +75,7 @@ describe('Anvil API Client', function () {
 
     beforeEach(async function () {
       client = new Anvil({ apiKey: 'abc123' })
-      sinon.stub(client, '_request')
+      sandbox.stub(client, '_request')
     })
 
     describe('requestREST', function () {
@@ -372,14 +378,9 @@ describe('Anvil API Client', function () {
 
     describe('requestGraphQL', function () {
       beforeEach(function () {
-        sinon.stub(client, '_wrapRequest')
+        sandbox.stub(client, '_wrapRequest')
         client._wrapRequest.callsFake(async () => ({}))
-        sinon.stub(client, '_request')
-      })
-
-      afterEach(function () {
-        client._wrapRequest.restore()
-        client._request.restore()
+        sandbox.stub(client, '_request')
       })
 
       describe('without files', function () {
@@ -413,11 +414,7 @@ describe('Anvil API Client', function () {
 
       describe('with files', function () {
         beforeEach(function () {
-          sinon.spy(FormData.prototype, 'append')
-        })
-
-        afterEach(function () {
-          FormData.prototype.append.restore()
+          sandbox.spy(FormData.prototype, 'append')
         })
 
         describe('schema is good', function () {
@@ -526,11 +523,7 @@ describe('Anvil API Client', function () {
 
     describe('createEtchPacket', function () {
       beforeEach(function () {
-        sinon.stub(client, 'requestGraphQL')
-      })
-
-      afterEach(function () {
-        client.requestGraphQL.restore()
+        sandbox.stub(client, 'requestGraphQL')
       })
 
       context('mutation is specified', function () {
@@ -599,13 +592,10 @@ describe('Anvil API Client', function () {
     describe('generateEtchSignUrl', function () {
       def('statusCode', 200)
       beforeEach(async function () {
-        sinon.stub(client, '_request')
+        sandbox.stub(client, '_request')
         client._request.callsFake((url, options) => {
           return Promise.resolve($.nodeFetchResponse)
         })
-      })
-      afterEach(function () {
-        client._request.restore()
       })
 
       context('everything goes well', function () {
@@ -650,11 +640,7 @@ describe('Anvil API Client', function () {
     describe('getEtchPacket', function () {
       def('variables', { eid: 'etchPacketEid123' })
       beforeEach(function () {
-        sinon.stub(client, 'requestGraphQL')
-      })
-
-      afterEach(function () {
-        client.requestGraphQL.restore()
+        sandbox.stub(client, 'requestGraphQL')
       })
 
       context('no responseQuery specified', function () {
@@ -692,6 +678,30 @@ describe('Anvil API Client', function () {
           expect(query).to.include(responseQuery)
           expect(clientOptions).to.eql({ dataType: 'json' })
         })
+      })
+    })
+
+    describe('getPDFInfo', function () {
+      def('variables', { castEid: 'castEidAbc123456' })
+
+      beforeEach(function () {
+        sandbox.stub(client, 'requestGraphQL')
+      })
+
+      it('called getPDFInfo', async function () {
+        client.getPDFInfo({ variables: $.variables })
+
+        expect(client.requestGraphQL).to.have.been.calledOnce
+        const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+        const {
+          query,
+          variables: variablesReceived,
+        } = options
+
+        expect($.variables).to.eql(variablesReceived)
+        expect(query).to.include('getPDFInfo (')
+        expect(clientOptions).to.eql({ dataType: 'json' })
       })
     })
   })

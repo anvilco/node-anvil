@@ -421,7 +421,7 @@ describe('Anvil API Client', function () {
         })
 
         describe('schema is good', function () {
-          const query = { foo: 'bar' }
+          const query = { foo: 'bar', baz: null }
           const clientOptions = { yo: 'mtvRaps' }
 
           afterEach(function () {

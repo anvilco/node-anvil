@@ -118,7 +118,6 @@ describe('Anvil API Client', function () {
         clientOptions = {
           dataType: 'json',
         }
-        data = { result: 'ok' }
 
         client._request.callsFake((url, options) => {
           return Promise.resolve(

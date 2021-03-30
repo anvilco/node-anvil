@@ -44,6 +44,10 @@ function mockNodeFetchResponse (options = {}) {
 }
 
 describe('Anvil API Client', function () {
+  afterEach(function () {
+    sinon.restore()
+  })
+
   describe('constructor', function () {
     it('throws an error when no options specified', async function () {
       expect(() => new Anvil()).to.throw('options are required')
@@ -402,11 +406,6 @@ describe('Anvil API Client', function () {
         sinon.stub(client, '_request')
       })
 
-      afterEach(function () {
-        client._wrapRequest.restore()
-        client._request.restore()
-      })
-
       describe('without files', function () {
         it('stringifies query and variables', function () {
           const query = { foo: 'bar' }
@@ -439,10 +438,6 @@ describe('Anvil API Client', function () {
       describe('with files', function () {
         beforeEach(function () {
           sinon.spy(FormData.prototype, 'append')
-        })
-
-        afterEach(function () {
-          FormData.prototype.append.restore()
         })
 
         describe('schema is good', function () {
@@ -554,10 +549,6 @@ describe('Anvil API Client', function () {
         sinon.stub(client, 'requestGraphQL')
       })
 
-      afterEach(function () {
-        client.requestGraphQL.restore()
-      })
-
       context('mutation is specified', function () {
         it('calls requestGraphQL with overridden mutation', function () {
           const variables = { foo: 'bar' }
@@ -629,9 +620,6 @@ describe('Anvil API Client', function () {
           return Promise.resolve($.nodeFetchResponse)
         })
       })
-      afterEach(function () {
-        client._request.restore()
-      })
 
       context('everything goes well', function () {
         def('data', {
@@ -678,10 +666,6 @@ describe('Anvil API Client', function () {
         sinon.stub(client, 'requestGraphQL')
       })
 
-      afterEach(function () {
-        client.requestGraphQL.restore()
-      })
-
       context('no responseQuery specified', function () {
         it('calls requestGraphQL with default responseQuery', async function () {
           client.getEtchPacket({ variables: $.variables })
@@ -717,6 +701,91 @@ describe('Anvil API Client', function () {
           expect(query).to.include(responseQuery)
           expect(clientOptions).to.eql({ dataType: 'json' })
         })
+      })
+    })
+
+    describe('forgeSubmit', function () {
+      beforeEach(function () {
+        sinon.stub(client, 'requestGraphQL')
+      })
+
+      it('calls requestGraphQL with overridden mutation', function () {
+        const variables = { foo: 'bar' }
+        const mutationOverride = 'forgeSubmitOverride()'
+
+        client.forgeSubmit({ variables, mutation: mutationOverride })
+
+        expect(client.requestGraphQL).to.have.been.calledOnce
+        const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+        const {
+          query,
+          variables: variablesReceived,
+        } = options
+
+        expect(variables).to.eql(variablesReceived)
+        expect(query).to.include(mutationOverride)
+        expect(clientOptions).to.eql({ dataType: 'json' })
+      })
+
+      it('calls requestGraphQL with default responseQuery', async function () {
+        const variables = { foo: 'bar' }
+        client.forgeSubmit({ variables })
+
+        expect(client.requestGraphQL).to.have.been.calledOnce
+        const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+        const {
+          query,
+          variables: variablesReceived,
+        } = options
+
+        expect(variables).to.eql(variablesReceived)
+        expect(query).to.include('signer {')
+        expect(clientOptions).to.eql({ dataType: 'json' })
+      })
+
+      it('calls requestGraphQL with overridden responseQuery', async function () {
+        const variables = { foo: 'bar' }
+        const customResponseQuery = 'myCustomResponseQuery'
+        client.forgeSubmit({ variables, responseQuery: customResponseQuery })
+
+        expect(client.requestGraphQL).to.have.been.calledOnce
+        const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+        const {
+          query,
+          variables: variablesReceived,
+        } = options
+
+        expect(variables).to.eql(variablesReceived)
+        expect(query).to.include(customResponseQuery)
+        expect(clientOptions).to.eql({ dataType: 'json' })
+      })
+    })
+
+    describe('removeWeldData', function () {
+      beforeEach(function () {
+        sinon.stub(client, 'requestGraphQL')
+      })
+
+      it('calls requestGraphQL with overridden mutation', function () {
+        const variables = { foo: 'bar' }
+        const mutationOverride = 'removeWeldDataOverride()'
+
+        client.removeWeldData({ variables, mutation: mutationOverride })
+
+        expect(client.requestGraphQL).to.have.been.calledOnce
+        const [options, clientOptions] = client.requestGraphQL.lastCall.args
+
+        const {
+          query,
+          variables: variablesReceived,
+        } = options
+
+        expect(variables).to.eql(variablesReceived)
+        expect(query).to.include(mutationOverride)
+        expect(clientOptions).to.eql({ dataType: 'json' })
       })
     })
   })

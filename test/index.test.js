@@ -10,6 +10,7 @@ const assetsDir = path.join(__dirname, 'assets')
 function mockNodeFetchResponse (options = {}) {
   const {
     status,
+    statusText,
     json,
     buffer,
     headers,
@@ -18,14 +19,15 @@ function mockNodeFetchResponse (options = {}) {
 
   const mock = {
     status,
+    statusText: statusText || ((status && status >= 200 && status < 300) ? 'OK' : 'Please specify error statusText for testing'),
   }
 
   if (json) {
-    mock.json = () => json
+    mock.json = typeof json === 'function' ? json : () => json
   }
 
   if (buffer) {
-    mock.buffer = () => buffer
+    mock.buffer = typeof buffer === 'function' ? buffer : () => buffer
   }
 
   if (body) {
@@ -107,6 +109,30 @@ describe('Anvil API Client', function () {
         })
 
         await expect(client.requestREST('/test', options)).to.eventually.have.been.rejectedWith('problem')
+      })
+
+      it('recovers when JSON parsing of error response fails', async function () {
+        options = {
+          method: 'GET',
+        }
+        clientOptions = {
+          dataType: 'json',
+        }
+        data = { result: 'ok' }
+
+        client._request.callsFake((url, options) => {
+          return Promise.resolve(
+            mockNodeFetchResponse({
+              status: 404,
+              statusText: 'Not Found',
+              json: () => JSON.parse('will not parse'),
+            }),
+          )
+        })
+
+        const result = await client.requestREST('/non-existing-endpoint', options, clientOptions)
+        expect(result.statusCode).to.eql(404)
+        expect(result.errors).to.eql(['Not Found'])
       })
 
       it('retries when a 429 response', async function () {

@@ -310,21 +310,30 @@ class Anvil {
 
   _wrapRequest (retryableRequestFn, clientOptions = {}) {
     return this._throttle(async (retry) => {
+      const { dataType, debug } = clientOptions
       const response = await retryableRequestFn()
-      const statusCode = response.status
+      const { status: statusCode, statusText } = response
 
       if (statusCode >= 300) {
         if (statusCode === 429) {
           return retry(getRetryMS(response.headers.get('retry-after')))
         }
 
-        const json = await response.json()
-        const errors = json.errors || (json.message && [json])
+        try {
+          const json = await response.json()
+          const errors = json.errors || (json.message && [json])
+          return errors ? { statusCode, errors } : { statusCode, ...json }
+        } catch (err) {
+          if (debug) {
+            console.warn(`Problem parsing JSON response for status ${statusCode}:`)
+            console.warn(err)
+            console.warn('Using statusText instead')
+          }
+        }
 
-        return errors ? { statusCode, errors } : { statusCode, ...json }
+        return { statusCode, statusText, errors: [statusText] }
       }
 
-      const { dataType } = clientOptions
       let data
 
       switch (dataType) {

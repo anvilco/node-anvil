@@ -14,8 +14,14 @@ const {
     createEtchPacket: {
       generateMutation: generateCreateEtchPacketMutation,
     },
+    forgeSubmit: {
+      generateMutation: generateForgeSubmitMutation,
+    },
     generateEtchSignUrl: {
       generateMutation: generateEtchSignUrlMutation,
+    },
+    removeWeldData: {
+      generateMutation: generateRemoveWeldDataMutation,
     },
   },
   queries: {
@@ -90,6 +96,32 @@ class Anvil {
     return new UploadWithOptions(pathOrStreamLikeThing, formDataAppendOptions)
   }
 
+  createEtchPacket ({ variables, responseQuery, mutation }) {
+    return this.requestGraphQL(
+      {
+        query: mutation || generateCreateEtchPacketMutation(responseQuery),
+        variables,
+      },
+      { dataType: DATA_TYPE_JSON },
+    )
+  }
+
+  downloadDocuments (documentGroupEid, clientOptions = {}) {
+    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
+    const { dataType = DATA_TYPE_BUFFER } = clientOptions
+    if (dataType && !supportedDataTypes.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    }
+    return this.requestREST(
+      `/api/document-group/${documentGroupEid}.zip`,
+      { method: 'GET' },
+      {
+        ...clientOptions,
+        dataType,
+      },
+    )
+  }
+
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
@@ -113,6 +145,16 @@ class Anvil {
     )
   }
 
+  forgeSubmit ({ variables, responseQuery, mutation }) {
+    return this.requestGraphQL(
+      {
+        query: mutation || generateForgeSubmitMutation(responseQuery),
+        variables,
+      },
+      { dataType: DATA_TYPE_JSON },
+    )
+  }
+
   generatePDF (payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
@@ -133,16 +175,6 @@ class Anvil {
         ...clientOptions,
         dataType,
       },
-    )
-  }
-
-  createEtchPacket ({ variables, responseQuery, mutation }) {
-    return this.requestGraphQL(
-      {
-        query: mutation || generateCreateEtchPacketMutation(responseQuery),
-        variables,
-      },
-      { dataType: DATA_TYPE_JSON },
     )
   }
 
@@ -172,19 +204,13 @@ class Anvil {
     }
   }
 
-  downloadDocuments (documentGroupEid, clientOptions = {}) {
-    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
-    const { dataType = DATA_TYPE_BUFFER } = clientOptions
-    if (dataType && !supportedDataTypes.includes(dataType)) {
-      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
-    }
-    return this.requestREST(
-      `/api/document-group/${documentGroupEid}.zip`,
-      { method: 'GET' },
+  removeWeldData ({ variables, mutation }) {
+    return this.requestGraphQL(
       {
-        ...clientOptions,
-        dataType,
+        query: mutation || generateRemoveWeldDataMutation(),
+        variables,
       },
+      { dataType: DATA_TYPE_JSON },
     )
   }
 

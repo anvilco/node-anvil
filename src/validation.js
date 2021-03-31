@@ -8,7 +8,8 @@ function isFile (value) {
 }
 
 function graphQLUploadSchemaIsValid (schema, parent, key) {
-  if (schema == null) { //schema is null or undefined
+  // schema is null or undefined
+  if (schema == null) {
     return true
   }
 

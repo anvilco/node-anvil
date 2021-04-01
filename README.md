@@ -239,7 +239,9 @@ Options for the Anvil Client. Defaults are shown after each option key.
 
 ```js
 {
-  apiKey: <your_api_key> // Required. Your API key from your Anvil organization settings
+  apiKey: <your_api_key>, // Required. Your API key from your Anvil  organization settings
+  requestLimit: 40, // Set to 2 when using the development API key
+  requestLimitMS: 1000,
 }
 ```
 

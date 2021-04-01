@@ -43,6 +43,11 @@ const DATA_TYPE_JSON = 'json'
 const defaultOptions = {
   baseURL: 'https://app.useanvil.com',
   userAgent: `${description}/${version}`,
+
+  // Production apiKey rate limits: 40 per second
+  // Development apiKey rate limits: 2 per second
+  requestLimit: 40,
+  requestLimitMS: 1000,
 }
 
 const failBufferMS = 50
@@ -69,9 +74,8 @@ class Anvil {
       ? `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
       : `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
 
-    // Production apiKey rate limits: 200 in 5 seconds
-    this.requestLimit = 200
-    this.requestLimitMS = 5000
+    this.requestLimit = this.options.requestLimit
+    this.requestLimitMS = this.options.requestLimitMS
     this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
   }
 

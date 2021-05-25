@@ -43,11 +43,6 @@ const DATA_TYPE_JSON = 'json'
 const defaultOptions = {
   baseURL: 'https://app.useanvil.com',
   userAgent: `${description}/${version}`,
-
-  // Production apiKey rate limits: 40 per second
-  // Development apiKey rate limits: 2 per second
-  requestLimit: 40,
-  requestLimitMS: 1000,
 }
 
 const failBufferMS = 50
@@ -62,8 +57,16 @@ class Anvil {
   constructor (options) {
     if (!options) throw new Error('options are required')
 
+    // Production apiKey rate limits: 40 per second
+    // Development apiKey rate limits: 2 per second
+    const limitOptions = {
+      requestLimit: options.keyType === 'development' ? 2 : 40,
+      requestLimitMS: 1000,
+    }
+
     this.options = {
       ...defaultOptions,
+      ...limitOptions,
       ...options,
     }
 
@@ -74,9 +77,39 @@ class Anvil {
       ? `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
       : `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
 
-    this.requestLimit = this.options.requestLimit
-    this.requestLimitMS = this.options.requestLimitMS
-    this.limiter = new RateLimiter(this.requestLimit, this.requestLimitMS, true)
+    this._setRateLimiter({ tokens: this.options.requestLimit, intervalMs: this.options.requestLimitMS })
+  }
+
+  _setRateLimiter ({ tokens, intervalMs }) {
+    if (
+      // Both must be truthy
+      !(tokens && intervalMs) ||
+      // Things should not be the same as they already are
+      (this.limitTokens === tokens && this.limitIntervalMs === intervalMs)
+    ) {
+      return
+    }
+
+    const newLimiter = new RateLimiter({ tokensPerInterval: tokens, interval: intervalMs })
+
+    // If we already had a limiter, let's try to pick up where it left off
+    if (this.limiter) {
+      const tokensInUse = Math.max(
+        // getTokensRemaining() can return a decimal, so we round it down
+        // so as to be conservative about potentially hitting the API again
+        this.limitTokens - Math.floor(this.limiter.getTokensRemaining()),
+        0,
+      )
+      const tokensToRemove = Math.min(tokens, tokensInUse)
+      if (tokensToRemove) {
+        newLimiter.tryRemoveTokens(tokensToRemove)
+      }
+      delete this.limiter
+    }
+
+    this.limitTokens = tokens
+    this.limitIntervalMs = intervalMs
+    this.limiter = newLimiter
   }
 
   /**
@@ -342,6 +375,15 @@ class Anvil {
     return this._throttle(async (retry) => {
       const { dataType, debug } = clientOptions
       const response = await retryableRequestFn()
+
+      if (!this.hasSetLimiter) {
+        this.hasSetLimiter = true
+        const tokens = parseInt(response.headers.get('x-ratelimit-limit'))
+        const intervalMs = parseInt(response.headers.get('x-ratelimit-interval-ms'))
+
+        this._setRateLimiter({ tokens, intervalMs })
+      }
+
       const { status: statusCode, statusText } = response
 
       if (statusCode >= 300) {
@@ -429,24 +471,17 @@ class Anvil {
     )
   }
 
-  _throttle (fn) {
-    return new Promise((resolve, reject) => {
-      this.limiter.removeTokens(1, async (err, remainingRequests) => {
-        if (err) reject(err)
-        if (remainingRequests < 1) {
-          await sleep(this.requestLimitMS + failBufferMS)
-        }
-        const retry = async (ms) => {
-          await sleep(ms)
-          return this._throttle(fn)
-        }
-        try {
-          resolve(await fn(retry))
-        } catch (e) {
-          reject(e)
-        }
-      })
-    })
+  async _throttle (fn) {
+    const remainingRequests = await this.limiter.removeTokens(1)
+    if (remainingRequests < 1) {
+      await sleep(this.requestLimitMS + failBufferMS)
+    }
+    const retry = async (ms) => {
+      await sleep(ms)
+      return this._throttle(fn)
+    }
+
+    return fn(retry)
   }
 
   static _prepareGraphQLBase64 (data, options = {}) {

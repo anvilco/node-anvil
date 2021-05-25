@@ -77,6 +77,11 @@ class Anvil {
       ? `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
       : `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
 
+    this.hasSetLimiterFromResponse = false
+    this.limiterSettingInProgress = false
+    this.rateLimiterSetupPromise = new Promise((resolve) => {
+      this.rateLimiterPromiseResolver = resolve
+    })
     this._setRateLimiter({ tokens: this.options.requestLimit, intervalMs: this.options.requestLimitMS })
   }
 
@@ -376,12 +381,13 @@ class Anvil {
       const { dataType, debug } = clientOptions
       const response = await retryableRequestFn()
 
-      if (!this.hasSetLimiter) {
-        this.hasSetLimiter = true
+      if (!this.hasSetLimiterFromResponse) {
+        this.hasSetLimiterFromResponse = true
+        this.limiterSettingInProgress = false
         const tokens = parseInt(response.headers.get('x-ratelimit-limit'))
         const intervalMs = parseInt(response.headers.get('x-ratelimit-interval-ms'))
-
         this._setRateLimiter({ tokens, intervalMs })
+        this.rateLimiterPromiseResolver()
       }
 
       const { status: statusCode, statusText } = response
@@ -472,6 +478,14 @@ class Anvil {
   }
 
   async _throttle (fn) {
+    if (!this.hasSetLimiterFromResponse) {
+      if (this.limiterSettingInProgress) {
+        await this.rateLimiterSetupPromise
+      } else {
+        this.limiterSettingInProgress = true
+      }
+    }
+
     const remainingRequests = await this.limiter.removeTokens(1)
     if (remainingRequests < 1) {
       await sleep(this.requestLimitMS + failBufferMS)

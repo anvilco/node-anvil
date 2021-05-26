@@ -77,11 +77,17 @@ class Anvil {
       ? `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
       : `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
 
+    // Indicates that we have not dynamically set the Rate Limit from the API response
     this.hasSetLimiterFromResponse = false
+    // Indicates that we are in the process setting the Rate Limit from an API response
     this.limiterSettingInProgress = false
+    // A Promise that all early requests will have to wait for before continuing on. This
+    // promise will be resolved by the first API response
     this.rateLimiterSetupPromise = new Promise((resolve) => {
       this.rateLimiterPromiseResolver = resolve
     })
+
+    // Set our initial limiter
     this._setRateLimiter({ tokens: this.options.requestLimit, intervalMs: this.options.requestLimitMS })
   }
 
@@ -382,11 +388,18 @@ class Anvil {
       const response = await retryableRequestFn()
 
       if (!this.hasSetLimiterFromResponse) {
-        this.hasSetLimiterFromResponse = true
-        this.limiterSettingInProgress = false
+        // OK, this is the response sets the rate-limiter values from the
+        // server response:
+
+        // Set up the new Rate Limiter
         const tokens = parseInt(response.headers.get('x-ratelimit-limit'))
         const intervalMs = parseInt(response.headers.get('x-ratelimit-interval-ms'))
         this._setRateLimiter({ tokens, intervalMs })
+
+        // Adjust the gates that make this only happen once.
+        this.hasSetLimiterFromResponse = true
+        this.limiterSettingInProgress = false
+        // Resolve the Promise that everyone else was waiting for
         this.rateLimiterPromiseResolver()
       }
 
@@ -478,10 +491,17 @@ class Anvil {
   }
 
   async _throttle (fn) {
+    // If this is one of the first requests being made, we'll want to dynamically
+    // set the Rate Limiter values from the API response, and hold up everyone else
+    // while this is happening.
+    // If we've already gone through the whole setup from the response, then nothing
+    // special to do
     if (!this.hasSetLimiterFromResponse) {
+      // If limiter setting is already in progress, then this request will have to wait
       if (this.limiterSettingInProgress) {
         await this.rateLimiterSetupPromise
       } else {
+        // Set the gate so that subsequent calls will have to wait for the resolution
         this.limiterSettingInProgress = true
       }
     }

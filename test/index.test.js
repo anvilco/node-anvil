@@ -13,7 +13,10 @@ function mockNodeFetchResponse (options = {}) {
     statusText,
     json,
     buffer,
-    headers,
+    headers = {
+      'x-ratelimit-limit': 1,
+      'x-ratelimit-interval-ms': 1000,
+    },
     body,
   } = options
 

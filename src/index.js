@@ -57,16 +57,10 @@ class Anvil {
   constructor (options) {
     if (!options) throw new Error('options are required')
 
-    // Production apiKey rate limits: 40 per second
-    // Development apiKey rate limits: 2 per second
-    const limitOptions = {
-      requestLimit: options.keyType === 'development' ? 2 : 40,
-      requestLimitMS: 1000,
-    }
-
     this.options = {
       ...defaultOptions,
-      ...limitOptions,
+      requestLimit: 1,
+      requestLimitMS: 1000,
       ...options,
     }
 

@@ -240,14 +240,12 @@ Options for the Anvil Client. Defaults are shown after each option key.
 ```js
 {
   apiKey: <your_api_key>, // Required. Your API key from your Anvil  organization settings
-  requestLimit: 40, // Set to 2 when using the development API key
-  requestLimitMS: 1000,
 }
 ```
 
 ### Rate Limits
 
-Our API has request rate limits in place. This API client handles `429 Too Many Requests` errors by waiting until it can retry again, then retrying the request. The client attempts to avoid `429` errors by throttling requests after the number of requests within the specified time period has been reached.
+Our API has request rate limits in place. The initial request made by this client will parse the limits for your account from the response headers, and then handle the throttling of subsequent requests for you automatically. In the event that this client still receives a `429 Too Many Requests` error response, it will wait the specified duration then retry the request. The client attempts to avoid `429` errors by throttling requests after the number of requests within the specified time period has been reached.
 
 See the [Anvil API docs](https://useanvil.com/docs/api/fill-pdf) for more information on the specifics of the rate limits.
 

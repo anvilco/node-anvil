@@ -1,8 +1,10 @@
 const fs = require('fs')
 const path = require('path')
 
+const { RateLimiter } = require('limiter')
 const FormData = require('form-data')
 const AbortSignal = require('abort-controller').AbortSignal
+
 const Anvil = require('../src/index')
 
 const assetsDir = path.join(__dirname, 'assets')
@@ -13,7 +15,10 @@ function mockNodeFetchResponse (options = {}) {
     statusText,
     json,
     buffer,
-    headers,
+    headers = {
+      'x-ratelimit-limit': 1,
+      'x-ratelimit-interval-ms': 1000,
+    },
     body,
   } = options
 
@@ -136,6 +141,41 @@ describe('Anvil API Client', function () {
         const result = await client.requestREST('/non-existing-endpoint', options, clientOptions)
         expect(result.statusCode).to.eql(404)
         expect(result.errors).to.eql(['Not Found'])
+      })
+
+      it('sets the rate limiter from the response headers', async function () {
+        // Originally, these are true
+        expect(client.hasSetLimiterFromResponse).to.eql(false)
+        expect(client.limiterSettingInProgress).to.eql(false)
+        expect(client.rateLimiterSetupPromise).to.be.an.instanceof(Promise)
+        expect(client.limitTokens).to.eql(1)
+        expect(client.limitIntervalMs).to.eql(1000)
+        expect(client.limiter).to.be.an.instanceof(RateLimiter)
+
+        client._request.callsFake((url, options) => {
+          return Promise.resolve(
+            mockNodeFetchResponse({
+              status: 200,
+              json: data,
+              headers: {
+                'x-ratelimit-limit': 42,
+                'x-ratelimit-interval-ms': 4200,
+              },
+            }),
+          )
+        })
+
+        const result = await client.requestREST('/test', options, clientOptions)
+
+        // Afterwards, these are true
+        expect(client._request).to.have.been.calledOnce
+        expect(result.statusCode).to.eql(200)
+        expect(result.data).to.eql(data)
+
+        expect(client.hasSetLimiterFromResponse).to.eql(true)
+        expect(client.limitTokens).to.eql(42)
+        expect(client.limitIntervalMs).to.eql(4200)
+        expect(client.limiter).to.be.an.instanceof(RateLimiter)
       })
 
       it('retries when a 429 response', async function () {

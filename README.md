@@ -134,6 +134,8 @@ Useful for agreements, invoices, disclosures, or any other text-heavy documents.
 * [HTML to PDF docs](https://www.useanvil.com/docs/api/generate-pdf#html--css-to-pdf)
 * [Markdown to PDF docs](https://www.useanvil.com/docs/api/generate-pdf#markdown-to-pdf)
 
+Check out our [HTML invoice template](https://github.com/anvilco/html-pdf-invoice-template) for a complete HTML to PDF example.
+
 An example:
 
 ```js
@@ -145,6 +147,7 @@ const apiKey = '7j2JuUWmN4fGjBxsCltWaybHOEy3UEtt'
 // An example using an HTML to PDF payload
 const payload = {
   title: 'Example',
+  type: 'html',
   data: {
     html: `
       <h1 class='header-one'>What is Lorem Ipsum?</h1>

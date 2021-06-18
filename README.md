@@ -127,7 +127,12 @@ fs.writeFileSync('filled.pdf', data, { encoding: null })
 
 ##### generatePDF(payload[, options])
 
-Dynamically generate a new PDF with your JSON data. Useful for agreements, invoices, disclosures, or any other text-heavy documents. This does not require you do anything in the Anvil UI other than setup your API key, just send it data, get a PDF. See [the generate PDF docs](https://useanvil.com/api/generate-pdf) for full details.
+Dynamically generate a new PDF from your HTML and CSS or markdown.
+
+Useful for agreements, invoices, disclosures, or any other text-heavy documents. This does not require you do anything in the Anvil UI other than setup your API key, just send it data, get a PDF. See [the generate PDF docs](https://useanvil.com/api/generate-pdf) for full details.
+
+* [HTML to PDF docs](https://www.useanvil.com/docs/api/generate-pdf#html--css-to-pdf)
+* [Markdown to PDF docs](https://www.useanvil.com/docs/api/generate-pdf#markdown-to-pdf)
 
 An example:
 
@@ -137,7 +142,29 @@ const fs = require('fs')
 // Your API key from your Anvil organization settings
 const apiKey = '7j2JuUWmN4fGjBxsCltWaybHOEy3UEtt'
 
-// JSON data for the new PDF
+// An example using an HTML to PDF payload
+const payload = {
+  title: 'Example',
+  data: {
+    html: `
+      <h1 class='header-one'>What is Lorem Ipsum?</h1>
+      <p>
+        Lorem Ipsum is simply dummy text...
+      </p>
+      <h3 class='header-two'>Where does it come from?</h3>
+      <p>
+        Contrary to popular belief, Lorem Ipsum is not simply <i>random text</i>
+      </p>
+    `,
+    css: `
+      body { font-size: 14px; color: #171717; }
+      .header-one { text-decoration: underline; }
+      .header-two { font-style: underline; }
+    `,
+  },
+}
+
+// An example using a Markdown payload
 const payload = {
   title: 'Example Invoice',
   data: [{

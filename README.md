@@ -173,6 +173,7 @@ fs.writeFileSync('generated.pdf', data, { encoding: null })
 ##### createEtchPacket(options)
 
 Creates an Etch Packet and optionally sends it to the first signer.
+
 * `options` (Object) - An object with the following structure:
   * `variables` (Object) - See the [API Documentation](#api-documentation) area for details. See [Examples](#examples) area for examples.
   * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the mutation response. Can be left out to use default.
@@ -222,13 +223,85 @@ Returns a Buffer or Stream of the document group specified by the documentGroupE
    * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
       * `message` (String)
 
+
+##### requestGraphQL(queryInfo[, options])
+
+A fallback function for queries and mutations without a specialized function in this client.
+
+See the [GraphQL reference](https://www.useanvil.com/docs/api/graphql/reference/) for a listing on all possible queries
+
+```js
+const result = await client.requestGraphQL({
+  query: `
+    query WeldDataQuery ($eid: String!) {
+      weldData (eid: $eid) {
+        eid
+        isComplete
+        isTest
+      }
+    }
+  `,
+  variables: { eid: 'nxflNZqxDUbltLUbYWK' },
+})
+const statusCode = result.statusCode
+const httpErrors = result.errors
+
+// These will only be available if the statusCode === 200
+const graphqlErrors = result.data.errors
+const resultObject = result.data.data.weldData
+```
+
+* `queryInfo` (Object) - The JSON data that will fill the PDF template
+  * `query` (String) - GraphQL query or mutation to run. See the [GraphQL reference](https://www.useanvil.com/docs/api/graphql/reference/) for a listing on all possible queries
+  * `variables` (Object) - GraphQL variables for the query
+* Returns a `Promise` that resolves to an `Object`
+  * `statusCode` (Number) - 200 when successful or when there is a GraphQL error. You will only see > 200 if your query is not found or malformed
+  * `errors` (String) - HTTP errors when status code > 200
+  * `data` (Object) - Contains query result and any GraphQL errors
+    * `errors` (Array of Objects) - If there are validation errors or errors running the query, they will show here
+    * `data` (Object) - Contains the actual result of the query
+      * `[queryName]` (Object) - Use the query or mutation name to reference the data that you requested!
+
+##### requestREST(url, fetchOptions[, clientOptions])
+
+A fallback function for REST endpoints without a specialized function in this client.
+
+See the [GraphQL reference](https://www.useanvil.com/docs/api/graphql/reference/) for a listing on all possible queries
+
+```js
+const result = await this.requestREST(
+  `/api/v1/fill/${pdfTemplateID}.pdf`,
+  {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  },
+  {
+    dataType: 'stream',
+  },
+)
+```
+
+* `url` (String) - URL from the baseURL. e.g. `/api/v1/fill`
+* `fetchOptions` (Object) - Options passed to [node-fetch](https://github.com/node-fetch/node-fetch)
+* `clientOptions` (Object) - _optional_ Any additional options for the request
+  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, `'stream'` and `'json'` are also supported.
+* Returns a `Promise` that resolves to an `Object`
+  * `statusCode` (Number) - the HTTP status code; `200` is success
+  * `data` (Buffer | Stream | JSON) - The raw binary data of the filled PDF if success. Will be either a Buffer or a Stream, depending on `dataType` option supplied to the request.
+  * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
+    * `message` (String)
+
 ### Class Methods
 
 ##### prepareGraphQLFile(pathOrStreamLikeThing[, options])
 A nice helper to prepare a Stream-backed or Buffer-backed file upload for use with our GraphQL API.
 * `pathOrStreamLikeThing` (String | Stream | Buffer) - An existing `Stream`, `Buffer` or other Stream-like thing supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-) OR a string representing a fully resolved path to a file to be read into a new `Stream`.
-* `options` (Object) - Anything supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-). Likely required when providing a non-common stream. From the `form-data` docs:
+* `options` (Object) - Anything supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-). Required when providing a vanilla ReadStream or Buffer. From the `form-data` docs:
   > Form-Data can recognize and fetch all the required information from common types of streams (fs.readStream, http.response and mikeal's request), for some other types of streams you'd need to provide "file"-related information manually
+  * `filename` (String) - Override the filename of the uploaded file here. If providing a generic ReadStream or Buffer, you will be required to provide a filename here
 * Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever an `Upload` type is required.
 
 ### Types

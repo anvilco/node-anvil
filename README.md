@@ -48,6 +48,16 @@ fs.writeFileSync('output.pdf', data, { encoding: null })
 
 ## API
 
+* [Constructor](#new-anviloptions)
+* [fillPDF(pdfTemplateID, payload[, options])](#fillpdfpdftemplateid-payload-options)
+* [generatePDF(payload[, options])](#generatepdfpayload-options)
+* [createEtchPacket(options)](#createetchpacketoptions)
+* [getEtchPacket(options)](#getetchpacketoptions)
+* [generateEtchSignURL(options)](#generateetchsignurloptions)
+* [downloadDocuments(documentGroupEid[, options])](#downloaddocumentsdocumentgroupeid-options)
+* [requestGraphQL(queryInfo[, options])](#requestgraphqlqueryinfo-options)
+* [requestREST(url, fetchOptions[, clientOptions])](#requestresturl-fetchoptions-clientoptions)
+
 ### Instance Methods
 
 ##### new Anvil(options)
@@ -296,6 +306,8 @@ const result = await this.requestREST(
 
 ### Class Methods
 
+* [prepareGraphQLFile(pathOrStreamLikeThing[, options])](#preparegraphqlfilepathorstreamlikething-options)
+
 ##### prepareGraphQLFile(pathOrStreamLikeThing[, options])
 A nice helper to prepare a Stream-backed or Buffer-backed file upload for use with our GraphQL API.
 * `pathOrStreamLikeThing` (String | Stream | Buffer) - An existing `Stream`, `Buffer` or other Stream-like thing supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-) OR a string representing a fully resolved path to a file to be read into a new `Stream`.
@@ -305,6 +317,8 @@ A nice helper to prepare a Stream-backed or Buffer-backed file upload for use wi
 * Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever an `Upload` type is required.
 
 ### Types
+
+* [Options](#options)
 
 ##### Options
 

@@ -8,6 +8,7 @@ const { RateLimiter } = require('limiter')
 
 const UploadWithOptions = require('./UploadWithOptions')
 const { version, description } = require('../package.json')
+const { normalizeErrors } = require('./errors')
 
 const {
   mutations: {
@@ -382,7 +383,7 @@ class Anvil {
       const response = await retryableRequestFn()
 
       if (!this.hasSetLimiterFromResponse) {
-        // OK, this is the response sets the rate-limiter values from the
+        // OK, this is the response sets the rate-limiter values from thef
         // server response:
 
         // Set up the new Rate Limiter
@@ -403,11 +404,10 @@ class Anvil {
         if (statusCode === 429) {
           return retry(getRetryMS(response.headers.get('retry-after')))
         }
-
+        let errors = [{ name: statusText, message: statusText }]
         try {
           const json = await response.json()
-          const errors = json.errors || (json.message && [json])
-          return errors ? { statusCode, errors } : { statusCode, ...json }
+          errors = normalizeErrors({ json, statusText, debug })
         } catch (err) {
           if (debug) {
             console.warn(`Problem parsing JSON response for status ${statusCode}:`)
@@ -416,7 +416,7 @@ class Anvil {
           }
         }
 
-        return { statusCode, statusText, errors: [statusText] }
+        return { statusCode, errors }
       }
 
       let data

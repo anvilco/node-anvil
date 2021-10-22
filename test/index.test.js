@@ -140,7 +140,7 @@ describe('Anvil API Client', function () {
 
         const result = await client.requestREST('/non-existing-endpoint', options, clientOptions)
         expect(result.statusCode).to.eql(404)
-        expect(result.errors).to.eql(['Not Found'])
+        expect(result.errors).to.eql([{ message: 'Not Found', name: 'Not Found' }])
       })
 
       it('sets the rate limiter from the response headers', async function () {
@@ -347,7 +347,7 @@ describe('Anvil API Client', function () {
       })
 
       context('server 401s with single error in response', function () {
-        const error = { name: 'AuthorizationError', message: 'problem' }
+        const error = { name: 'AuthorizationError', message: 'Not logged in.' }
         def('statusCode', 401)
         def('json', error)
 

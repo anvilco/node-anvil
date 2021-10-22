@@ -383,7 +383,7 @@ class Anvil {
       const response = await retryableRequestFn()
 
       if (!this.hasSetLimiterFromResponse) {
-        // OK, this is the response sets the rate-limiter values from thef
+        // OK, this is the response sets the rate-limiter values from the
         // server response:
 
         // Set up the new Rate Limiter
@@ -405,7 +405,7 @@ class Anvil {
           return retry(getRetryMS(response.headers.get('retry-after')))
         }
 
-        const errors = await normalizeErrors({ response, statusText, debug })
+        const errors = await normalizeErrors({ response, statusText, statusCode, debug })
 
         return { statusCode, errors }
       }

@@ -120,7 +120,43 @@ describe('Anvil API Client', function () {
         await expect(client.requestREST('/test', options)).to.eventually.have.been.rejectedWith('problem')
       })
 
-      it('recovers when JSON parsing of error response fails', async function () {
+      it('handles various error response structures', async function () {
+        options = {
+          method: 'GET',
+        }
+        clientOptions = {
+          dataType: 'json',
+        }
+
+        const errors = [
+          {
+            name: 'AssertionError',
+            message: 'PDF did not generate properly from given HTML!',
+          },
+          {
+            name: 'ValidationError',
+            fields: [{ message: 'Required', property: 'data' }],
+          },
+        ]
+
+        for (const error of errors) {
+          client._request.callsFake((url, options) => {
+            return Promise.resolve(
+              mockNodeFetchResponse({
+                status: 404,
+                statusText: 'Not Found',
+                json: () => error,
+              }),
+            )
+          })
+
+          const result = await client.requestREST('/non-existing-endpoint', options, clientOptions)
+          expect(result.statusCode).to.eql(404)
+          expect(result.errors).to.eql([error])
+        }
+      })
+
+      it('recovers when JSON parsing of error response fails AND gives default error structure', async function () {
         options = {
           method: 'GET',
         }

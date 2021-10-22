@@ -1,27 +1,36 @@
 // Should return an array
-function normalizeErrors ({ json, statusText, debug }) {
-  const errors = json.errors || (json.message && [json])
-  // Normal, GraphQL way
-  if (json.errors) {
-    return errors
+async function normalizeErrors ({ response, statusText, statusCode, debug }) {
+  try {
+    const json = await response.json()
+    // Normal, GraphQL way
+    if (json.errors) {
+      return json.errors
+    }
+
+    // Alternative way from some REST calls:
+    // {
+    //   "name": "AssertionError",
+    //   "message": "PDF did not generate properly from given HTML!"
+    // }
+    //
+    // OR
+    //
+    // {
+    //   "name": "ValidationError",
+    //   "fields":[{ "message": "Required", "property": "data" }]
+    // }
+    if (json.message || json.name) {
+      return [json]
+    }
+  } catch (err) {
+    if (debug) {
+      console.warn(`Problem parsing JSON response for status ${statusCode}:`)
+      console.warn(err)
+      console.warn('Using statusText instead')
+    }
   }
 
-  // Alternative way from some REST calls:
-  // {
-  //   "name": "AssertionError",
-  //   "message": "PDF did not generate properly from given HTML!"
-  // }
-  //
-  // OR
-  //
-  // {
-  //   "name": "ValidationError",
-  //   "fields":[{ "message": "Required", "property": "data" }]
-  // }
-  if (json.message || json.name) {
-    return [json]
-  }
-
+  // Hmm, ok. Default way
   return [{ name: statusText, message: statusText }]
 }
 

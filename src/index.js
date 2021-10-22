@@ -404,17 +404,8 @@ class Anvil {
         if (statusCode === 429) {
           return retry(getRetryMS(response.headers.get('retry-after')))
         }
-        let errors = [{ name: statusText, message: statusText }]
-        try {
-          const json = await response.json()
-          errors = normalizeErrors({ json, statusText, debug })
-        } catch (err) {
-          if (debug) {
-            console.warn(`Problem parsing JSON response for status ${statusCode}:`)
-            console.warn(err)
-            console.warn('Using statusText instead')
-          }
-        }
+
+        const errors = await normalizeErrors({ response, statusText, debug })
 
         return { statusCode, errors }
       }

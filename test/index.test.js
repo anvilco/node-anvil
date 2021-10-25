@@ -10,6 +10,7 @@ const Anvil = require('../src/index')
 const assetsDir = path.join(__dirname, 'assets')
 
 function mockNodeFetchResponse (options = {}) {
+  const { headers: headersIn = {}, ...rest } = options
   const {
     status,
     statusText,
@@ -18,31 +19,27 @@ function mockNodeFetchResponse (options = {}) {
     headers = {
       'x-ratelimit-limit': 1,
       'x-ratelimit-interval-ms': 1000,
+      ...headersIn,
     },
     body,
-  } = options
+  } = rest
 
   const mock = {
     status,
     statusText: statusText || ((status && status >= 200 && status < 300) ? 'OK' : 'Please specify error statusText for testing'),
   }
 
+  mock.json = typeof json === 'function' ? json : () => json
   if (json) {
-    mock.json = typeof json === 'function' ? json : () => json
+    headers['content-type'] = 'application/json'
   }
 
-  if (buffer) {
-    mock.buffer = typeof buffer === 'function' ? buffer : () => buffer
-  }
+  mock.buffer = typeof buffer === 'function' ? buffer : () => buffer
 
-  if (body) {
-    mock.body = body
-  }
+  mock.body = body
 
-  if (headers) {
-    mock.headers = {
-      get: (header) => headers[header],
-    }
+  mock.headers = {
+    get: (header) => headers[header],
   }
 
   return mock
@@ -100,6 +97,7 @@ describe('Anvil API Client', function () {
             mockNodeFetchResponse({
               status: 200,
               json: data,
+              headers: { 'content-type': 'application/json' },
             }),
           )
         })
@@ -146,6 +144,7 @@ describe('Anvil API Client', function () {
                 status: 404,
                 statusText: 'Not Found',
                 json: () => error,
+                headers: { 'content-type': 'application/json' },
               }),
             )
           })

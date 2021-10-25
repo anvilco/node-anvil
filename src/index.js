@@ -8,7 +8,7 @@ const { RateLimiter } = require('limiter')
 
 const UploadWithOptions = require('./UploadWithOptions')
 const { version, description } = require('../package.json')
-const { normalizeErrors } = require('./errors')
+const { looksLikeError, normalizeErrors } = require('./errors')
 
 const {
   mutations: {
@@ -379,7 +379,7 @@ class Anvil {
 
   _wrapRequest (retryableRequestFn, clientOptions = {}) {
     return this._throttle(async (retry) => {
-      const { dataType, debug } = clientOptions
+      let { dataType, debug } = clientOptions
       const response = await retryableRequestFn()
 
       if (!this.hasSetLimiterFromResponse) {
@@ -400,13 +400,34 @@ class Anvil {
 
       const { status: statusCode, statusText } = response
 
-      if (statusCode >= 300) {
-        if (statusCode === 429) {
-          return retry(getRetryMS(response.headers.get('retry-after')))
+      if (statusCode === 429) {
+        return retry(getRetryMS(response.headers.get('retry-after')))
+      }
+
+      let json
+      let isError = false
+
+      const contentType = response.headers.get('content-type') || response.headers.get('Content-Type') || ''
+
+      // No matter what we were expecting, if the response is JSON, let's parse it and look for
+      // signs of errors
+      if (contentType.toLowerCase().includes('application/json')) {
+        // Re-set the dataType so we don't fall into the wrong flow later on
+        dataType = DATA_TYPE_JSON
+        try {
+          json = await response.json()
+          isError = looksLikeError({ json })
+        } catch (err) {
+          if (debug) {
+            console.warn(`Problem parsing JSON response for status ${statusCode}:`)
+            console.warn(err)
+            console.warn('Using statusText instead')
+          }
         }
+      }
 
-        const errors = await normalizeErrors({ response, statusText, statusCode, debug })
-
+      if (isError || statusCode >= 300) {
+        const errors = await normalizeErrors({ json, statusText })
         return { statusCode, errors }
       }
 
@@ -420,7 +441,8 @@ class Anvil {
           data = await response.buffer()
           break
         case DATA_TYPE_JSON:
-          data = await response.json()
+          // Can't call json() twice, so we'll see if we already did that
+          data = json || await response.json()
           break
         default:
           console.warn('Using default response dataType of "json". Please specifiy a dataType.')

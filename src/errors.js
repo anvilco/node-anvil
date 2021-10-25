@@ -1,7 +1,11 @@
+// See if the JSON looks like it's got errors
+function looksLikeError ({ json }) {
+  return !!(json && (json.errors || json.message || json.name))
+}
+
 // Should return an array
-async function normalizeErrors ({ response, statusText, statusCode, debug }) {
-  try {
-    const json = await response.json()
+function normalizeErrors ({ json, statusText = 'Unknown Error', debug }) {
+  if (json) {
     // Normal, GraphQL way
     if (json.errors) {
       return json.errors
@@ -22,12 +26,6 @@ async function normalizeErrors ({ response, statusText, statusCode, debug }) {
     if (json.message || json.name) {
       return [json]
     }
-  } catch (err) {
-    if (debug) {
-      console.warn(`Problem parsing JSON response for status ${statusCode}:`)
-      console.warn(err)
-      console.warn('Using statusText instead')
-    }
   }
 
   // Hmm, ok. Default way
@@ -35,5 +33,6 @@ async function normalizeErrors ({ response, statusText, statusCode, debug }) {
 }
 
 module.exports = {
+  looksLikeError,
   normalizeErrors,
 }

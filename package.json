@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "test": "mocha --config ./test/mocha.js",
+    "test:debug": "yarn test --inspect-brk=0.0.0.0:9223",
     "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
     "version": "auto-changelog -p --template keepachangelog && read -p \"\nAutomated changes made to CHANGELOG.md. Please make any necessary adjustments, then hit any key to continue.\n\" && git add CHANGELOG.md"
   },

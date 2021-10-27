@@ -10,6 +10,7 @@ const Anvil = require('../src/index')
 const assetsDir = path.join(__dirname, 'assets')
 
 function mockNodeFetchResponse (options = {}) {
+  const { headers: headersIn = {}, ...rest } = options
   const {
     status,
     statusText,
@@ -18,31 +19,27 @@ function mockNodeFetchResponse (options = {}) {
     headers = {
       'x-ratelimit-limit': 1,
       'x-ratelimit-interval-ms': 1000,
+      ...headersIn,
     },
     body,
-  } = options
+  } = rest
 
   const mock = {
     status,
     statusText: statusText || ((status && status >= 200 && status < 300) ? 'OK' : 'Please specify error statusText for testing'),
   }
 
+  mock.json = typeof json === 'function' ? json : () => json
   if (json) {
-    mock.json = typeof json === 'function' ? json : () => json
+    headers['content-type'] = 'application/json'
   }
 
-  if (buffer) {
-    mock.buffer = typeof buffer === 'function' ? buffer : () => buffer
-  }
+  mock.buffer = typeof buffer === 'function' ? buffer : () => buffer
 
-  if (body) {
-    mock.body = body
-  }
+  mock.body = body
 
-  if (headers) {
-    mock.headers = {
-      get: (header) => headers[header],
-    }
+  mock.headers = {
+    get: (header) => headers[header],
   }
 
   return mock
@@ -100,6 +97,7 @@ describe('Anvil API Client', function () {
             mockNodeFetchResponse({
               status: 200,
               json: data,
+              headers: { 'content-type': 'application/json' },
             }),
           )
         })
@@ -120,7 +118,46 @@ describe('Anvil API Client', function () {
         await expect(client.requestREST('/test', options)).to.eventually.have.been.rejectedWith('problem')
       })
 
-      it('recovers when JSON parsing of error response fails', async function () {
+      it('handles various error response structures', async function () {
+        options = {
+          method: 'GET',
+        }
+        clientOptions = {
+          dataType: 'json',
+        }
+
+        const errors = [
+          {
+            name: 'AssertionError',
+            message: 'PDF did not generate properly from given HTML!',
+          },
+          {
+            name: 'ValidationError',
+            fields: [{ message: 'Required', property: 'data' }],
+          },
+        ]
+
+        for (const error of errors) {
+          client._request.callsFake((url, options) => {
+            return Promise.resolve(
+              mockNodeFetchResponse({
+                // Some calls (like those to GraphQL) will return 200 / OKs but actually contain
+                // errors
+                status: 200,
+                statusText: 'OK',
+                json: () => error,
+                headers: { 'content-type': 'application/json' },
+              }),
+            )
+          })
+
+          const result = await client.requestREST('/some-endpoint', options, clientOptions)
+          expect(result.statusCode).to.eql(200)
+          expect(result.errors).to.eql([error])
+        }
+      })
+
+      it('recovers when JSON parsing of error response fails AND gives default error structure', async function () {
         options = {
           method: 'GET',
         }
@@ -140,7 +177,7 @@ describe('Anvil API Client', function () {
 
         const result = await client.requestREST('/non-existing-endpoint', options, clientOptions)
         expect(result.statusCode).to.eql(404)
-        expect(result.errors).to.eql(['Not Found'])
+        expect(result.errors).to.eql([{ message: 'Not Found', name: 'Not Found' }])
       })
 
       it('sets the rate limiter from the response headers', async function () {
@@ -347,7 +384,7 @@ describe('Anvil API Client', function () {
       })
 
       context('server 401s with single error in response', function () {
-        const error = { name: 'AuthorizationError', message: 'problem' }
+        const error = { name: 'AuthorizationError', message: 'Not logged in.' }
         def('statusCode', 401)
         def('json', error)
 

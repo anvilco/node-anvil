@@ -10,7 +10,7 @@ Description here
 
 ## Related issues
 
-Fixes #1
+Fixes <your issue here>
 
 ## Checklists
 

@@ -34,7 +34,7 @@
     "bdd-lazy-var": "^2.5.4",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
-    "eslint": "^6.8.0",
+    "eslint": "^7.32.0",
     "eslint-config-nicenice": "^2.0.0",
     "eslint-config-standard": "^14.1.0",
     "eslint-config-standard-jsx": "^8.1.0",

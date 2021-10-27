@@ -428,7 +428,7 @@ class Anvil {
 
       if (isError || statusCode >= 300) {
         const errors = await normalizeErrors({ json, statusText })
-        return { statusCode, errors }
+        return { response, statusCode, errors }
       }
 
       let data

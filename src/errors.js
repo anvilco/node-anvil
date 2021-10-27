@@ -4,7 +4,7 @@ function looksLikeError ({ json }) {
 }
 
 // Should return an array
-function normalizeErrors ({ json, statusText = 'Unknown Error', debug }) {
+function normalizeErrors ({ json, statusText = 'Unknown Error' }) {
   if (json) {
     // Normal, GraphQL way
     if (json.errors) {

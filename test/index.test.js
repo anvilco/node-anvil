@@ -141,16 +141,18 @@ describe('Anvil API Client', function () {
           client._request.callsFake((url, options) => {
             return Promise.resolve(
               mockNodeFetchResponse({
-                status: 404,
-                statusText: 'Not Found',
+                // Some calls (like those to GraphQL) will return 200 / OKs but actually contain
+                // errors
+                status: 200,
+                statusText: 'OK',
                 json: () => error,
                 headers: { 'content-type': 'application/json' },
               }),
             )
           })
 
-          const result = await client.requestREST('/non-existing-endpoint', options, clientOptions)
-          expect(result.statusCode).to.eql(404)
+          const result = await client.requestREST('/some-endpoint', options, clientOptions)
+          expect(result.statusCode).to.eql(200)
           expect(result.errors).to.eql([error])
         }
       })

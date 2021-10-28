@@ -1078,10 +1078,10 @@ event-target-shim@^5.0.0:
   resolved "https://registry.yarnpkg.com/event-target-shim/-/event-target-shim-5.0.1.tgz#5d4d3ebdf9583d63a5333ce2deb7480ab2b05789"
   integrity sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==
 
-extract-files@^6:
-  version "6.0.0"
-  resolved "https://registry.yarnpkg.com/extract-files/-/extract-files-6.0.0.tgz#a273fd666aac97fd32e788b62d72d978bf43bb71"
-  integrity sha512-v9UVTPkERZR1NjEOIPvmbzLFdh8YZFEGjRdSJraop6HJe9PQ8HU9iv6eRMuF06CXXXO/R5OBmnWMixZHuZ8CsA==
+extract-files@^11:
+  version "11.0.0"
+  resolved "https://registry.yarnpkg.com/extract-files/-/extract-files-11.0.0.tgz#b72d428712f787eef1f5193aff8ab5351ca8469a"
+  integrity sha512-FuoE1qtbJ4bBVvv94CC7s0oTnKUGvQs+Rjf1L2SJFfS+HTVVjhPFtehPdQ0JiGPqVNfSSZvL5yzHHQq2Z4WNhQ==
 
 fast-deep-equal@^3.1.1, fast-deep-equal@^3.1.3:
   version "3.1.3"

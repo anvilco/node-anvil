@@ -48,7 +48,7 @@
     "nodemon": "^2.0.4",
     "sinon": "^11.1.2",
     "sinon-chai": "^3.5.0",
-    "yargs": "^16.0.3"
+    "yargs": "^17.3.0"
   },
   "dependencies": {
     "abort-controller": "^3.0.0",

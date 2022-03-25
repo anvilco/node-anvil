@@ -34,11 +34,12 @@ async function main () {
   const anvilClient = new Anvil({ apiKey })
   const ndaFile = Anvil.prepareGraphQLFile(path.join(__dirname, '../static/test-pdf-nda.pdf'))
   const variables = getPacketVariables(ndaFile)
-  const { data: result } = await anvilClient.createEtchPacket({ variables })
-  const { data, errors } = result
+  const { statusCode, data: result, errors } = await anvilClient.createEtchPacket({ variables })
+  console.log(statusCode)
   if (errors) {
     console.log('Error', errors)
   } else {
+    const { data } = result
     console.log(data.createEtchPacket)
   }
 }

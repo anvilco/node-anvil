@@ -5,8 +5,6 @@
 1. Anvil [Workflows](https://useanvil.com) converts your PDF forms into simple, intuitive websites that fill the PDFs and gather signatures for you.
 2. Anvil [PDF Filling API](https://useanvil.com/pdf-filling-api) allows you to fill any PDF with JSON data.
 
-Currently, this node client only supports our PDF filling API.
-
 ## Usage
 
 ```sh

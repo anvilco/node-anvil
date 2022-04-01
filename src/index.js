@@ -1,5 +1,6 @@
 const fs = require('fs')
 
+const { ReadStream } = require('fs')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
 const AbortController = require('abort-controller')
@@ -10,22 +11,29 @@ const UploadWithOptions = require('./UploadWithOptions')
 const { version, description } = require('../package.json')
 const { looksLikeError, normalizeErrors } = require('./errors')
 
+// Ignoring the below since they are dynamically created depepending on what's
+// inside the `src/graphql` directory.
 const {
   mutations: {
+    // @ts-ignore
     createEtchPacket: {
       generateMutation: generateCreateEtchPacketMutation,
     },
+    // @ts-ignore
     forgeSubmit: {
       generateMutation: generateForgeSubmitMutation,
     },
+    // @ts-ignore
     generateEtchSignUrl: {
       generateMutation: generateEtchSignUrlMutation,
     },
+    // @ts-ignore
     removeWeldData: {
       generateMutation: generateRemoveWeldDataMutation,
     },
   },
   queries: {
+    // @ts-ignore
     etchPacket: {
       generateQuery: generateEtchPacketQuery,
     },
@@ -122,7 +130,7 @@ class Anvil {
    * Perform some handy/necessary things for a GraphQL file upload to make it work
    * with this client and with our backend
    *
-   * @param  {string|Buffer|Stream-like-thing} pathOrStreamLikeThing - Either a string path to a file,
+   * @param  {string|Buffer} pathOrStreamLikeThing - Either a string path to a file,
    *   a Buffer, or a Stream-like thing that is compatible with form-data as an append.
    * @param  {object} formDataAppendOptions - User can specify options to be passed to the form-data.append
    *   call. This should be done if a stream-like thing is not one of the common types that
@@ -133,6 +141,7 @@ class Anvil {
    */
   static prepareGraphQLFile (pathOrStreamLikeThing, formDataAppendOptions) {
     if (typeof pathOrStreamLikeThing === 'string') {
+      // @ts-ignore
       pathOrStreamLikeThing = fs.createReadStream(pathOrStreamLikeThing)
     }
 
@@ -284,6 +293,7 @@ class Anvil {
     }
 
     if (filesMap.size) {
+      // @ts-ignore
       const abortController = new AbortController()
       const form = new FormData()
 
@@ -515,7 +525,7 @@ class Anvil {
 
     const remainingRequests = await this.limiter.removeTokens(1)
     if (remainingRequests < 1) {
-      await sleep(this.requestLimitMS + failBufferMS)
+      await sleep(this.options.requestLimitMS + failBufferMS)
     }
     const retry = async (ms) => {
       await sleep(ms)
@@ -523,27 +533,6 @@ class Anvil {
     }
 
     return fn(retry)
-  }
-
-  static _prepareGraphQLBase64 (data, options = {}) {
-    const { filename, mimetype } = options
-    if (!filename) {
-      throw new Error('options.filename must be provided for Base64 upload')
-    }
-    if (!mimetype) {
-      throw new Error('options.mimetype must be provided for Base64 upload')
-    }
-
-    if (options.bufferize) {
-      const buffer = Buffer.from(data, 'base64')
-      return this._prepareGraphQLBuffer(buffer, options)
-    }
-
-    return {
-      data,
-      filename,
-      mimetype,
-    }
   }
 }
 

@@ -455,7 +455,7 @@ class Anvil {
           data = json || await response.json()
           break
         default:
-          console.warn('Using default response dataType of "json". Please specifiy a dataType.')
+          console.warn('Using default response dataType of "json". Please specify a dataType.')
           data = await response.json()
           break
       }

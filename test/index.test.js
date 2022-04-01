@@ -45,7 +45,14 @@ function mockNodeFetchResponse (options = {}) {
   return mock
 }
 
+function fakeThrottle (fn) {
+  return fn(() => fakeThrottle(fn))
+}
+
 describe('Anvil API Client', function () {
+  beforeEach(function() {
+    sinon.stub(Anvil.prototype, '_throttle').callsFake(fakeThrottle)
+  })
   afterEach(function () {
     sinon.restore()
   })

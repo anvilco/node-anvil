@@ -337,7 +337,7 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {any} data.query
-   * @param {Object} data.variables
+   * @param {Object?} data.variables
    * @param {Object} clientOptions
    * @returns {Promise<{data: *, errors: *, statusCode: *}>}
    */

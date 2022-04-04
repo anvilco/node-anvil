@@ -151,13 +151,13 @@ declare class Anvil {
     /**
      * @param {Object} data
      * @param {any} data.query
-     * @param {Object} data.variables
+     * @param {Object?} data.variables
      * @param {Object} clientOptions
      * @returns {Promise<{data: *, errors: *, statusCode: *}>}
      */
     requestGraphQL({ query, variables }: {
         query: any;
-        variables: any;
+        variables: any | null;
     }, clientOptions: any): Promise<{
         data: any;
         errors: any;

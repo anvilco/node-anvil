@@ -4,8 +4,8 @@
     "src/**/*"
   ],
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
+    "target": "es2021",
+    "module": "commonjs",
     "moduleResolution": "node",
     "lib": ["es2017", "dom"],
     "noImplicitThis": true,

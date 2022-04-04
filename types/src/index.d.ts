@@ -14,103 +14,220 @@ declare class Anvil {
      *   up together nicely in a way that we can also tell that it was us who did it.
      */
     static prepareGraphQLFile(pathOrStreamLikeThing: string | Buffer, formDataAppendOptions: object): UploadWithOptions;
-    constructor(options: any);
-    options: any;
+    /**
+     * @param {AnvilOptions?} options
+     */
+    constructor(options: AnvilOptions | null);
+    options: {
+        baseURL: string;
+        userAgent: string;
+        requestLimit: number;
+        requestLimitMS: number;
+        apiKey: string;
+        accessToken: string;
+    };
     authHeader: string;
     hasSetLimiterFromResponse: boolean;
     limiterSettingInProgress: boolean;
     rateLimiterSetupPromise: Promise<any>;
     rateLimiterPromiseResolver: (value: any) => void;
-    _setRateLimiter({ tokens, intervalMs }: {
-        tokens: any;
-        intervalMs: any;
-    }): void;
+    /**
+     * @param {Object} options
+     * @param {number} options.tokens
+     * @param {number} options.intervalMs
+     * @private
+     */
+    private _setRateLimiter;
     limitTokens: any;
-    limitIntervalMs: any;
+    limitIntervalMs: number;
     limiter: RateLimiter;
+    /**
+     * Runs the createEtchPacket mutation.
+     * @param {Object} data
+     * @param {Object} data.variables
+     * @param {string} data.responseQuery
+     * @param {any} data.mutation
+     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     */
     createEtchPacket({ variables, responseQuery, mutation }: {
         variables: any;
-        responseQuery: any;
+        responseQuery: string;
         mutation: any;
     }): Promise<{
-        statusCode: any;
         data: any;
         errors: any;
+        statusCode: any;
     }>;
-    downloadDocuments(documentGroupEid: any, clientOptions?: {}): Promise<{
+    /**
+     * @param {string} documentGroupEid
+     * @param {Object?} clientOptions
+     * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+     */
+    downloadDocuments(documentGroupEid: string, clientOptions?: any | null): Promise<{
+        data: any;
         response: any;
-        statusCode: any;
-        data: any;
         errors: any;
+        statusCode: any;
     }>;
-    fillPDF(pdfTemplateID: any, payload: any, clientOptions?: {}): Promise<{
+    /**
+     * @param {string} pdfTemplateID
+     * @param {Object} payload
+     * @param {Object?} clientOptions
+     * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+     */
+    fillPDF(pdfTemplateID: string, payload: any, clientOptions?: any | null): Promise<{
+        data: any;
         response: any;
-        statusCode: any;
-        data: any;
         errors: any;
+        statusCode: any;
     }>;
+    /**
+     * @param {Object} data
+     * @param {Object} data.variables
+     * @param {string} data.responseQuery
+     * @param {any} data.mutation
+     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     */
     forgeSubmit({ variables, responseQuery, mutation }: {
         variables: any;
-        responseQuery: any;
+        responseQuery: string;
         mutation: any;
     }): Promise<{
-        statusCode: any;
         data: any;
         errors: any;
+        statusCode: any;
     }>;
-    generatePDF(payload: any, clientOptions?: {}): Promise<{
+    /**
+     * @param {Object} payload
+     * @param {Object?} clientOptions
+     * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+     */
+    generatePDF(payload: any, clientOptions?: any | null): Promise<{
+        data: any;
         response: any;
-        statusCode: any;
-        data: any;
         errors: any;
+        statusCode: any;
     }>;
+    /**
+     * @param {Object} data
+     * @param {Object} data.variables
+     * @param {string} data.responseQuery
+     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     */
     getEtchPacket({ variables, responseQuery }: {
         variables: any;
-        responseQuery: any;
+        responseQuery: string;
     }): Promise<{
-        statusCode: any;
         data: any;
         errors: any;
+        statusCode: any;
     }>;
+    /**
+     * @param {Object} data
+     * @param {Object} data.variables
+     * @returns {Promise<{url: (*|string), errors: *, statusCode: *}>}
+     */
     generateEtchSignUrl({ variables }: {
         variables: any;
     }): Promise<{
-        statusCode: any;
-        url: any;
+        url: (any | string);
         errors: any;
+        statusCode: any;
     }>;
+    /**
+     * @param {Object} data
+     * @param {Object} data.variables
+     * @param {any} data.mutation
+     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     */
     removeWeldData({ variables, mutation }: {
         variables: any;
         mutation: any;
     }): Promise<{
-        statusCode: any;
         data: any;
         errors: any;
+        statusCode: any;
     }>;
+    /**
+     * @param {Object} data
+     * @param {any} data.query
+     * @param {Object} data.variables
+     * @param {Object} clientOptions
+     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     */
     requestGraphQL({ query, variables }: {
         query: any;
-        variables?: {};
+        variables: any;
     }, clientOptions: any): Promise<{
-        statusCode: any;
         data: any;
         errors: any;
+        statusCode: any;
     }>;
-    requestREST(url: any, fetchOptions: any, clientOptions: any): Promise<{
+    /**
+     * @param {string} url
+     * @param {Object} fetchOptions
+     * @param {Object} clientOptions
+     * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+     */
+    requestREST(url: string, fetchOptions: any, clientOptions: any): Promise<{
+        data: any;
         response: any;
-        statusCode: any;
-        data: any;
         errors: any;
+        statusCode: any;
     }>;
-    _request(url: any, options: any): any;
-    _wrapRequest(retryableRequestFn: any, clientOptions?: {}): Promise<any>;
-    _url(path: any): any;
-    _addHeaders({ options: existingOptions, headers: newHeaders }: {
-        options: any;
-        headers: any;
-    }, internalOptions?: {}): any;
-    _addDefaultHeaders(options: any): any;
-    _throttle(fn: any): Promise<any>;
+    /**
+     * @param {string} url
+     * @param {Object} options
+     * @returns {Promise}
+     * @private
+     */
+    private _request;
+    /**
+     * @param {CallableFunction} retryableRequestFn
+     * @param {Object?} clientOptions
+     * @returns {Promise<*>}
+     * @private
+     */
+    private _wrapRequest;
+    /**
+     * @param {string} path
+     * @returns {string}
+     * @private
+     */
+    private _url;
+    /**
+     * @param {Object} headerObject
+     * @param {Object} headerObject.options
+     * @param {Object} headerObject.headers
+     * @param {Object?} internalOptions
+     * @returns {*&{headers: {}}}
+     * @private
+     */
+    private _addHeaders;
+    /**
+     * @param {Object} options
+     * @returns {*}
+     * @private
+     */
+    private _addDefaultHeaders;
+    /**
+     * @param {CallableFunction} fn
+     * @returns {Promise<*>}
+     * @private
+     */
+    private _throttle;
+}
+declare namespace Anvil {
+    export { AnvilOptions };
 }
 import { RateLimiter } from "limiter/dist/cjs/RateLimiter";
 import UploadWithOptions = require("./UploadWithOptions");
+type AnvilOptions = {
+    baseURL: string | null;
+    userAgent: string | null;
+    requestLimit: number | null;
+    requestLimitMS: number | null;
+    apiKey: string | null;
+    accessToken: string | null;
+};
 //# sourceMappingURL=index.d.ts.map

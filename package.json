@@ -1,6 +1,6 @@
 {
   "name": "@anvilco/anvil",
-  "version": "2.9.4",
+  "version": "2.10.0",
   "description": "Anvil API Client",
   "main": "src/index.js",
   "types": "./types/index.d.ts",

@@ -10,22 +10,41 @@ const UploadWithOptions = require('./UploadWithOptions')
 const { version, description } = require('../package.json')
 const { looksLikeError, normalizeErrors } = require('./errors')
 
+
+/**
+ * @typedef AnvilOptions
+ * @type {Object}
+ * @property {string?} baseURL
+ * @property {string?} userAgent
+ * @property {number?} requestLimit
+ * @property {number?} requestLimitMS
+ * @property {string?} apiKey
+ * @property {string?} accessToken
+ */
+
+// Ignoring the below since they are dynamically created depepending on what's
+// inside the `src/graphql` directory.
 const {
   mutations: {
+    // @ts-ignore
     createEtchPacket: {
       generateMutation: generateCreateEtchPacketMutation,
     },
+    // @ts-ignore
     forgeSubmit: {
       generateMutation: generateForgeSubmitMutation,
     },
+    // @ts-ignore
     generateEtchSignUrl: {
       generateMutation: generateEtchSignUrlMutation,
     },
+    // @ts-ignore
     removeWeldData: {
       generateMutation: generateRemoveWeldDataMutation,
     },
   },
   queries: {
+    // @ts-ignore
     etchPacket: {
       generateQuery: generateEtchPacketQuery,
     },
@@ -55,6 +74,9 @@ class Anvil {
   //   baseURL: 'https://app.useanvil.com'
   //   userAgent: 'Anvil API Client/2.0.0'
   // }
+  /**
+   * @param {AnvilOptions?} options
+   */
   constructor (options) {
     if (!options) throw new Error('options are required')
 
@@ -86,6 +108,12 @@ class Anvil {
     this._setRateLimiter({ tokens: this.options.requestLimit, intervalMs: this.options.requestLimitMS })
   }
 
+  /**
+   * @param {Object} options
+   * @param {number} options.tokens
+   * @param {number} options.intervalMs
+   * @private
+   */
   _setRateLimiter ({ tokens, intervalMs }) {
     if (
       // Both must be truthy
@@ -122,7 +150,7 @@ class Anvil {
    * Perform some handy/necessary things for a GraphQL file upload to make it work
    * with this client and with our backend
    *
-   * @param  {string|Buffer|Stream-like-thing} pathOrStreamLikeThing - Either a string path to a file,
+   * @param  {string|Buffer} pathOrStreamLikeThing - Either a string path to a file,
    *   a Buffer, or a Stream-like thing that is compatible with form-data as an append.
    * @param  {object} formDataAppendOptions - User can specify options to be passed to the form-data.append
    *   call. This should be done if a stream-like thing is not one of the common types that
@@ -133,12 +161,21 @@ class Anvil {
    */
   static prepareGraphQLFile (pathOrStreamLikeThing, formDataAppendOptions) {
     if (typeof pathOrStreamLikeThing === 'string') {
+      // @ts-ignore
       pathOrStreamLikeThing = fs.createReadStream(pathOrStreamLikeThing)
     }
 
     return new UploadWithOptions(pathOrStreamLikeThing, formDataAppendOptions)
   }
 
+  /**
+   * Runs the createEtchPacket mutation.
+   * @param {Object} data
+   * @param {Object} data.variables
+   * @param {string} data.responseQuery
+   * @param {any} data.mutation
+   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   */
   createEtchPacket ({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
       {
@@ -149,6 +186,11 @@ class Anvil {
     )
   }
 
+  /**
+   * @param {string} documentGroupEid
+   * @param {Object?} clientOptions
+   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   */
   downloadDocuments (documentGroupEid, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
@@ -165,6 +207,12 @@ class Anvil {
     )
   }
 
+  /**
+   * @param {string} pdfTemplateID
+   * @param {Object} payload
+   * @param {Object?} clientOptions
+   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   */
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
@@ -188,6 +236,13 @@ class Anvil {
     )
   }
 
+  /**
+   * @param {Object} data
+   * @param {Object} data.variables
+   * @param {string} data.responseQuery
+   * @param {any} data.mutation
+   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   */
   forgeSubmit ({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
       {
@@ -198,6 +253,11 @@ class Anvil {
     )
   }
 
+  /**
+   * @param {Object} payload
+   * @param {Object?} clientOptions
+   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   */
   generatePDF (payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
@@ -221,6 +281,12 @@ class Anvil {
     )
   }
 
+  /**
+   * @param {Object} data
+   * @param {Object} data.variables
+   * @param {string} data.responseQuery
+   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   */
   getEtchPacket ({ variables, responseQuery }) {
     return this.requestGraphQL(
       {
@@ -231,6 +297,11 @@ class Anvil {
     )
   }
 
+  /**
+   * @param {Object} data
+   * @param {Object} data.variables
+   * @returns {Promise<{url: (*|string), errors: *, statusCode: *}>}
+   */
   async generateEtchSignUrl ({ variables }) {
     const { statusCode, data, errors } = await this.requestGraphQL(
       {
@@ -247,6 +318,12 @@ class Anvil {
     }
   }
 
+  /**
+   * @param {Object} data
+   * @param {Object} data.variables
+   * @param {any} data.mutation
+   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   */
   removeWeldData ({ variables, mutation }) {
     return this.requestGraphQL(
       {
@@ -257,6 +334,13 @@ class Anvil {
     )
   }
 
+  /**
+   * @param {Object} data
+   * @param {any} data.query
+   * @param {Object?} data.variables
+   * @param {Object} clientOptions
+   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   */
   async requestGraphQL ({ query, variables = {} }, clientOptions) {
     // Some helpful resources on how this came to be:
     // https://github.com/jaydenseric/graphql-upload/issues/125#issuecomment-440853538
@@ -284,6 +368,7 @@ class Anvil {
     }
 
     if (filesMap.size) {
+      // @ts-ignore
       const abortController = new AbortController()
       const form = new FormData()
 
@@ -340,6 +425,12 @@ class Anvil {
     }
   }
 
+  /**
+   * @param {string} url
+   * @param {Object} fetchOptions
+   * @param {Object} clientOptions
+   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   */
   async requestREST (url, fetchOptions, clientOptions) {
     const {
       response,
@@ -369,6 +460,12 @@ class Anvil {
   // USERS OF THIS MODULE SHOULD NOT USE ANY OF THESE METHODS DIRECTLY
   // ******************************************************************************
 
+  /**
+   * @param {string} url
+   * @param {Object} options
+   * @returns {Promise}
+   * @private
+   */
   _request (url, options) {
     if (!url.startsWith(this.options.baseURL)) {
       url = this._url(url)
@@ -377,6 +474,12 @@ class Anvil {
     return fetch(url, opts)
   }
 
+  /**
+   * @param {CallableFunction} retryableRequestFn
+   * @param {Object?} clientOptions
+   * @returns {Promise<*>}
+   * @private
+   */
   _wrapRequest (retryableRequestFn, clientOptions = {}) {
     return this._throttle(async (retry) => {
       let { dataType, debug } = clientOptions
@@ -445,7 +548,7 @@ class Anvil {
           data = json || await response.json()
           break
         default:
-          console.warn('Using default response dataType of "json". Please specifiy a dataType.')
+          console.warn('Using default response dataType of "json". Please specify a dataType.')
           data = await response.json()
           break
       }
@@ -458,10 +561,23 @@ class Anvil {
     })
   }
 
+  /**
+   * @param {string} path
+   * @returns {string}
+   * @private
+   */
   _url (path) {
     return this.options.baseURL + path
   }
 
+  /**
+   * @param {Object} headerObject
+   * @param {Object} headerObject.options
+   * @param {Object} headerObject.headers
+   * @param {Object?} internalOptions
+   * @returns {*&{headers: {}}}
+   * @private
+   */
   _addHeaders ({ options: existingOptions, headers: newHeaders }, internalOptions = {}) {
     const { headers: existingHeaders = {} } = existingOptions
     const { defaults = false } = internalOptions
@@ -483,6 +599,11 @@ class Anvil {
     }
   }
 
+  /**
+   * @param {Object} options
+   * @returns {*}
+   * @private
+   */
   _addDefaultHeaders (options) {
     const { userAgent } = this.options
     return this._addHeaders(
@@ -497,6 +618,11 @@ class Anvil {
     )
   }
 
+  /**
+   * @param {CallableFunction} fn
+   * @returns {Promise<*>}
+   * @private
+   */
   async _throttle (fn) {
     // If this is one of the first requests being made, we'll want to dynamically
     // set the Rate Limiter values from the API response, and hold up everyone else
@@ -515,7 +641,7 @@ class Anvil {
 
     const remainingRequests = await this.limiter.removeTokens(1)
     if (remainingRequests < 1) {
-      await sleep(this.requestLimitMS + failBufferMS)
+      await sleep(this.options.requestLimitMS + failBufferMS)
     }
     const retry = async (ms) => {
       await sleep(ms)
@@ -524,33 +650,22 @@ class Anvil {
 
     return fn(retry)
   }
-
-  static _prepareGraphQLBase64 (data, options = {}) {
-    const { filename, mimetype } = options
-    if (!filename) {
-      throw new Error('options.filename must be provided for Base64 upload')
-    }
-    if (!mimetype) {
-      throw new Error('options.mimetype must be provided for Base64 upload')
-    }
-
-    if (options.bufferize) {
-      const buffer = Buffer.from(data, 'base64')
-      return this._prepareGraphQLBuffer(buffer, options)
-    }
-
-    return {
-      data,
-      filename,
-      mimetype,
-    }
-  }
 }
 
+/**
+ * @param {string} retryAfterSeconds
+ * @returns {number}
+ * @private
+ */
 function getRetryMS (retryAfterSeconds) {
   return Math.round((Math.abs(parseFloat(retryAfterSeconds)) || 0) * 1000) + failBufferMS
 }
 
+/**
+ * @param {number} ms
+ * @returns {Promise<any>}
+ * @private
+ */
 function sleep (ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)

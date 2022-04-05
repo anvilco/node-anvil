@@ -23,8 +23,8 @@ declare class Anvil {
         userAgent: string;
         requestLimit: number;
         requestLimitMS: number;
-        apiKey: string;
-        accessToken: string;
+        apiKey?: string;
+        accessToken?: string;
     };
     authHeader: string;
     hasSetLimiterFromResponse: boolean;
@@ -223,11 +223,11 @@ declare namespace Anvil {
 import { RateLimiter } from "limiter/dist/cjs/RateLimiter";
 import UploadWithOptions = require("./UploadWithOptions");
 type AnvilOptions = {
-    baseURL: string | null;
-    userAgent: string | null;
-    requestLimit: number | null;
-    requestLimitMS: number | null;
-    apiKey: string | null;
-    accessToken: string | null;
+    baseURL?: string;
+    userAgent?: string;
+    requestLimit?: number;
+    requestLimitMS?: number;
+    apiKey?: string;
+    accessToken?: string;
 };
 //# sourceMappingURL=index.d.ts.map

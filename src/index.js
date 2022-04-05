@@ -14,12 +14,12 @@ const { looksLikeError, normalizeErrors } = require('./errors')
 /**
  * @typedef AnvilOptions
  * @type {Object}
- * @property {string?} baseURL
- * @property {string?} userAgent
- * @property {number?} requestLimit
- * @property {number?} requestLimitMS
- * @property {string?} apiKey
- * @property {string?} accessToken
+ * @property {string} [baseURL]
+ * @property {string} [userAgent]
+ * @property {number} [requestLimit]
+ * @property {number} [requestLimitMS]
+ * @property {string} [apiKey]
+ * @property {string} [accessToken]
  */
 
 // Ignoring the below since they are dynamically created depepending on what's

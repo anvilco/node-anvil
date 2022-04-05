@@ -3,7 +3,7 @@
   "version": "2.10.0",
   "description": "Anvil API Client",
   "main": "src/index.js",
-  "types": "./types/index.d.ts",
+  "types": "./types/src/index.d.ts",
   "scripts": {
     "test": "mocha --config ./test/mocha.js",
     "test:debug": "yarn test --inspect-brk=0.0.0.0:9223",

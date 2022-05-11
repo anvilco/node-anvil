@@ -59,6 +59,10 @@ function getPacketVariables (ndaFile) {
     signatureEmailSubject: 'HR Documents ok',
     signatureEmailBody: 'Please sign these HR documents....',
 
+    // Merge all PDFs into one PDF before signing.
+    // Signing users will get one PDF instead of all PDFs as separate files.
+    // mergePDFs: false,
+
     files: [
       {
         // Our ID we will use to reference and fill it with data.
@@ -219,7 +223,7 @@ function getPacketVariables (ndaFile) {
         email: employeeEmail,
 
         // These fields will be presented when this signer signs.
-        // The signer will will need to click through the signatures in
+        // The signer will need to click through the signatures in
         // the order of this array.
         fields: [
           {

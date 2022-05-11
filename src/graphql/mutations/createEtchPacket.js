@@ -33,6 +33,7 @@ module.exports = {
       $signers: [JSON!],
       $webhookURL: String,
       $data: JSON,
+      $mergePDFs: Boolean
     ) {
       createEtchPacket (
         name: $name,
@@ -45,7 +46,8 @@ module.exports = {
         signaturePageOptions: $signaturePageOptions,
         signers: $signers,
         webhookURL: $webhookURL,
-        data: $data
+        data: $data,
+        mergePDFs: $mergePDFs
       ) ${responseQuery}
     }`,
 }

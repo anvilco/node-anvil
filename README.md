@@ -1,15 +1,19 @@
 # Anvil API Client for Node
 
-[Anvil](https://www.useanvil.com/developers/) is a suite of tools for managing document-based workflows:
+### Repository maintained by [Anvil](www.useanvil.com/developers)
 
-1. [Workflows](https://www.useanvil.com/docs/api/workflows): convert your PDF forms into simple, intuitive websites that fill the PDFs and gather signatures for you.
-2. [Etch E-sign](https://www.useanvil.com/docs/api/e-signatures): collect e-signatures from within your app. Send or embed a signature packet including multiple PDFs, images, and other uploads to one or more signers via the API.
-3. [PDF filling API](https://useanvil.com/pdf-filling-api): fill any PDF with JSON data via the API.
-4. [PDF generation API](https://www.useanvil.com/docs/api/generate-pdf): generate PDFs from custom HTML or Markdown. i.e. HTML to PDF or Markdown to PDF.
+![Horizontal Lockupblack](https://user-images.githubusercontent.com/293079/169453889-ae211c6c-7634-4ccd-8ca9-8970c2621b6f.png#gh-light-mode-only)
+![Horizontal Lockup copywhite](https://user-images.githubusercontent.com/293079/169453892-895f637b-4633-4a14-b997-960c9e17579b.png#gh-dark-mode-only)
 
-This client will allow you to interact with all of Anvil's APIs. See the [API guide](https://www.useanvil.com/docs) and the [GraphQL reference](https://www.useanvil.com/docs/api/graphql/reference/) for more info.
+Anvil provides easy APIs for all things paperwork.
+1. [PDF filling API](https://www.useanvil.com/products/pdf-filling-api/) - fill out a PDF template with a web request and structured JSON data.
+2. [PDF generation API](https://www.useanvil.com/products/pdf-generation-api/) - send markdown or HTML and Anvil will render it to a PDF.
+3. [Etch E-sign with API](https://www.useanvil.com/products/etch/) - customizable, embeddable, e-signature platform with an API to control the signing process end-to-end.
+4. [Anvil Workflows (w/ API)](https://www.useanvil.com/products/workflows/) - Webforms + PDF + E-sign with a powerful no-code builder. Easily collect structured data, generate PDFs, and request signatures.
 
-This library and the Anvil APIs are intended to be used on a server or server-like environment.
+Learn more on our [Anvil developer page](www.useanvil.com/developers).
+
+---
 
 ## Usage
 

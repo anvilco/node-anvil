@@ -1,16 +1,16 @@
 module.exports = {
   extends: '../.eslintrc.js',
   env: {
-    mocha: true
+    mocha: true,
   },
   globals: {
     expect: 'readonly',
     should: 'readonly',
-    sinon : 'readonly',
-    mount : 'readonly',
-    render : 'readonly',
-    shallow : 'readonly',
-    //*************************************************
+    sinon: 'readonly',
+    mount: 'readonly',
+    render: 'readonly',
+    shallow: 'readonly',
+    //* ************************************************
     // bdd-lazy-var
     //
     // In order to get around eslint complaining for now:
@@ -23,8 +23,8 @@ module.exports = {
     sharedExamplesFor: 'readonly',
     includeExamplesFor: 'readonly',
     itBehavesLike: 'readonly',
-    is: 'readonly'
+    is: 'readonly',
     //
-    //*************************************************
-  }
+    //* ************************************************
+  },
 }

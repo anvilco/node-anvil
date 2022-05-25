@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "abort-controller": "^3.0.0",
-    "extract-files": "^6",
+    "extract-files": "^12",
     "form-data": "^4.0.0",
     "limiter": "^2.1.0",
     "node-fetch": "^2.6.7"

@@ -50,7 +50,7 @@ function fakeThrottle (fn) {
 }
 
 describe('Anvil API Client', function () {
-  beforeEach(function() {
+  beforeEach(function () {
     sinon.stub(Anvil.prototype, '_throttle').callsFake(fakeThrottle)
   })
   afterEach(function () {

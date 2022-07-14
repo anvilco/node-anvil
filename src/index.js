@@ -13,13 +13,48 @@ const { looksLikeError, normalizeErrors } = require('./errors')
 /**
  * @typedef AnvilOptions
  * @type {Object}
+ * @property {string} [apiKey]
+ * @property {string} [accessToken]
  * @property {string} [baseURL]
  * @property {string} [userAgent]
  * @property {number} [requestLimit]
  * @property {number} [requestLimitMS]
- * @property {string} [apiKey]
- * @property {string} [accessToken]
  */
+
+/**
+ * @typedef GraphQLResponse
+ * @type {Object}
+ * @property {number} statusCode
+ * @property {GraphQLResponseData} [data]
+ * @property {Array<ResponseError>} [errors]
+ */
+
+/** @typedef {{
+  data: {[ key: string]: any }
+}} GraphQLResponseData */
+
+/**
+ * @typedef RESTResponse
+ * @type {Object}
+ * @property {number} statusCode
+ * @property {any} [data]
+ * @property {any} [response] node-fetch Response
+ * @property {Array<ResponseError>} [errors]
+ */
+
+/** @typedef {{
+  message: string,
+  status?: number,
+  name?: string,
+  fields?: Array<ResponseErrorField>
+  [key: string]: any
+}} ResponseError */
+
+/** @typedef {{
+  message: string,
+  property?: string,
+  [key: string]: any
+}} ResponseErrorField */
 
 // Ignoring the below since they are dynamically created depepending on what's
 // inside the `src/graphql` directory.
@@ -173,7 +208,7 @@ class Anvil {
    * @param {Object} data.variables
    * @param {string} [data.responseQuery]
    * @param {string} [data.mutation]
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @returns {Promise<GraphQLResponse>}
    */
   createEtchPacket ({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
@@ -188,7 +223,7 @@ class Anvil {
   /**
    * @param {string} documentGroupEid
    * @param {Object} [clientOptions]
-   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   * @returns {Promise<RESTResponse>}
    */
   downloadDocuments (documentGroupEid, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
@@ -210,7 +245,7 @@ class Anvil {
    * @param {string} pdfTemplateID
    * @param {Object} payload
    * @param {Object} [clientOptions]
-   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   * @returns {Promise<RESTResponse>}
    */
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
@@ -240,7 +275,7 @@ class Anvil {
    * @param {Object} data.variables
    * @param {string} [data.responseQuery]
    * @param {string} [data.mutation]
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @returns {Promise<GraphQLResponse>}
    */
   forgeSubmit ({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
@@ -255,7 +290,7 @@ class Anvil {
   /**
    * @param {Object} payload
    * @param {Object} [clientOptions]
-   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   * @returns {Promise<RESTResponse>}
    */
   generatePDF (payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
@@ -284,7 +319,7 @@ class Anvil {
    * @param {Object} data
    * @param {Object} data.variables
    * @param {string} [data.responseQuery]
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @returns {Promise<GraphQLResponse>}
    */
   getEtchPacket ({ variables, responseQuery }) {
     return this.requestGraphQL(
@@ -299,7 +334,7 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {Object} data.variables
-   * @returns {Promise<{url: (*|string), errors: *, statusCode: *}>}
+   * @returns {Promise<{url?: string, errors?: Array<ResponseError>, statusCode: number}>}
    */
   async generateEtchSignUrl ({ variables }) {
     const { statusCode, data, errors } = await this.requestGraphQL(
@@ -321,7 +356,7 @@ class Anvil {
    * @param {Object} data
    * @param {Object} data.variables
    * @param {string} [data.mutation]
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @returns {Promise<GraphQLResponse>}
    */
   removeWeldData ({ variables, mutation }) {
     return this.requestGraphQL(
@@ -338,7 +373,7 @@ class Anvil {
    * @param {string} data.query
    * @param {Object} [data.variables]
    * @param {Object} [clientOptions]
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @returns {Promise<GraphQLResponse>}
    */
   async requestGraphQL ({ query, variables = {} }, clientOptions) {
     // Some helpful resources on how this came to be:
@@ -428,7 +463,7 @@ class Anvil {
    * @param {string} url
    * @param {Object} fetchOptions
    * @param {Object} [clientOptions]
-   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   * @returns {Promise<RESTResponse>}
    */
   async requestREST (url, fetchOptions, clientOptions) {
     const {

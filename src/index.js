@@ -10,7 +10,6 @@ const UploadWithOptions = require('./UploadWithOptions')
 const { version, description } = require('../package.json')
 const { looksLikeError, normalizeErrors } = require('./errors')
 
-
 /**
  * @typedef AnvilOptions
  * @type {Object}
@@ -152,7 +151,7 @@ class Anvil {
    *
    * @param  {string|Buffer} pathOrStreamLikeThing - Either a string path to a file,
    *   a Buffer, or a Stream-like thing that is compatible with form-data as an append.
-   * @param  {object} formDataAppendOptions - User can specify options to be passed to the form-data.append
+   * @param  {Object} [formDataAppendOptions] - User can specify options to be passed to the form-data.append
    *   call. This should be done if a stream-like thing is not one of the common types that
    *   form-data can figure out on its own.
    *
@@ -172,8 +171,8 @@ class Anvil {
    * Runs the createEtchPacket mutation.
    * @param {Object} data
    * @param {Object} data.variables
-   * @param {string} data.responseQuery
-   * @param {any} data.mutation
+   * @param {string} [data.responseQuery]
+   * @param {string} [data.mutation]
    * @returns {Promise<{data: *, errors: *, statusCode: *}>}
    */
   createEtchPacket ({ variables, responseQuery, mutation }) {
@@ -188,7 +187,7 @@ class Anvil {
 
   /**
    * @param {string} documentGroupEid
-   * @param {Object?} clientOptions
+   * @param {Object} [clientOptions]
    * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
    */
   downloadDocuments (documentGroupEid, clientOptions = {}) {
@@ -210,7 +209,7 @@ class Anvil {
   /**
    * @param {string} pdfTemplateID
    * @param {Object} payload
-   * @param {Object?} clientOptions
+   * @param {Object} [clientOptions]
    * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
    */
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
@@ -239,8 +238,8 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {Object} data.variables
-   * @param {string} data.responseQuery
-   * @param {any} data.mutation
+   * @param {string} [data.responseQuery]
+   * @param {string} [data.mutation]
    * @returns {Promise<{data: *, errors: *, statusCode: *}>}
    */
   forgeSubmit ({ variables, responseQuery, mutation }) {
@@ -255,7 +254,7 @@ class Anvil {
 
   /**
    * @param {Object} payload
-   * @param {Object?} clientOptions
+   * @param {Object} [clientOptions]
    * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
    */
   generatePDF (payload, clientOptions = {}) {
@@ -284,7 +283,7 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {Object} data.variables
-   * @param {string} data.responseQuery
+   * @param {string} [data.responseQuery]
    * @returns {Promise<{data: *, errors: *, statusCode: *}>}
    */
   getEtchPacket ({ variables, responseQuery }) {
@@ -321,7 +320,7 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {Object} data.variables
-   * @param {any} data.mutation
+   * @param {string} [data.mutation]
    * @returns {Promise<{data: *, errors: *, statusCode: *}>}
    */
   removeWeldData ({ variables, mutation }) {
@@ -336,9 +335,9 @@ class Anvil {
 
   /**
    * @param {Object} data
-   * @param {any} data.query
-   * @param {Object?} data.variables
-   * @param {Object} clientOptions
+   * @param {string} data.query
+   * @param {Object} [data.variables]
+   * @param {Object} [clientOptions]
    * @returns {Promise<{data: *, errors: *, statusCode: *}>}
    */
   async requestGraphQL ({ query, variables = {} }, clientOptions) {
@@ -428,7 +427,7 @@ class Anvil {
   /**
    * @param {string} url
    * @param {Object} fetchOptions
-   * @param {Object} clientOptions
+   * @param {Object} [clientOptions]
    * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
    */
   async requestREST (url, fetchOptions, clientOptions) {
@@ -476,7 +475,7 @@ class Anvil {
 
   /**
    * @param {CallableFunction} retryableRequestFn
-   * @param {Object?} clientOptions
+   * @param {Object} [clientOptions]
    * @returns {Promise<*>}
    * @private
    */
@@ -574,7 +573,7 @@ class Anvil {
    * @param {Object} headerObject
    * @param {Object} headerObject.options
    * @param {Object} headerObject.headers
-   * @param {Object?} internalOptions
+   * @param {Object} [internalOptions]
    * @returns {*&{headers: {}}}
    * @private
    */
@@ -582,13 +581,15 @@ class Anvil {
     const { headers: existingHeaders = {} } = existingOptions
     const { defaults = false } = internalOptions
 
-    newHeaders = defaults ? newHeaders : Object.entries(newHeaders).reduce((acc, [key, val]) => {
-      if (val != null) {
-        acc[key] = val
-      }
+    newHeaders = defaults
+      ? newHeaders
+      : Object.entries(newHeaders).reduce((acc, [key, val]) => {
+        if (val != null) {
+          acc[key] = val
+        }
 
-      return acc
-    }, {})
+        return acc
+      }, {})
 
     return {
       ...existingOptions,
@@ -651,6 +652,8 @@ class Anvil {
     return fn(retry)
   }
 }
+
+Anvil.UploadWithOptions = UploadWithOptions
 
 /**
  * @param {string} retryAfterSeconds

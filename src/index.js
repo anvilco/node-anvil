@@ -10,6 +10,9 @@ const UploadWithOptions = require('./UploadWithOptions')
 const { version, description } = require('../package.json')
 const { looksLikeError, normalizeErrors } = require('./errors')
 
+// We are only importing this for the type..
+const { Stream } = require('stream') // eslint-disable-line no-unused-vars
+
 /**
  * @typedef AnvilOptions
  * @type {Object}
@@ -37,9 +40,9 @@ const { looksLikeError, normalizeErrors } = require('./errors')
  * @typedef RESTResponse
  * @type {Object}
  * @property {number} statusCode
- * @property {any} [data]
- * @property {any} [response] node-fetch Response
+ * @property {Buffer|Stream|Object} [data]
  * @property {Array<ResponseError>} [errors]
+ * @property {any} [response] node-fetch Response
  */
 
 /** @typedef {{

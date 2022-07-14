@@ -188,12 +188,12 @@ type GraphQLResponse = {
 };
 type RESTResponse = {
     statusCode: number;
-    data?: any;
+    data?: Buffer | Stream | any;
+    errors?: Array<ResponseError>;
     /**
-     * node-fetch response
+     * node-fetch Response
      */
     response?: any;
-    errors?: Array<ResponseError>;
 };
 type ResponseError = {
     [key: string]: any;
@@ -221,4 +221,5 @@ type ResponseErrorField = {
     message: string;
     property?: string;
 };
+import { Stream } from "stream";
 //# sourceMappingURL=index.d.ts.map

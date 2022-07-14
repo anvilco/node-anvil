@@ -10,17 +10,54 @@ const UploadWithOptions = require('./UploadWithOptions')
 const { version, description } = require('../package.json')
 const { looksLikeError, normalizeErrors } = require('./errors')
 
+// We are only importing this for the type..
+const { Stream } = require('stream') // eslint-disable-line no-unused-vars
 
 /**
  * @typedef AnvilOptions
  * @type {Object}
+ * @property {string} [apiKey]
+ * @property {string} [accessToken]
  * @property {string} [baseURL]
  * @property {string} [userAgent]
  * @property {number} [requestLimit]
  * @property {number} [requestLimitMS]
- * @property {string} [apiKey]
- * @property {string} [accessToken]
  */
+
+/**
+ * @typedef GraphQLResponse
+ * @type {Object}
+ * @property {number} statusCode
+ * @property {GraphQLResponseData} [data]
+ * @property {Array<ResponseError>} [errors]
+ */
+
+/** @typedef {{
+  data: {[ key: string]: any }
+}} GraphQLResponseData */
+
+/**
+ * @typedef RESTResponse
+ * @type {Object}
+ * @property {number} statusCode
+ * @property {Buffer|Stream|Object} [data]
+ * @property {Array<ResponseError>} [errors]
+ * @property {any} [response] node-fetch Response
+ */
+
+/** @typedef {{
+  message: string,
+  status?: number,
+  name?: string,
+  fields?: Array<ResponseErrorField>
+  [key: string]: any
+}} ResponseError */
+
+/** @typedef {{
+  message: string,
+  property?: string,
+  [key: string]: any
+}} ResponseErrorField */
 
 // Ignoring the below since they are dynamically created depepending on what's
 // inside the `src/graphql` directory.
@@ -152,7 +189,7 @@ class Anvil {
    *
    * @param  {string|Buffer} pathOrStreamLikeThing - Either a string path to a file,
    *   a Buffer, or a Stream-like thing that is compatible with form-data as an append.
-   * @param  {object} formDataAppendOptions - User can specify options to be passed to the form-data.append
+   * @param  {Object} [formDataAppendOptions] - User can specify options to be passed to the form-data.append
    *   call. This should be done if a stream-like thing is not one of the common types that
    *   form-data can figure out on its own.
    *
@@ -172,9 +209,9 @@ class Anvil {
    * Runs the createEtchPacket mutation.
    * @param {Object} data
    * @param {Object} data.variables
-   * @param {string} data.responseQuery
-   * @param {any} data.mutation
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @param {string} [data.responseQuery]
+   * @param {string} [data.mutation]
+   * @returns {Promise<GraphQLResponse>}
    */
   createEtchPacket ({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
@@ -188,8 +225,8 @@ class Anvil {
 
   /**
    * @param {string} documentGroupEid
-   * @param {Object?} clientOptions
-   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   * @param {Object} [clientOptions]
+   * @returns {Promise<RESTResponse>}
    */
   downloadDocuments (documentGroupEid, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
@@ -210,8 +247,8 @@ class Anvil {
   /**
    * @param {string} pdfTemplateID
    * @param {Object} payload
-   * @param {Object?} clientOptions
-   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   * @param {Object} [clientOptions]
+   * @returns {Promise<RESTResponse>}
    */
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
@@ -239,9 +276,9 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {Object} data.variables
-   * @param {string} data.responseQuery
-   * @param {any} data.mutation
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @param {string} [data.responseQuery]
+   * @param {string} [data.mutation]
+   * @returns {Promise<GraphQLResponse>}
    */
   forgeSubmit ({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
@@ -255,8 +292,8 @@ class Anvil {
 
   /**
    * @param {Object} payload
-   * @param {Object?} clientOptions
-   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   * @param {Object} [clientOptions]
+   * @returns {Promise<RESTResponse>}
    */
   generatePDF (payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
@@ -284,8 +321,8 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {Object} data.variables
-   * @param {string} data.responseQuery
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @param {string} [data.responseQuery]
+   * @returns {Promise<GraphQLResponse>}
    */
   getEtchPacket ({ variables, responseQuery }) {
     return this.requestGraphQL(
@@ -300,7 +337,7 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {Object} data.variables
-   * @returns {Promise<{url: (*|string), errors: *, statusCode: *}>}
+   * @returns {Promise<{url?: string, errors?: Array<ResponseError>, statusCode: number}>}
    */
   async generateEtchSignUrl ({ variables }) {
     const { statusCode, data, errors } = await this.requestGraphQL(
@@ -321,8 +358,8 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {Object} data.variables
-   * @param {any} data.mutation
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @param {string} [data.mutation]
+   * @returns {Promise<GraphQLResponse>}
    */
   removeWeldData ({ variables, mutation }) {
     return this.requestGraphQL(
@@ -336,10 +373,10 @@ class Anvil {
 
   /**
    * @param {Object} data
-   * @param {any} data.query
-   * @param {Object?} data.variables
-   * @param {Object} clientOptions
-   * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+   * @param {string} data.query
+   * @param {Object} [data.variables]
+   * @param {Object} [clientOptions]
+   * @returns {Promise<GraphQLResponse>}
    */
   async requestGraphQL ({ query, variables = {} }, clientOptions) {
     // Some helpful resources on how this came to be:
@@ -428,8 +465,8 @@ class Anvil {
   /**
    * @param {string} url
    * @param {Object} fetchOptions
-   * @param {Object} clientOptions
-   * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+   * @param {Object} [clientOptions]
+   * @returns {Promise<RESTResponse>}
    */
   async requestREST (url, fetchOptions, clientOptions) {
     const {
@@ -476,7 +513,7 @@ class Anvil {
 
   /**
    * @param {CallableFunction} retryableRequestFn
-   * @param {Object?} clientOptions
+   * @param {Object} [clientOptions]
    * @returns {Promise<*>}
    * @private
    */
@@ -574,7 +611,7 @@ class Anvil {
    * @param {Object} headerObject
    * @param {Object} headerObject.options
    * @param {Object} headerObject.headers
-   * @param {Object?} internalOptions
+   * @param {Object} [internalOptions]
    * @returns {*&{headers: {}}}
    * @private
    */
@@ -582,13 +619,15 @@ class Anvil {
     const { headers: existingHeaders = {} } = existingOptions
     const { defaults = false } = internalOptions
 
-    newHeaders = defaults ? newHeaders : Object.entries(newHeaders).reduce((acc, [key, val]) => {
-      if (val != null) {
-        acc[key] = val
-      }
+    newHeaders = defaults
+      ? newHeaders
+      : Object.entries(newHeaders).reduce((acc, [key, val]) => {
+        if (val != null) {
+          acc[key] = val
+        }
 
-      return acc
-    }, {})
+        return acc
+      }, {})
 
     return {
       ...existingOptions,
@@ -651,6 +690,8 @@ class Anvil {
     return fn(retry)
   }
 }
+
+Anvil.UploadWithOptions = UploadWithOptions
 
 /**
  * @param {string} retryAfterSeconds

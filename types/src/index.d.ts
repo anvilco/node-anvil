@@ -6,25 +6,25 @@ declare class Anvil {
      *
      * @param  {string|Buffer} pathOrStreamLikeThing - Either a string path to a file,
      *   a Buffer, or a Stream-like thing that is compatible with form-data as an append.
-     * @param  {object} formDataAppendOptions - User can specify options to be passed to the form-data.append
+     * @param  {Object} [formDataAppendOptions] - User can specify options to be passed to the form-data.append
      *   call. This should be done if a stream-like thing is not one of the common types that
      *   form-data can figure out on its own.
      *
      * @return {UploadWithOptions} - A class that wraps the stream-like-thing and any options
      *   up together nicely in a way that we can also tell that it was us who did it.
      */
-    static prepareGraphQLFile(pathOrStreamLikeThing: string | Buffer, formDataAppendOptions: object): UploadWithOptions;
+    static prepareGraphQLFile(pathOrStreamLikeThing: string | Buffer, formDataAppendOptions?: any): UploadWithOptions;
     /**
      * @param {AnvilOptions?} options
      */
     constructor(options: AnvilOptions | null);
     options: {
+        apiKey?: string;
+        accessToken?: string;
         baseURL: string;
         userAgent: string;
         requestLimit: number;
         requestLimitMS: number;
-        apiKey?: string;
-        accessToken?: string;
     };
     authHeader: string;
     hasSetLimiterFromResponse: boolean;
@@ -45,136 +45,96 @@ declare class Anvil {
      * Runs the createEtchPacket mutation.
      * @param {Object} data
      * @param {Object} data.variables
-     * @param {string} data.responseQuery
-     * @param {any} data.mutation
-     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     * @param {string} [data.responseQuery]
+     * @param {string} [data.mutation]
+     * @returns {Promise<GraphQLResponse>}
      */
     createEtchPacket({ variables, responseQuery, mutation }: {
         variables: any;
-        responseQuery: string;
-        mutation: any;
-    }): Promise<{
-        data: any;
-        errors: any;
-        statusCode: any;
-    }>;
+        responseQuery?: string;
+        mutation?: string;
+    }): Promise<GraphQLResponse>;
     /**
      * @param {string} documentGroupEid
-     * @param {Object?} clientOptions
-     * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+     * @param {Object} [clientOptions]
+     * @returns {Promise<RESTResponse>}
      */
-    downloadDocuments(documentGroupEid: string, clientOptions?: any | null): Promise<{
-        data: any;
-        response: any;
-        errors: any;
-        statusCode: any;
-    }>;
+    downloadDocuments(documentGroupEid: string, clientOptions?: any): Promise<RESTResponse>;
     /**
      * @param {string} pdfTemplateID
      * @param {Object} payload
-     * @param {Object?} clientOptions
-     * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+     * @param {Object} [clientOptions]
+     * @returns {Promise<RESTResponse>}
      */
-    fillPDF(pdfTemplateID: string, payload: any, clientOptions?: any | null): Promise<{
-        data: any;
-        response: any;
-        errors: any;
-        statusCode: any;
-    }>;
+    fillPDF(pdfTemplateID: string, payload: any, clientOptions?: any): Promise<RESTResponse>;
     /**
      * @param {Object} data
      * @param {Object} data.variables
-     * @param {string} data.responseQuery
-     * @param {any} data.mutation
-     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     * @param {string} [data.responseQuery]
+     * @param {string} [data.mutation]
+     * @returns {Promise<GraphQLResponse>}
      */
     forgeSubmit({ variables, responseQuery, mutation }: {
         variables: any;
-        responseQuery: string;
-        mutation: any;
-    }): Promise<{
-        data: any;
-        errors: any;
-        statusCode: any;
-    }>;
+        responseQuery?: string;
+        mutation?: string;
+    }): Promise<GraphQLResponse>;
     /**
      * @param {Object} payload
-     * @param {Object?} clientOptions
-     * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+     * @param {Object} [clientOptions]
+     * @returns {Promise<RESTResponse>}
      */
-    generatePDF(payload: any, clientOptions?: any | null): Promise<{
-        data: any;
-        response: any;
-        errors: any;
-        statusCode: any;
-    }>;
+    generatePDF(payload: any, clientOptions?: any): Promise<RESTResponse>;
     /**
      * @param {Object} data
      * @param {Object} data.variables
-     * @param {string} data.responseQuery
-     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     * @param {string} [data.responseQuery]
+     * @returns {Promise<GraphQLResponse>}
      */
     getEtchPacket({ variables, responseQuery }: {
         variables: any;
-        responseQuery: string;
-    }): Promise<{
-        data: any;
-        errors: any;
-        statusCode: any;
-    }>;
+        responseQuery?: string;
+    }): Promise<GraphQLResponse>;
     /**
      * @param {Object} data
      * @param {Object} data.variables
-     * @returns {Promise<{url: (*|string), errors: *, statusCode: *}>}
+     * @returns {Promise<{url?: string, errors?: Array<ResponseError>, statusCode: number}>}
      */
     generateEtchSignUrl({ variables }: {
         variables: any;
     }): Promise<{
-        url: (any | string);
-        errors: any;
-        statusCode: any;
+        url?: string;
+        errors?: Array<ResponseError>;
+        statusCode: number;
     }>;
     /**
      * @param {Object} data
      * @param {Object} data.variables
-     * @param {any} data.mutation
-     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     * @param {string} [data.mutation]
+     * @returns {Promise<GraphQLResponse>}
      */
     removeWeldData({ variables, mutation }: {
         variables: any;
-        mutation: any;
-    }): Promise<{
-        data: any;
-        errors: any;
-        statusCode: any;
-    }>;
+        mutation?: string;
+    }): Promise<GraphQLResponse>;
     /**
      * @param {Object} data
-     * @param {any} data.query
-     * @param {Object?} data.variables
-     * @param {Object} clientOptions
-     * @returns {Promise<{data: *, errors: *, statusCode: *}>}
+     * @param {string} data.query
+     * @param {Object} [data.variables]
+     * @param {Object} [clientOptions]
+     * @returns {Promise<GraphQLResponse>}
      */
     requestGraphQL({ query, variables }: {
-        query: any;
-        variables: any | null;
-    }, clientOptions: any): Promise<{
-        data: any;
-        errors: any;
-        statusCode: any;
-    }>;
+        query: string;
+        variables?: any;
+    }, clientOptions?: any): Promise<GraphQLResponse>;
     /**
      * @param {string} url
      * @param {Object} fetchOptions
-     * @param {Object} clientOptions
-     * @returns {Promise<{data: *, response: *, errors: *, statusCode: *}>}
+     * @param {Object} [clientOptions]
+     * @returns {Promise<RESTResponse>}
      */
-    requestREST(url: string, fetchOptions: any, clientOptions: any): Promise<{
-        data: any;
-        response: any;
-        errors: any;
-        statusCode: any;
-    }>;
+    requestREST(url: string, fetchOptions: any, clientOptions?: any): Promise<RESTResponse>;
     /**
      * @param {string} url
      * @param {Object} options
@@ -184,7 +144,7 @@ declare class Anvil {
     private _request;
     /**
      * @param {CallableFunction} retryableRequestFn
-     * @param {Object?} clientOptions
+     * @param {Object} [clientOptions]
      * @returns {Promise<*>}
      * @private
      */
@@ -199,7 +159,7 @@ declare class Anvil {
      * @param {Object} headerObject
      * @param {Object} headerObject.options
      * @param {Object} headerObject.headers
-     * @param {Object?} internalOptions
+     * @param {Object} [internalOptions]
      * @returns {*&{headers: {}}}
      * @private
      */
@@ -218,16 +178,48 @@ declare class Anvil {
     private _throttle;
 }
 declare namespace Anvil {
-    export { AnvilOptions };
+    export { UploadWithOptions, AnvilOptions, GraphQLResponse, GraphQLResponseData, RESTResponse, ResponseError, ResponseErrorField };
 }
 import { RateLimiter } from "limiter/dist/cjs/RateLimiter";
+type GraphQLResponse = {
+    statusCode: number;
+    data?: GraphQLResponseData;
+    errors?: Array<ResponseError>;
+};
+type RESTResponse = {
+    statusCode: number;
+    data?: Buffer | Stream | any;
+    errors?: Array<ResponseError>;
+    /**
+     * node-fetch Response
+     */
+    response?: any;
+};
+type ResponseError = {
+    [key: string]: any;
+    message: string;
+    status?: number;
+    name?: string;
+    fields?: Array<ResponseErrorField>;
+};
 import UploadWithOptions = require("./UploadWithOptions");
 type AnvilOptions = {
+    apiKey?: string;
+    accessToken?: string;
     baseURL?: string;
     userAgent?: string;
     requestLimit?: number;
     requestLimitMS?: number;
-    apiKey?: string;
-    accessToken?: string;
 };
+type GraphQLResponseData = {
+    data: {
+        [key: string]: any;
+    };
+};
+type ResponseErrorField = {
+    [key: string]: any;
+    message: string;
+    property?: string;
+};
+import { Stream } from "stream";
 //# sourceMappingURL=index.d.ts.map

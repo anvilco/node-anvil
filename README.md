@@ -47,7 +47,11 @@ const exampleData = {
   }
 }
 const anvilClient = new Anvil({ apiKey })
-const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, exampleData)
+
+// If a specific version is needed
+const clientOpts = { versionNumber: 5 }
+
+const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, exampleData, clientOpts)
 
 console.log(statusCode) // => 200
 

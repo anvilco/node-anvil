@@ -97,6 +97,9 @@ const DATA_TYPE_STREAM = 'stream'
 const DATA_TYPE_BUFFER = 'buffer'
 const DATA_TYPE_JSON = 'json'
 
+// Version number to use for latest versions (usually drafts)
+const VERSION_LATEST = -1
+
 const defaultOptions = {
   baseURL: 'https://app.useanvil.com',
   userAgent: `${description}/${version}`,
@@ -257,8 +260,13 @@ class Anvil {
       throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
     }
 
+    const versionNumber = clientOptions?.versionNumber
+    const url = versionNumber
+      ? `/api/v1/fill/${pdfTemplateID}.pdf?versionNumber=${versionNumber}`
+      : `/api/v1/fill/${pdfTemplateID}.pdf`
+
     return this.requestREST(
-      `/api/v1/fill/${pdfTemplateID}.pdf`,
+      url,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -712,5 +720,7 @@ function sleep (ms) {
     setTimeout(resolve, ms)
   })
 }
+
+Anvil.VERSION_LATEST = VERSION_LATEST
 
 module.exports = Anvil

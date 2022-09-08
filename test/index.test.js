@@ -272,17 +272,17 @@ describe('Anvil API Client', function () {
 
       context('everything goes well', function () {
         def('buffer', 'This would be PDF data...')
+        def('payload', {
+          title: 'Test',
+          fontSize: 8,
+          textColor: '#CC0000',
+          data: {
+            helloId: 'hello!',
+          },
+        })
 
         it('returns data', async function () {
-          const payload = {
-            title: 'Test',
-            fontSize: 8,
-            textColor: '#CC0000',
-            data: {
-              helloId: 'hello!',
-            },
-          }
-
+          const payload = $.payload
           const result = await client.fillPDF('cast123', payload)
 
           expect(result.statusCode).to.eql(200)
@@ -292,6 +292,26 @@ describe('Anvil API Client', function () {
 
           const [url, options] = client._request.lastCall.args
           expect(url).to.eql('/api/v1/fill/cast123.pdf')
+          expect(options).to.eql({
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+        })
+
+        it('works with `versionNumber`', async function (){
+          const payload = $.payload
+          const result = await client.fillPDF('cast123', payload, { versionNumber: 5 })
+
+          expect(result.statusCode).to.eql(200)
+          expect(result.data).to.eql('This would be PDF data...')
+
+          expect(client._request).to.have.been.calledOnce
+
+          const [url, options] = client._request.lastCall.args
+          expect(url).to.eql('/api/v1/fill/cast123.pdf?versionNumber=5')
           expect(options).to.eql({
             method: 'POST',
             body: JSON.stringify(payload),

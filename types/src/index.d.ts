@@ -178,7 +178,7 @@ declare class Anvil {
     private _throttle;
 }
 declare namespace Anvil {
-    export { UploadWithOptions, AnvilOptions, GraphQLResponse, GraphQLResponseData, RESTResponse, ResponseError, ResponseErrorField };
+    export { UploadWithOptions, VERSION_LATEST, VERSION_LATEST_PUBLISHED, AnvilOptions, GraphQLResponse, GraphQLResponseData, RESTResponse, ResponseError, ResponseErrorField };
 }
 import { RateLimiter } from "limiter/dist/cjs/RateLimiter";
 type GraphQLResponse = {
@@ -211,6 +211,8 @@ type AnvilOptions = {
     requestLimit?: number;
     requestLimitMS?: number;
 };
+declare const VERSION_LATEST: -1;
+declare const VERSION_LATEST_PUBLISHED: -2;
 type GraphQLResponseData = {
     data: {
         [key: string]: any;

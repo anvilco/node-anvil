@@ -47,11 +47,16 @@ const exampleData = {
   }
 }
 const anvilClient = new Anvil({ apiKey })
+const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, exampleData)
 
-// If a specific version is needed
-const clientOpts = { versionNumber: 5 }
-
-const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, exampleData, clientOpts)
+// A version number can also be passed in. This will retrieve a specific
+// version of the PDF to be filled if you don't want the current version
+// to be used.
+// You can also use the constant `Anvil.VERSION_LATEST` to fill a PDF that has not
+// been published yet. Use this if you'd like to fill out a draft version of
+// your template/PDF.
+const options = { versionNumber: Anvil.VERSION_LATEST }
+const { statusCode, data } = await anvilClient.fillPDF(pdfTemplateID, exampleData, options)
 
 console.log(statusCode) // => 200
 

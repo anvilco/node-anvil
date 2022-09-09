@@ -99,6 +99,9 @@ const DATA_TYPE_JSON = 'json'
 
 // Version number to use for latest versions (usually drafts)
 const VERSION_LATEST = -1
+// Version number to use for the latest published version.
+// This is the default when a version is not provided.
+const VERSION_LATEST_PUBLISHED = -2
 
 const defaultOptions = {
   baseURL: 'https://app.useanvil.com',
@@ -722,5 +725,6 @@ function sleep (ms) {
 }
 
 Anvil.VERSION_LATEST = VERSION_LATEST
+Anvil.VERSION_LATEST_PUBLISHED = VERSION_LATEST_PUBLISHED
 
 module.exports = Anvil

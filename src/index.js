@@ -263,7 +263,7 @@ class Anvil {
       throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
     }
 
-    const versionNumber = clientOptions?.versionNumber
+    const versionNumber = clientOptions.versionNumber
     const url = versionNumber
       ? `/api/v1/fill/${pdfTemplateID}.pdf?versionNumber=${versionNumber}`
       : `/api/v1/fill/${pdfTemplateID}.pdf`

@@ -1,0 +1,16 @@
+{
+  "name": "e2e",
+  "version": "1.0.0",
+  "description": "e2e tester",
+  "main": "index.js",
+  "scripts": {
+    "prep": "npm run clean-cache && yarn remove-files",
+    "remove-files": "rm -rf yarn.lock node_modules/node-anvil",
+    "clean-cache": "rm -rf $(yarn cache dir)/.tmp"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "node-anvil": "file:node-anvil.tgz"
+  }
+}

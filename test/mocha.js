@@ -9,6 +9,8 @@ module.exports = {
   slow: 75,
   timeout: 2000,
   spec: './test/**/*.test.js',
+  // Silly, Mocha. Don't run all the tests you can find...
+  ignore: './test/**/node_modules/**/*',
   require: [
     './test/environment.js',
   ],

@@ -2,7 +2,15 @@ const defaultResponseQuery = `{
   id
   eid
   name
+  status
+  isTest
+  numberRemainingSigners
+  webhookURL
   detailsURL
+  completedAt
+  archivedAt
+  createdAt
+  updatedAt
   documentGroup {
     id
     eid
@@ -23,7 +31,7 @@ const defaultResponseQuery = `{
 
 module.exports = {
   generateQuery: (responseQuery = defaultResponseQuery) => `
-    query GetEtchPacket (
+    query EtchPacket (
       $eid: String!,
     ) {
       etchPacket (

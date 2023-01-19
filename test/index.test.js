@@ -301,7 +301,7 @@ describe('Anvil API Client', function () {
           })
         })
 
-        it('works with `versionNumber`', async function (){
+        it('works with `versionNumber`', async function () {
           const payload = $.payload
           const result = await client.fillPDF('cast123', payload, { versionNumber: 5 })
 

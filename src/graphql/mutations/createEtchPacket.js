@@ -2,7 +2,14 @@
 const defaultResponseQuery = `{
   eid
   name
+  status
+  isTest
+  isFree
+  containsFillData
+  payload
+  numberRemainingSigners
   detailsURL
+  webhookURL
   documentGroup {
     eid
     status
@@ -21,8 +28,9 @@ const defaultResponseQuery = `{
 
 module.exports = {
   generateMutation: (responseQuery = defaultResponseQuery) => `
-    mutation CreateEtchPacket (
+    mutation CreateEtchPacket(
       $name: String,
+      $organizationEid: String,
       $files: [EtchFile!],
       $isDraft: Boolean,
       $isTest: Boolean,
@@ -31,12 +39,18 @@ module.exports = {
       $signatureProvider: String,
       $signaturePageOptions: JSON,
       $signers: [JSON!],
-      $webhookURL: String,
       $data: JSON,
+      $webhookURL: String,
+      $replyToName: String,
+      $replyToEmail: String,
+      $enableEmails: JSON,
+      $createCastTemplatesFromUploads: Boolean,
+      $duplicateCasts: Boolean,
       $mergePDFs: Boolean
     ) {
-      createEtchPacket (
+      createEtchPacket(
         name: $name,
+        organizationEid: $organizationEid,
         files: $files,
         isDraft: $isDraft,
         isTest: $isTest,
@@ -45,8 +59,13 @@ module.exports = {
         signatureProvider: $signatureProvider,
         signaturePageOptions: $signaturePageOptions,
         signers: $signers,
-        webhookURL: $webhookURL,
         data: $data,
+        webhookURL: $webhookURL,
+        replyToName: $replyToName,
+        replyToEmail: $replyToEmail,
+        enableEmails: $enableEmails,
+        createCastTemplatesFromUploads: $createCastTemplatesFromUploads,
+        duplicateCasts: $duplicateCasts,
         mergePDFs: $mergePDFs
       ) ${responseQuery}
     }`,

@@ -2,7 +2,18 @@ const defaultResponseQuery = `{
   id
   eid
   name
+  status
+  isTest
+  isFree
+  containsFillData
+  payload
+  numberRemainingSigners
   detailsURL
+  webhookURL
+  createdAt
+  updatedAt
+  archivedAt
+  completedAt
   documentGroup {
     id
     eid

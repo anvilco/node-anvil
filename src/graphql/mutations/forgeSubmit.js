@@ -1,11 +1,21 @@
 const defaultResponseQuery = `{
   id
   eid
+  status
+  resolvedPayload
+  payload
   payloadValue
   currentStep
-  completedAt
+  totalSteps
+  continueURL
+  reviewData
+  completionPercentage
+  isExcluded
+  touchedByUser
+  requestMeta
   createdAt
   updatedAt
+  completedAt
   signer {
     name
     email
@@ -28,23 +38,27 @@ module.exports = {
       $weldDataEid: String,
       $submissionEid: String,
       $payload: JSON!,
+      $enforcePayloadValidOnCreate: Boolean,
       $currentStep: Int,
       $complete: Boolean,
       $isTest: Boolean,
       $timezone: String,
+      $webhookURL: String,
       $groupArrayId: String,
       $groupArrayIndex: Int,
-      $errorType: String,
+      $errorType: String
     ) {
-      forgeSubmit (
+      forgeSubmit(
         forgeEid: $forgeEid,
         weldDataEid: $weldDataEid,
         submissionEid: $submissionEid,
         payload: $payload,
+        enforcePayloadValidOnCreate: $enforcePayloadValidOnCreate,
         currentStep: $currentStep,
         complete: $complete,
         isTest: $isTest,
         timezone: $timezone,
+        webhookURL: $webhookURL,
         groupArrayId: $groupArrayId,
         groupArrayIndex: $groupArrayIndex,
         errorType: $errorType

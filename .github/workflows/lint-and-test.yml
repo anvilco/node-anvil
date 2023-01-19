@@ -90,7 +90,7 @@ jobs:
     - run: yarn test-e2e:build
 
   supported-version-sanity-checks:
-    name: Supported Version Sanity Checks
+    name: Sanity Checks
     runs-on: ubuntu-latest
     needs:
       - prepare-node

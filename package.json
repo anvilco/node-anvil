@@ -2,33 +2,44 @@
   "name": "@anvilco/anvil",
   "version": "2.13.1",
   "description": "Anvil API Client",
-  "main": "src/index.js",
-  "types": "./types/src/index.d.ts",
-  "scripts": {
-    "test": "mocha --config ./test/mocha.js",
-    "lint": "eslint src/**/*.js test/**/*.js",
-    "test:debug": "yarn test --inspect-brk=0.0.0.0:9223",
-    "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
-    "version": "auto-changelog -p --template keepachangelog && read -p \"\nAutomated changes made to CHANGELOG.md. Please make any necessary adjustments, then hit any key to continue.\n\" && git add CHANGELOG.md"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/anvilco/node-anvil.git"
-  },
+  "author": "Anvil Foundry Inc.",
+  "homepage": "https://github.com/anvilco/node-anvil#readme",
+  "license": "MIT",
   "keywords": [
     "pdf",
     "pdf-fill",
     "json-to-pdf"
   ],
-  "author": "Anvil Foundry Inc.",
-  "license": "MIT",
   "bugs": {
     "url": "https://github.com/anvilco/node-anvil/issues"
   },
-  "homepage": "https://github.com/anvilco/node-anvil#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anvilco/node-anvil.git"
+  },
+  "types": "./types/src/index.d.ts",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=12"
+  },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "@anvilco:registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "test": "mocha --config ./test/mocha.js",
+    "lint": "eslint src/**/*.js test/**/*.js",
+    "lint:quiet": "yarn run lint --quiet",
+    "test:debug": "yarn test --inspect-brk=0.0.0.0:9223",
+    "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
+    "version": "auto-changelog -p --template keepachangelog && read -p \"\nAutomated changes made to CHANGELOG.md. Please make any necessary adjustments, then hit any key to continue.\n\" && git add CHANGELOG.md"
+  },
+  "dependencies": {
+    "abort-controller": "^3.0.0",
+    "extract-files": "^6",
+    "form-data": "^4.0.0",
+    "limiter": "^2.1.0",
+    "node-fetch": "^2.6.7"
   },
   "devDependencies": {
     "@babel/core": "^7.18.2",
@@ -54,12 +65,5 @@
     "sinon-chai": "^3.5.0",
     "typescript": "^4.6.3",
     "yargs": "^17.4.0"
-  },
-  "dependencies": {
-    "abort-controller": "^3.0.0",
-    "extract-files": "^6",
-    "form-data": "^4.0.0",
-    "limiter": "^2.1.0",
-    "node-fetch": "^2.6.7"
   }
 }

@@ -1,6 +1,4 @@
 const fs = require('fs')
-
-const fetch = require('node-fetch')
 const FormData = require('form-data')
 const AbortController = require('abort-controller')
 const { extractFiles } = require('extract-files')
@@ -12,6 +10,9 @@ const { looksLikeError, normalizeErrors } = require('./errors')
 
 // We are only importing this for the type..
 const { Stream } = require('stream') // eslint-disable-line no-unused-vars
+
+let Fetch
+let fetch
 
 /**
  * @typedef AnvilOptions
@@ -508,13 +509,22 @@ class Anvil {
   // USERS OF THIS MODULE SHOULD NOT USE ANY OF THESE METHODS DIRECTLY
   // ******************************************************************************
 
+  async _request (...args) {
+    // Only load Fetch once per module process lifetime
+    Fetch = Fetch || await import('node-fetch')
+    fetch = Fetch.default
+    // Monkey-patch so we only try any of this once per Anvil Client instance
+    this._request = this.__request
+    return this._request(...args)
+  }
+
   /**
    * @param {string} url
    * @param {Object} options
    * @returns {Promise}
    * @private
    */
-  _request (url, options) {
+  __request (url, options) {
     if (!url.startsWith(this.options.baseURL)) {
       url = this._url(url)
     }

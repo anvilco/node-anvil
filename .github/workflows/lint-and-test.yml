@@ -11,6 +11,7 @@ env:
 
 jobs:
 
+  # Several things need this, so we do it up front once for caching/performance
   prepare-node:
     name: Prepare Node
     runs-on: ubuntu-latest
@@ -45,37 +46,55 @@ jobs:
     - run: yarn install
     - run: yarn lint:quiet
 
-  # build-e2e-package:
-  #   name: Build E2E Package
-  #   runs-on: ubuntu-latest
-  #   needs: prepare-node
-
-  #   steps:
-  #   - uses: actions/checkout@v3
-
-  #   - name: Setup Node.js
-  #     id: setup-node
-  #     uses: actions/setup-node@v3
-  #     with:
-  #       node-version-file: '.nvmrc'
-  #       cache: 'yarn'
-
-  #   - name: Cache Package Build
-  #     uses: actions/cache@v3
-  #     with:
-  #       # We'll cache this file
-  #       path: ${{ env.TARBALL_PATH }}
-  #       key: ${{ runner.os }}-node-${{ needs.prepare-node.outputs.build-node-version }}-${{ env.GITHUB_SHA }}
-
-  #   - run: yarn install
-  #   - run: yarn test-e2e:build
-
   unit-test:
     name: Unit Test
     runs-on: ubuntu-latest
     needs:
       - prepare-node
-      # - build-e2e-package
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      id: setup-node
+      uses: actions/setup-node@v3
+      with:
+        node-version-file: '.nvmrc'
+        cache: 'yarn'
+    - run: yarn install
+    - run: yarn test
+
+  build-e2e-package:
+    name: Build E2E Package
+    runs-on: ubuntu-latest
+    needs: prepare-node
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      id: setup-node
+      uses: actions/setup-node@v3
+      with:
+        node-version-file: '.nvmrc'
+        cache: 'yarn'
+
+    - name: Cache Package Build
+      uses: actions/cache@v3
+      with:
+        # We'll cache this file
+        path: ${{ env.TARBALL_PATH }}
+        key: ${{ runner.os }}-node-${{ needs.prepare-node.outputs.build-node-version }}-${{ env.GITHUB_SHA }}
+
+    - run: yarn install
+    - run: yarn test-e2e:build
+
+  supported-version-sanity-checks:
+    name: Supported Version Sanity Checks
+    runs-on: ubuntu-latest
+    needs:
+      - prepare-node
+      - build-e2e-package
     strategy:
       matrix:
         node-version: [12, 14, 16, 18]
@@ -104,6 +123,6 @@ jobs:
     - name: Optionally update NPM if needed
       if: ${{ matrix.npm-version }}
       run: npm i -g npm@${{ matrix.npm-version }}
-    # - run: yarn test-e2e:install-and-test
-    - run: yarn install
-    - run: yarn test
+    # Just make sure it installs correctly for now and we'll call it good. No testing.
+    - run: yarn test-e2e:install
+

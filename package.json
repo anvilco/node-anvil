@@ -26,12 +26,28 @@
     "registry": "https://registry.npmjs.org",
     "@anvilco:registry": "https://registry.npmjs.org"
   },
+  "files": [
+    "package.json",
+    "README.md",
+    "LICENSE.md",
+    "CHANGELOG.md",
+    "src/",
+    "types/",
+    "example/",
+    "!**/.DS_STORE",
+    "!**/.DS_Store"
+  ],
   "scripts": {
     "test": "mocha --config ./test/mocha.js",
     "lint": "eslint src/**/*.js test/**/*.js",
     "lint:quiet": "yarn run lint --quiet",
+
     "test:debug": "yarn test --inspect-brk=0.0.0.0:9223",
     "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
+
+    "test-e2e:build": "rimraf test/e2e/node-anvil.tgz && node dev/build-e2e.mjs",
+    "test-e2e:install": "npm --prefix test/e2e run prep && npm --prefix test/e2e install",
+
     "version": "auto-changelog -p --template keepachangelog && read -p \"\nAutomated changes made to CHANGELOG.md. Please make any necessary adjustments, then hit any key to continue.\n\" && git add CHANGELOG.md"
   },
   "dependencies": {
@@ -61,6 +77,7 @@
     "eslint-plugin-standard": "^5.0.0",
     "mocha": "^10.0.0",
     "nodemon": "^2.0.15",
+    "rimraf": "^4.1.1",
     "sinon": "^14.0.0",
     "sinon-chai": "^3.5.0",
     "typescript": "^4.6.3",

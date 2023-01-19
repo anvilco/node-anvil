@@ -2,20 +2,12 @@ const defaultResponseQuery = `{
   id
   eid
   status
-  resolvedPayload
-  payload
+  continueURL
   payloadValue
   currentStep
-  totalSteps
-  continueURL
-  reviewData
-  completionPercentage
-  isExcluded
-  touchedByUser
-  requestMeta
+  completedAt
   createdAt
   updatedAt
-  completedAt
   signer {
     name
     email
@@ -45,8 +37,7 @@ module.exports = {
       $timezone: String,
       $webhookURL: String,
       $groupArrayId: String,
-      $groupArrayIndex: Int,
-      $errorType: String
+      $groupArrayIndex: Int
     ) {
       forgeSubmit(
         forgeEid: $forgeEid,
@@ -60,8 +51,7 @@ module.exports = {
         timezone: $timezone,
         webhookURL: $webhookURL,
         groupArrayId: $groupArrayId,
-        groupArrayIndex: $groupArrayIndex,
-        errorType: $errorType
+        groupArrayIndex: $groupArrayIndex
       ) ${responseQuery}
     }`,
 }

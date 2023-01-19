@@ -4,12 +4,13 @@ const defaultResponseQuery = `{
   name
   status
   isTest
-  isFree
-  containsFillData
-  payload
   numberRemainingSigners
   detailsURL
   webhookURL
+  completedAt
+  archivedAt
+  createdAt
+  updatedAt
   documentGroup {
     eid
     status

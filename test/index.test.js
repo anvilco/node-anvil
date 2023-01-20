@@ -2,7 +2,8 @@ const fs = require('fs')
 const path = require('path')
 
 const { RateLimiter } = require('limiter')
-const FormData = require('form-data')
+// const FormData = require('form-data')
+const { FormData, Blob } = require('formdata-node')
 const AbortSignal = require('abort-controller').AbortSignal
 
 const Anvil = require('../src/index')
@@ -594,7 +595,7 @@ describe('Anvil API Client', function () {
             }))
 
             it('creates a FormData and appends the files map', function () {
-              client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+              return client.requestGraphQL({ query, variables: $.variables }, clientOptions)
             })
           })
 
@@ -609,7 +610,7 @@ describe('Anvil API Client', function () {
             })
 
             it('creates a FormData and appends the files map', function () {
-              client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+              return client.requestGraphQL({ query, variables: $.variables }, clientOptions)
             })
           })
 
@@ -628,7 +629,7 @@ describe('Anvil API Client', function () {
             })
 
             it('does not touch the variables at all', function () {
-              client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+              return client.requestGraphQL({ query, variables: $.variables }, clientOptions)
             })
           })
         })

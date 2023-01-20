@@ -1,5 +1,7 @@
 const fs = require('fs')
-const FormData = require('form-data')
+// const FormData = require('form-data')
+const { FormData, Blob } = require('formdata-node')
+const { fileFromPath } = require('formdata-node/file-from-path')
 const AbortController = require('abort-controller')
 const { extractFiles } = require('extract-files')
 const { RateLimiter } = require('limiter')

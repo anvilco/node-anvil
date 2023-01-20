@@ -50,7 +50,7 @@
   "dependencies": {
     "abort-controller": "^3.0.0",
     "extract-files": "^11",
-    "form-data": "^4.0.0",
+    "formdata-node": "^4.4.1",
     "limiter": "^2.1.0",
     "node-fetch": "^3.3.0"
   },

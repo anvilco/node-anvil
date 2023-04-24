@@ -20,7 +20,7 @@
   "types": "./types/src/index.d.ts",
   "main": "src/index.js",
   "engines": {
-    "node": ">=12"
+    "node": ">=12.20"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",

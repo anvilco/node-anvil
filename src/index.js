@@ -109,7 +109,7 @@ const defaultOptions = {
   userAgent: `${description}/${version}`,
 }
 
-const FILENAME_IGNORE_MESSAGE = 'If you think you can ignore this, please pass `options.ignoreFilenameValidation` as `true`'
+const FILENAME_IGNORE_MESSAGE = 'If you think you can ignore this, please pass `options.ignoreFilenameValidation` as `true`.'
 
 const failBufferMS = 50
 
@@ -205,14 +205,17 @@ class Anvil {
    * @return {UploadWithOptions} - A class that wraps the stream-like-thing and any options
    *   up together nicely in a way that we can also tell that it was us who did it.
    */
-  static prepareGraphQLFile (pathOrStreamLikeThing, formDataAppendOptions) {
+  static prepareGraphQLFile (pathOrStreamLikeThing, { ignoreFilenameValidation, ...formDataAppendOptions } = {}) {
     if (typeof pathOrStreamLikeThing === 'string') {
       // @ts-ignore
       pathOrStreamLikeThing = fs.createReadStream(pathOrStreamLikeThing)
     } else if (
-      formDataAppendOptions && !(
-        // Require the filename or the ignoreFilenameValidation option.
-        formDataAppendOptions.filename || formDataAppendOptions.ignoreFilenameValidation
+      !formDataAppendOptions ||
+      (
+        formDataAppendOptions && !(
+          // Require the filename or the ignoreFilenameValidation option.
+          formDataAppendOptions.filename || ignoreFilenameValidation
+        )
       )
     ) {
       // OK, there's a chance here that a `filename` needs to be provided via formDataAppendOptions
@@ -227,11 +230,11 @@ class Anvil {
           if (pathOrStreamLikeThing && pathOrStreamLikeThing.constructor && pathOrStreamLikeThing.constructor.name) {
             message = `When passing a ${pathOrStreamLikeThing.constructor.name} to prepareGraphQLFile, \`options.filename\` must be provided. ${FILENAME_IGNORE_MESSAGE}`
           }
-          throw new Error(message)
         } catch (err) {
           console.error(err)
-          throw new Error(message)
         }
+
+        throw new Error(message)
       }
     }
 

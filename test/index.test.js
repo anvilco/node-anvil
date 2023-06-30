@@ -893,4 +893,24 @@ describe('Anvil API Client', function () {
       })
     })
   })
+
+  describe('prepareGraphQLFile', function () {
+    it('works', function () {
+      expect(() =>
+        Anvil.prepareGraphQLFile(Buffer.from('test'))
+      ).to.throw('When passing a Buffer to prepareGraphQLFile, `options.filename` must be provided. If you think you can ignore this, please pass `options.ignoreFilenameValidation` as `true`.')
+
+      let uploadWithOptions = Anvil.prepareGraphQLFile(Buffer.from('test'), { ignoreFilenameValidation: true })
+      expect(uploadWithOptions).to.be.ok
+      expect(uploadWithOptions.streamLikeThing).to.be.ok
+      expect(uploadWithOptions.formDataAppendOptions).to.eql({})
+
+      uploadWithOptions = Anvil.prepareGraphQLFile(Buffer.from('test'), { filename: 'test.pdf' })
+      expect(uploadWithOptions).to.be.ok
+      expect(uploadWithOptions.streamLikeThing).to.be.ok
+      expect(uploadWithOptions.formDataAppendOptions).to.include({
+        filename: 'test.pdf'
+      })
+    })
+  })
 })

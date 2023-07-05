@@ -361,7 +361,7 @@ const result = await this.requestREST(
 
 ##### prepareGraphQLFile(pathOrStreamLikeThing[, options])
 
-A nice helper to prepare a Stream-backed or Buffer-backed file upload for use with our GraphQL API. By default, this will upload your files as multipart uploads over the [jaydenseric / GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
+A nice helper to prepare a Stream-backed or Buffer-backed file upload for use with our GraphQL API. By default, this will upload your files as multipart uploads over the [jaydenseric / GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec). NOTE: Please see below about certain scenarios where you may need to manually provide a `filename`.
 
 * `pathOrStreamLikeThing` (String | Stream | Buffer) - An existing `Stream`, `Buffer` or other Stream-like thing supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-) OR a string representing a fully resolved path to a file to be read into a new `Stream`.
 * `options` (Object) - Anything supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-). Required when providing a vanilla ReadStream or Buffer. From the `form-data` docs:

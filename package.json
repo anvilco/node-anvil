@@ -18,27 +18,30 @@
     "url": "git+https://github.com/anvilco/node-anvil.git"
   },
   "types": "./types/src/index.d.ts",
-  "main": "src/index.js",
   "engines": {
-    "node": ">=12.20"
+    "node": ">=14"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "@anvilco:registry": "https://registry.npmjs.org"
   },
+  "main": "index.js",
   "files": [
     "package.json",
     "README.md",
     "LICENSE.md",
     "CHANGELOG.md",
-    "src/",
+    "dist/",
     "types/",
     "example/",
     "!**/.DS_STORE",
     "!**/.DS_Store"
   ],
   "scripts": {
-    "test": "mocha --config ./test/mocha.js",
+    "build": "babel src --out-dir ./dist",
+    "clean": "yarn rimraf ./dist",
+    "prepare": "yarn clean && yarn build",
+    "test": "yarn prepare && mocha --config ./test/mocha.js",
     "lint": "eslint src/**/*.js test/**/*.js",
     "lint:quiet": "yarn run lint --quiet",
     "test:debug": "yarn test --inspect-brk=0.0.0.0:9223",
@@ -55,10 +58,11 @@
     "node-fetch": "3.0.x"
   },
   "devDependencies": {
+    "@babel/cli": "^7.22.10",
     "@babel/core": "^7.18.2",
     "@babel/eslint-parser": "^7.18.2",
+    "@babel/preset-env": "^7.22.10",
     "@types/node": "^20.1.1",
-    "auto-changelog": "^2.4.0",
     "bdd-lazy-var": "^2.5.4",
     "chai": "^4.3.6",
     "chai-as-promised": "^7.1.1",

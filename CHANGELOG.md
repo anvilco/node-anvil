@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drop support for `Node 12`.
 - Add support for `Node 20`.
 - Babelizing the source to `/dist'`
+- Changed to `ES6` style exports.
 - Dependency updates.
 
 ## [v2.15.0]

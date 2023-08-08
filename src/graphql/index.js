@@ -1,7 +1,2 @@
-const mutations = require('./mutations')
-const queries = require('./queries')
-
-module.exports = {
-  mutations,
-  queries,
-}
+export { default as mutations } from './mutations'
+export { default as queries } from './queries'

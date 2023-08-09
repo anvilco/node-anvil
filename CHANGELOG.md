@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for `Node 20`.
 - Babelizing the source to `/dist'`
 - Changed to `ES6` style exports.
+- Dropped some dev dependencies.
 - Dependency updates.
 
 ## [v2.15.0]

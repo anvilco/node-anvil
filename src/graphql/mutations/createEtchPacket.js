@@ -1,4 +1,3 @@
-
 const defaultResponseQuery = `{
   eid
   name

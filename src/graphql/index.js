@@ -1,2 +1,2 @@
-export { default as mutations } from './mutations'
-export { default as queries } from './queries'
+export * as queries from './queries'
+export * as mutations from './mutations'

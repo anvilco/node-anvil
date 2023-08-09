@@ -1,11 +1,4 @@
-const fs = require('fs')
-
-const IGNORE_FILES = ['index.js']
-
-export default fs.readdirSync(__dirname)
-  .filter((fileName) => (fileName.endsWith('.js') && !fileName.startsWith('.') && !IGNORE_FILES.includes(fileName)))
-  .reduce((acc, fileName) => {
-    const mutationName = fileName.slice(0, fileName.length - 3)
-    acc[mutationName] = require(`./${mutationName}`)
-    return acc
-  }, {})
+export * as createEtchPacket from './createEtchPacket'
+export * as forgeSubmit from './forgeSubmit'
+export * as generateEtchSignUrl from './generateEtchSignUrl'
+export * as removeWeldData from './removeWeldData'

@@ -397,7 +397,7 @@ See the [PDF filling API docs](https://useanvil.com/docs/api/fill-pdf) for more 
 
 ## Examples
 
-Check out the [example](https://github.com/anvilco/node-anvil/tree/master/example) folder for running usage examples!
+Check out the [example](https://github.com/anvilco/node-anvil/tree/main/example) folder for running usage examples!
 
 ## Development
 

@@ -1,6 +1,6 @@
 {
   "name": "@anvilco/anvil",
-  "version": "2.15.0",
+  "version": "2.15.1",
   "description": "Anvil API Client",
   "author": "Anvil Foundry Inc.",
   "homepage": "https://github.com/anvilco/node-anvil#readme",
@@ -17,7 +17,6 @@
     "type": "git",
     "url": "git+https://github.com/anvilco/node-anvil.git"
   },
-  "types": "./types/src/index.d.ts",
   "engines": {
     "node": ">=14"
   },
@@ -37,6 +36,7 @@
     "!**/.DS_STORE",
     "!**/.DS_Store"
   ],
+  "types": "./types/src/index.d.ts",
   "scripts": {
     "build": "babel src --out-dir ./dist",
     "clean": "yarn rimraf ./dist",

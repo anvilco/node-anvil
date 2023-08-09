@@ -11,6 +11,10 @@ import UploadWithOptions from './UploadWithOptions'
 import { version, description } from '../package.json'
 import { looksLikeError, normalizeErrors } from './errors'
 import { queries, mutations } from './graphql'
+import {
+  isFile,
+  graphQLUploadSchemaIsValid,
+} from './validation'
 
 let Fetch
 let fetch
@@ -89,11 +93,6 @@ const {
     },
   },
 } = { queries, mutations }
-
-const {
-  isFile,
-  graphQLUploadSchemaIsValid,
-} = require('./validation')
 
 const DATA_TYPE_STREAM = 'stream'
 const DATA_TYPE_BUFFER = 'buffer'

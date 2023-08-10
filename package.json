@@ -1,6 +1,6 @@
 {
   "name": "@anvilco/anvil",
-  "version": "2.15.1",
+  "version": "3.0.0",
   "description": "Anvil API Client",
   "author": "Anvil Foundry Inc.",
   "homepage": "https://github.com/anvilco/node-anvil#readme",
@@ -47,8 +47,7 @@
     "test:debug": "yarn test --inspect-brk=0.0.0.0:9223",
     "test:watch": "nodemon --signal SIGINT --watch test --watch src -x 'yarn test'",
     "test-e2e:build": "rimraf test/e2e/node-anvil.tgz && node dev/build-e2e.mjs",
-    "test-e2e:install": "npm --prefix test/e2e run prep && npm --prefix test/e2e install",
-    "version": "auto-changelog -p --template keepachangelog && read -p \"\nAutomated changes made to CHANGELOG.md. Please make any necessary adjustments, then hit any key to continue.\n\" && git add CHANGELOG.md"
+    "test-e2e:install": "npm --prefix test/e2e run prep && npm --prefix test/e2e install"
   },
   "dependencies": {
     "abort-controller": "^3.0.0",

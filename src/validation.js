@@ -1,13 +1,12 @@
-const fs = require('fs')
-
-const UploadWithOptions = require('./UploadWithOptions')
+import fs from 'fs'
+import UploadWithOptions from './UploadWithOptions'
 
 // https://www.npmjs.com/package/extract-files/v/6.0.0#type-extractablefilematcher
-function isFile (value) {
+export function isFile (value) {
   return value instanceof UploadWithOptions || value instanceof fs.ReadStream || value instanceof Buffer
 }
 
-function graphQLUploadSchemaIsValid (schema, parent, key) {
+export function graphQLUploadSchemaIsValid (schema, parent, key) {
   // schema is null or undefined
   if (schema == null) {
     return true
@@ -42,9 +41,4 @@ function graphQLUploadSchemaIsValid (schema, parent, key) {
   }
 
   return isFile(schema)
-}
-
-module.exports = {
-  isFile,
-  graphQLUploadSchemaIsValid,
 }

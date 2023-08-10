@@ -1,4 +1,4 @@
-class UploadWithOptions {
+export default class UploadWithOptions {
   constructor (streamLikeThing, formDataAppendOptions) {
     this.streamLikeThing = streamLikeThing
     this.formDataAppendOptions = formDataAppendOptions
@@ -12,5 +12,3 @@ class UploadWithOptions {
     return this.streamLikeThing
   }
 }
-
-module.exports = UploadWithOptions

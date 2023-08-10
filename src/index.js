@@ -1,15 +1,20 @@
-const fs = require('fs')
-const FormData = require('form-data')
-const AbortController = require('abort-controller')
-const { extractFiles } = require('extract-files')
-const { RateLimiter } = require('limiter')
-
-const UploadWithOptions = require('./UploadWithOptions')
-const { version, description } = require('../package.json')
-const { looksLikeError, normalizeErrors } = require('./errors')
-
+import fs from 'fs'
 // We are only importing this for the type..
-const { Stream } = require('stream') // eslint-disable-line no-unused-vars
+import { Stream } from 'stream' // eslint-disable-line no-unused-vars
+
+import FormData from 'form-data'
+import AbortController from 'abort-controller'
+import { extractFiles } from 'extract-files'
+import { RateLimiter } from 'limiter'
+
+import UploadWithOptions from './UploadWithOptions'
+import { version, description } from '../package.json'
+import { looksLikeError, normalizeErrors } from './errors'
+import { queries, mutations } from './graphql'
+import {
+  isFile,
+  graphQLUploadSchemaIsValid,
+} from './validation'
 
 let Fetch
 let fetch
@@ -87,12 +92,7 @@ const {
       generateQuery: generateEtchPacketQuery,
     },
   },
-} = require('./graphql')
-
-const {
-  isFile,
-  graphQLUploadSchemaIsValid,
-} = require('./validation')
+} = { queries, mutations }
 
 const DATA_TYPE_STREAM = 'stream'
 const DATA_TYPE_BUFFER = 'buffer'
@@ -766,4 +766,4 @@ function sleep (ms) {
 Anvil.VERSION_LATEST = VERSION_LATEST
 Anvil.VERSION_LATEST_PUBLISHED = VERSION_LATEST_PUBLISHED
 
-module.exports = Anvil
+export default Anvil

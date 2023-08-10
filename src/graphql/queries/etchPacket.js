@@ -29,14 +29,12 @@ const defaultResponseQuery = `{
   }
 }`
 
-module.exports = {
-  generateQuery: (responseQuery = defaultResponseQuery) => `
-    query EtchPacket (
-      $eid: String!,
-    ) {
-      etchPacket (
-        eid: $eid,
-      ) ${responseQuery}
-    }
-  `,
-}
+export const generateQuery = (responseQuery = defaultResponseQuery) => `
+  query EtchPacket (
+    $eid: String!,
+  ) {
+    etchPacket (
+      eid: $eid,
+    ) ${responseQuery}
+  }
+`

@@ -1,6 +1,4 @@
-module.exports = {
-  createEtchPacket: require('./createEtchPacket'),
-  forgeSubmit: require('./forgeSubmit'),
-  generateEtchSignUrl: require('./generateEtchSignUrl'),
-  removeWeldData: require('./removeWeldData'),
-}
+export * as createEtchPacket from './createEtchPacket'
+export * as forgeSubmit from './forgeSubmit'
+export * as generateEtchSignUrl from './generateEtchSignUrl'
+export * as removeWeldData from './removeWeldData'

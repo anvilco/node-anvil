@@ -97,7 +97,7 @@ jobs:
       - build-e2e-package
     strategy:
       matrix:
-        node-version: [12, 14, 16, 18]
+        node-version: [14, 16, 18, 20]
         include:
           - node-version: 14
             npm-version: 7

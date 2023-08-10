@@ -1,10 +1,8 @@
-module.exports = {
-  generateMutation: () => `
-    mutation RemoveWeldData (
-      $eid: String!,
-    ) {
-      removeWeldData (
-        eid: $eid,
-      )
-    }`,
-}
+export const generateMutation = () => `
+  mutation RemoveWeldData (
+    $eid: String!,
+  ) {
+    removeWeldData (
+      eid: $eid,
+    )
+  }`

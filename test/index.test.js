@@ -1,11 +1,11 @@
-const fs = require('fs')
-const path = require('path')
+import fs from 'fs'
+import path from 'path'
 
-const { RateLimiter } = require('limiter')
-const FormData = require('form-data')
-const AbortSignal = require('abort-controller').AbortSignal
+import { RateLimiter } from 'limiter'
+import FormData from 'form-data'
+import { AbortSignal } from 'abort-controller'
 
-const Anvil = require('../src/index')
+import Anvil from '../index'
 
 const assetsDir = path.join(__dirname, 'assets')
 

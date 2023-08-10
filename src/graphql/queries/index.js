@@ -1,3 +1,1 @@
-module.exports = {
-  etchPacket: require('./etchPacket'),
-}
+export * as etchPacket from './etchPacket'

@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.0.1]
+- Fix "double-default" ESM exports, but also leave for backwards compatibility. https://github.com/anvilco/node-anvil/issues/354
+
 ## [v3.0.0]
 - BREAKING: Drop support for `Node 12`.
 - BREAKING: Changed to `ES6` style exports.

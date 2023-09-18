@@ -449,6 +449,7 @@ class Anvil {
       // @ts-ignore
       const abortController = new AbortController()
       Fetch ??= await import('node-fetch')
+      // This is a dependency of 'node-fetch'`
       FormDataModule ??= await import('formdata-polyfill/esm.min.js')
       const form = new FormDataModule.FormData()
 

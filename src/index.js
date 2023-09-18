@@ -2,7 +2,6 @@ import fs from 'fs'
 // We are only importing this for the type..
 import { Stream } from 'stream' // eslint-disable-line no-unused-vars
 
-import FormData from 'form-data'
 import AbortController from 'abort-controller'
 import { extractFiles } from 'extract-files'
 import { RateLimiter } from 'limiter'
@@ -16,6 +15,7 @@ import {
   graphQLUploadSchemaIsValid,
 } from './validation'
 
+let FormDataModule
 let Fetch
 let fetch
 
@@ -208,7 +208,7 @@ class Anvil {
   static prepareGraphQLFile (pathOrStreamLikeThing, { ignoreFilenameValidation, ...formDataAppendOptions } = {}) {
     if (typeof pathOrStreamLikeThing === 'string') {
       // @ts-ignore
-      pathOrStreamLikeThing = fs.createReadStream(pathOrStreamLikeThing)
+      // pathOrStreamLikeThing = fs.createReadStream(pathOrStreamLikeThing)
     } else if (
       !formDataAppendOptions ||
       (
@@ -222,8 +222,8 @@ class Anvil {
       if (
         // Buffer has no way to get the filename
         pathOrStreamLikeThing instanceof Buffer ||
-        // Some stream things have the path in them
-        !pathOrStreamLikeThing.path
+        // Some stream things have a string path in them (can also be a buffer, but we want/need string)
+        !(pathOrStreamLikeThing.path && typeof pathOrStreamLikeThing.path === 'string')
       ) {
         let message = 'For this type of input, `options.filename` must be provided to prepareGraphQLFile.' + ' ' + FILENAME_IGNORE_MESSAGE
         try {
@@ -448,7 +448,9 @@ class Anvil {
     if (filesMap.size) {
       // @ts-ignore
       const abortController = new AbortController()
-      const form = new FormData()
+      Fetch ??= await import('node-fetch')
+      FormDataModule ??= await import('formdata-polyfill/esm.min.js')
+      const form = new FormDataModule.FormData()
 
       form.append('operations', operationJSON)
 
@@ -461,11 +463,12 @@ class Anvil {
 
       i = 0
       filesMap.forEach((paths, file) => {
-        let appendOptions = {}
-        if (file instanceof UploadWithOptions) {
-          appendOptions = file.options
-          file = file.file
+        if (file instanceof UploadWithOptions === false) {
+          file = this.constructor.prepareGraphQLFile(file)
         }
+        let { filename, mimetype } = file.options || {}
+        file = file.file
+
         // If this is a stream-like thing, attach a listener to the 'error' event so that we
         // can cancel the API call if something goes wrong
         if (typeof file.on === 'function') {
@@ -475,9 +478,34 @@ class Anvil {
           })
         }
 
-        // Pass in some things explicitly to the form.append so that we get the
-        // desired/expected filename and mimetype, etc
-        form.append(`${++i}`, file, appendOptions)
+        // If file a path to a file?
+        if (typeof file === 'string') {
+          file = Fetch.fileFromSync(file)
+        } else if (file instanceof Buffer) {
+          const buffer = file
+          // https://developer.mozilla.org/en-US/docs/Web/API/File/File
+          file = new Fetch.File(
+            [buffer],
+            filename,
+            {
+              type: mimetype,
+            },
+          )
+        } else if (file instanceof Stream) {
+          // https://github.com/node-fetch/node-fetch#post-data-using-a-file
+          const stream = file
+          file = {
+            [Symbol.toStringTag]: 'File',
+            size: fs.statSync(stream.path).size,
+            stream: () => stream,
+            type: mimetype,
+          }
+
+          filename ??= stream.path.split('/').pop()
+        }
+
+        // https://developer.mozilla.org/en-US/docs/Web/API/FormData/append
+        form.append(`${++i}`, file, filename)
       })
 
       options.signal = abortController.signal

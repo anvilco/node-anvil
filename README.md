@@ -361,12 +361,19 @@ const result = await this.requestREST(
 
 ##### prepareGraphQLFile(pathOrStreamLikeThing[, options])
 
-A nice helper to prepare a Stream-backed or Buffer-backed file upload for use with our GraphQL API. By default, this will upload your files as multipart uploads over the [jaydenseric / GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec). NOTE: Please see below about certain scenarios where you may need to manually provide a `filename`.
+A nice helper to prepare a [File](https://developer.mozilla.org/en-US/docs/Web/API/File) upload for use with our GraphQL API. By default, this will upload your files as multipart uploads over the [jaydenseric / GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec). We use `node-fetch` under the hood, and you can see [this example](https://github.com/node-fetch/node-fetch#post-data-using-a-file) to get a bit of an understanding of what's happening behind the scenes. NOTE: Please see below about certain scenarios where you may need to manually provide a `filename`.
 
-* `pathOrStreamLikeThing` (String | Stream | Buffer) - An existing `Stream`, `Buffer` or other Stream-like thing supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-) OR a string representing a fully resolved path to a file to be read into a new `Stream`.
-* `options` (Object) - Anything supported by [FormData.append](https://github.com/form-data/form-data#void-append-string-field-mixed-value--mixed-options-). Required when providing a vanilla ReadStream or Buffer. From the `form-data` docs:
-  > Form-Data can recognize and fetch all the required information from common types of streams (fs.readStream, http.response and mikeal's request), for some other types of streams you'd need to provide "file"-related information manually
+* `pathOrSupportedInstance` (String | File | Blob | Stream | Buffer) - Can be one of several things. Here's a list of what's supported, in order of preference:
+  1. A `File` instance.
+  1. A `Blob` instance.
+  1. A `string` that is a path to a file to be used.
+  1. A `ReadStream` instance that must either have either:
+     1. A `path` property (this will usually be present when the stream was loaded from the local file system)
+     1. A `filename` provided in the `options` parameter.
+  1. A `Buffer` instance with a `filename` provided in the `options` parameter.
+* `options` (Object) - Options that may be required when providing certain types of values as the first parameter. For example, `Blob`s, `Buffer`s and certain kinds of `ReadStream`s will not have any notion of what the name of the file is or should be when uploaded.
   * `filename` (String) - Override the filename of the uploaded file here. If providing a generic ReadStream or Buffer, you will be required to provide a filename here
+  * `mimetype` (String) - Optional mimetype to specify with the resulting file that can be used when a `string` path, `Buffer` or `ReadStream` are provided as the first parameter.
 * Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever an `Upload` type is required.
 
 ### Types

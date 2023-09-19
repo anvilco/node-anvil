@@ -1,3 +1,2 @@
-declare const _exports: {};
-export = _exports;
+export * as etchPacket from "./etchPacket";
 //# sourceMappingURL=index.d.ts.map

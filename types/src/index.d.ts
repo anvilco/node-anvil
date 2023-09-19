@@ -1,10 +1,52 @@
-export = Anvil;
+export default Anvil;
+export type AnvilOptions = {
+    apiKey?: string;
+    accessToken?: string;
+    baseURL?: string;
+    userAgent?: string;
+    requestLimit?: number;
+    requestLimitMS?: number;
+};
+export type GraphQLResponse = {
+    statusCode: number;
+    data?: GraphQLResponseData;
+    errors?: Array<ResponseError>;
+};
+export type GraphQLResponseData = {
+    data: {
+        [key: string]: any;
+    };
+};
+export type RESTResponse = {
+    statusCode: number;
+    data?: Buffer | Stream | any;
+    errors?: Array<ResponseError>;
+    /**
+     * node-fetch Response
+     */
+    response?: any;
+};
+export type ResponseError = {
+    [key: string]: any;
+    message: string;
+    status?: number;
+    name?: string;
+    fields?: Array<ResponseErrorField>;
+};
+export type ResponseErrorField = {
+    [key: string]: any;
+    message: string;
+    property?: string;
+};
+export type Readable = {
+    path: string;
+};
 declare class Anvil {
     /**
      * Perform some handy/necessary things for a GraphQL file upload to make it work
      * with this client and with our backend
      *
-     * @param  {string|Buffer} pathOrStreamLikeThing - Either a string path to a file,
+     * @param  {string|Buffer|Readable|File|Blob} pathOrStreamLikeThing - Either a string path to a file,
      *   a Buffer, or a Stream-like thing that is compatible with form-data as an append.
      * @param  {Object} [formDataAppendOptions] - User can specify options to be passed to the form-data.append
      *   call. This should be done if a stream-like thing is not one of the common types that
@@ -13,7 +55,7 @@ declare class Anvil {
      * @return {UploadWithOptions} - A class that wraps the stream-like-thing and any options
      *   up together nicely in a way that we can also tell that it was us who did it.
      */
-    static prepareGraphQLFile(pathOrStreamLikeThing: string | Buffer, formDataAppendOptions?: any): UploadWithOptions;
+    static prepareGraphQLFile(pathOrStreamLikeThing: string | Buffer | Readable | File | Blob, { ignoreFilenameValidation, ...formDataAppendOptions }?: any): UploadWithOptions;
     /**
      * @param {AnvilOptions?} options
      */
@@ -135,13 +177,14 @@ declare class Anvil {
      * @returns {Promise<RESTResponse>}
      */
     requestREST(url: string, fetchOptions: any, clientOptions?: any): Promise<RESTResponse>;
+    _request(...args: any[]): any;
     /**
      * @param {string} url
      * @param {Object} options
      * @returns {Promise}
      * @private
      */
-    private _request;
+    private __request;
     /**
      * @param {CallableFunction} retryableRequestFn
      * @param {Object} [clientOptions]
@@ -178,50 +221,13 @@ declare class Anvil {
     private _throttle;
 }
 declare namespace Anvil {
-    export { UploadWithOptions, VERSION_LATEST, VERSION_LATEST_PUBLISHED, AnvilOptions, GraphQLResponse, GraphQLResponseData, RESTResponse, ResponseError, ResponseErrorField };
+    export { UploadWithOptions };
+    export { VERSION_LATEST };
+    export { VERSION_LATEST_PUBLISHED };
 }
-import { RateLimiter } from "limiter/dist/cjs/RateLimiter";
-type GraphQLResponse = {
-    statusCode: number;
-    data?: GraphQLResponseData;
-    errors?: Array<ResponseError>;
-};
-type RESTResponse = {
-    statusCode: number;
-    data?: Buffer | Stream | any;
-    errors?: Array<ResponseError>;
-    /**
-     * node-fetch Response
-     */
-    response?: any;
-};
-type ResponseError = {
-    [key: string]: any;
-    message: string;
-    status?: number;
-    name?: string;
-    fields?: Array<ResponseErrorField>;
-};
-import UploadWithOptions = require("./UploadWithOptions");
-type AnvilOptions = {
-    apiKey?: string;
-    accessToken?: string;
-    baseURL?: string;
-    userAgent?: string;
-    requestLimit?: number;
-    requestLimitMS?: number;
-};
+import { Stream } from 'stream';
+import { RateLimiter } from 'limiter';
+import UploadWithOptions from './UploadWithOptions';
 declare const VERSION_LATEST: -1;
 declare const VERSION_LATEST_PUBLISHED: -2;
-type GraphQLResponseData = {
-    data: {
-        [key: string]: any;
-    };
-};
-type ResponseErrorField = {
-    [key: string]: any;
-    message: string;
-    property?: string;
-};
-import { Stream } from "stream";
 //# sourceMappingURL=index.d.ts.map

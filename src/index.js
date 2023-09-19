@@ -15,6 +15,8 @@ import {
   graphQLUploadSchemaIsValid,
 } from './validation'
 
+class Warning extends Error {}
+
 let FormDataModule
 let Fetch
 let fetch
@@ -196,7 +198,7 @@ class Anvil {
    * Perform some handy/necessary things for a GraphQL file upload to make it work
    * with this client and with our backend
    *
-   * @param  {string|Buffer} pathOrStreamLikeThing - Either a string path to a file,
+   * @param  {string|Buffer|Stream|File|Blob} pathOrStreamLikeThing - Either a string path to a file,
    *   a Buffer, or a Stream-like thing that is compatible with form-data as an append.
    * @param  {Object} [formDataAppendOptions] - User can specify options to be passed to the form-data.append
    *   call. This should be done if a stream-like thing is not one of the common types that
@@ -208,7 +210,8 @@ class Anvil {
   static prepareGraphQLFile (pathOrStreamLikeThing, { ignoreFilenameValidation, ...formDataAppendOptions } = {}) {
     if (typeof pathOrStreamLikeThing === 'string') {
       // @ts-ignore
-      // pathOrStreamLikeThing = fs.createReadStream(pathOrStreamLikeThing)
+      // no-op for this logic path. It's a path and we will load it later and it will at least
+      // have the file's name as a filename to possibly use.
     } else if (
       !formDataAppendOptions ||
       (
@@ -222,8 +225,12 @@ class Anvil {
       if (
         // Buffer has no way to get the filename
         pathOrStreamLikeThing instanceof Buffer ||
-        // Some stream things have a string path in them (can also be a buffer, but we want/need string)
-        !(pathOrStreamLikeThing.path && typeof pathOrStreamLikeThing.path === 'string')
+        !(
+          // Some stream things have a string path in them (can also be a buffer, but we want/need string)
+          (pathOrStreamLikeThing.path && typeof pathOrStreamLikeThing.path === 'string') ||
+          // A File might look like this
+          (pathOrStreamLikeThing.name && typeof pathOrStreamLikeThing.name === 'string')
+        )
       ) {
         let message = 'For this type of input, `options.filename` must be provided to prepareGraphQLFile.' + ' ' + FILENAME_IGNORE_MESSAGE
         try {
@@ -464,11 +471,17 @@ class Anvil {
 
       i = 0
       filesMap.forEach((paths, file) => {
+        // Ensure that the file has been run through the prepareGraphQLFile process
+        // and checks
         if (file instanceof UploadWithOptions === false) {
           file = this.constructor.prepareGraphQLFile(file)
         }
-        let { filename, mimetype } = file.options || {}
+        let { filename, mimetype, ignoreFilenameValidation } = file.options || {}
         file = file.file
+
+        if (!file) {
+          throw new Error('No file provided. Options were: ' + JSON.stringify(options))
+        }
 
         // If this is a stream-like thing, attach a listener to the 'error' event so that we
         // can cancel the API call if something goes wrong
@@ -481,7 +494,7 @@ class Anvil {
 
         // If file a path to a file?
         if (typeof file === 'string') {
-          file = Fetch.fileFromSync(file)
+          file = Fetch.fileFromSync(file, mimetype)
         } else if (file instanceof Buffer) {
           const buffer = file
           // https://developer.mozilla.org/en-US/docs/Web/API/File/File
@@ -503,6 +516,18 @@ class Anvil {
           }
 
           filename ??= stream.path.split('/').pop()
+        } else if (file.constructor.name !== 'File') {
+          // Like a Blob or something
+          if (!filename) {
+            const name = file.name || file.path
+            if (name) {
+              filename = name.split('/').pop()
+            }
+
+            if (!filename && !ignoreFilenameValidation) {
+              console.warn(new Warning('No filename provided. Please provide a filename to the file options.'))
+            }
+          }
         }
 
         // https://developer.mozilla.org/en-US/docs/Web/API/FormData/append

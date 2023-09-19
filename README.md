@@ -361,7 +361,7 @@ const result = await this.requestREST(
 
 ##### prepareGraphQLFile(pathOrStreamLikeThing[, options])
 
-A nice helper to prepare a [File](https://developer.mozilla.org/en-US/docs/Web/API/File) upload for use with our GraphQL API. By default, this will upload your files as multipart uploads over the [jaydenseric / GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec). NOTE: Please see below about certain scenarios where you may need to manually provide a `filename`.
+A nice helper to prepare a [File](https://developer.mozilla.org/en-US/docs/Web/API/File) upload for use with our GraphQL API. By default, this will upload your files as multipart uploads over the [jaydenseric / GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec). We use `node-fetch` under the hood, and you can see [this example](https://github.com/node-fetch/node-fetch#post-data-using-a-file) to get a bit of an understanding of what's happening behind the scenes. NOTE: Please see below about certain scenarios where you may need to manually provide a `filename`.
 
 * `pathOrSupportedInstance` (String | File | Blob | Stream | Buffer) - Can be one of several things. Here's a list of what's supported, in order of preference:
   1. A `File` instance.

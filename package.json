@@ -40,7 +40,7 @@
   "scripts": {
     "build": "babel src --out-dir ./dist",
     "clean": "yarn rimraf ./dist",
-    "prepare": "yarn clean && yarn build",
+    "prepare": "yarn tsc && yarn clean && yarn build",
     "test": "yarn prepare && mocha --config ./test/mocha.js",
     "lint": "eslint src/**/*.js test/**/*.js",
     "lint:quiet": "yarn run lint --quiet",

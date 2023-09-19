@@ -67,6 +67,10 @@ let fetch
   [key: string]: any
 }} ResponseErrorField */
 
+/** @typedef {{
+  path: string
+}} Readable */
+
 // Ignoring the below since they are dynamically created depepending on what's
 // inside the `src/graphql` directory.
 const {
@@ -198,7 +202,7 @@ class Anvil {
    * Perform some handy/necessary things for a GraphQL file upload to make it work
    * with this client and with our backend
    *
-   * @param  {string|Buffer|Stream|File|Blob} pathOrStreamLikeThing - Either a string path to a file,
+   * @param  {string|Buffer|Readable|File|Blob} pathOrStreamLikeThing - Either a string path to a file,
    *   a Buffer, or a Stream-like thing that is compatible with form-data as an append.
    * @param  {Object} [formDataAppendOptions] - User can specify options to be passed to the form-data.append
    *   call. This should be done if a stream-like thing is not one of the common types that
@@ -228,8 +232,10 @@ class Anvil {
         pathOrStreamLikeThing instanceof Buffer ||
         !(
           // Some stream things have a string path in them (can also be a buffer, but we want/need string)
+          // @ts-ignore
           (pathOrStreamLikeThing.path && typeof pathOrStreamLikeThing.path === 'string') ||
           // A File might look like this
+          // @ts-ignore
           (pathOrStreamLikeThing.name && typeof pathOrStreamLikeThing.name === 'string')
         )
       ) {
@@ -477,7 +483,7 @@ class Anvil {
         // Ensure that the file has been run through the prepareGraphQLFile process
         // and checks
         if (file instanceof UploadWithOptions === false) {
-          file = this.constructor.prepareGraphQLFile(file)
+          file = Anvil.prepareGraphQLFile(file)
         }
         let { filename, mimetype, ignoreFilenameValidation } = file.options || {}
         file = file.file
@@ -513,11 +519,13 @@ class Anvil {
           const stream = file
           file = {
             [Symbol.toStringTag]: 'File',
+            // @ts-ignore
             size: fs.statSync(stream.path).size,
             stream: () => stream,
             type: mimetype,
           }
 
+          // @ts-ignore
           filename ??= stream.path.split('/').pop()
         } else if (file.constructor.name !== 'File') {
           // Like a Blob or something

@@ -4,10 +4,8 @@
     "src/**/*"
   ],
   "compilerOptions": {
-    "target": "es2021",
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "lib": ["es2017", "dom"],
+    "module": "node16",
+    "moduleResolution": "node16",
     "noImplicitThis": true,
     "alwaysStrict": true,
     "checkJs": true,

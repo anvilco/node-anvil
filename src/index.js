@@ -216,7 +216,8 @@ class Anvil {
       !formDataAppendOptions ||
       (
         formDataAppendOptions && !(
-          // Require the filename or the ignoreFilenameValidation option.
+          // Require the filename or the ignoreFilenameValidation option. This is an escape hatch
+          // for things we didn't anticipate to cause problems
           formDataAppendOptions.filename || ignoreFilenameValidation
         )
       )

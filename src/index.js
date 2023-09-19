@@ -3,7 +3,6 @@ import fs from 'fs'
 import { Stream } from 'stream' // eslint-disable-line no-unused-vars
 
 import AbortController from 'abort-controller'
-import { extractFiles } from 'extract-files'
 import { RateLimiter } from 'limiter'
 
 import UploadWithOptions from './UploadWithOptions'
@@ -17,6 +16,7 @@ import {
 
 class Warning extends Error {}
 
+let extractFiles
 let FormDataModule
 let Fetch
 let fetch
@@ -441,10 +441,12 @@ class Anvil {
 
     const originalOperation = { query, variables }
 
+    extractFiles ??= (await import('extract-files/extractFiles.mjs')).default
+
     const {
       clone: augmentedOperation,
       files: filesMap,
-    } = extractFiles(originalOperation, '', isFile)
+    } = extractFiles(originalOperation, isFile)
 
     const operationJSON = JSON.stringify(augmentedOperation)
 

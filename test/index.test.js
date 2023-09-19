@@ -516,12 +516,12 @@ describe('Anvil API Client', function () {
       })
 
       describe('without files', function () {
-        it('stringifies query and variables', function () {
+        it('stringifies query and variables', async function () {
           const query = { foo: 'bar' }
           const variables = { baz: 'bop' }
           const clientOptions = { yo: 'mtvRaps' }
 
-          client.requestGraphQL({ query, variables }, clientOptions)
+          await client.requestGraphQL({ query, variables }, clientOptions)
 
           expect(client._wrapRequest).to.have.been.calledOnce
 
@@ -632,8 +632,8 @@ describe('Anvil API Client', function () {
               }
             })
 
-            it('creates a FormData and appends the files map', function () {
-              client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+            it('creates a FormData and appends the files map', async function () {
+              await client.requestGraphQL({ query, variables: $.variables }, clientOptions)
             })
           })
 
@@ -651,8 +651,8 @@ describe('Anvil API Client', function () {
               }
             })
 
-            it('does not touch the variables at all', function () {
-              client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+            it('does not touch the variables at all', async function () {
+              await client.requestGraphQL({ query, variables: $.variables }, clientOptions)
             })
           })
         })
@@ -678,11 +678,11 @@ describe('Anvil API Client', function () {
       })
 
       context('mutation is specified', function () {
-        it('calls requestGraphQL with overridden mutation', function () {
+        it('calls requestGraphQL with overridden mutation', async function () {
           const variables = { foo: 'bar' }
           const mutationOverride = 'createEtchPacketOverride()'
 
-          client.createEtchPacket({ variables, mutation: mutationOverride })
+          await client.createEtchPacket({ variables, mutation: mutationOverride })
 
           expect(client.requestGraphQL).to.have.been.calledOnce
           const [options, clientOptions] = client.requestGraphQL.lastCall.args
@@ -699,10 +699,10 @@ describe('Anvil API Client', function () {
       })
 
       context('no responseQuery specified', function () {
-        it('calls requestGraphQL with default responseQuery', function () {
+        it('calls requestGraphQL with default responseQuery', async function () {
           const variables = { foo: 'bar' }
 
-          client.createEtchPacket({ variables })
+          await client.createEtchPacket({ variables })
 
           expect(client.requestGraphQL).to.have.been.calledOnce
           const [options, clientOptions] = client.requestGraphQL.lastCall.args
@@ -719,11 +719,11 @@ describe('Anvil API Client', function () {
       })
 
       context('responseQuery specified', function () {
-        it('calls requestGraphQL with overridden responseQuery', function () {
+        it('calls requestGraphQL with overridden responseQuery', async function () {
           const variables = { foo: 'bar' }
           const responseQuery = 'onlyInATest {}'
 
-          client.createEtchPacket({ variables, responseQuery })
+          await client.createEtchPacket({ variables, responseQuery })
 
           expect(client.requestGraphQL).to.have.been.calledOnce
           const [options, clientOptions] = client.requestGraphQL.lastCall.args
@@ -796,7 +796,7 @@ describe('Anvil API Client', function () {
 
       context('no responseQuery specified', function () {
         it('calls requestGraphQL with default responseQuery', async function () {
-          client.getEtchPacket({ variables: $.variables })
+          await client.getEtchPacket({ variables: $.variables })
 
           expect(client.requestGraphQL).to.have.been.calledOnce
           const [options, clientOptions] = client.requestGraphQL.lastCall.args
@@ -815,7 +815,7 @@ describe('Anvil API Client', function () {
       context('responseQuery specified', function () {
         it('calls requestGraphQL with overridden responseQuery', async function () {
           const responseQuery = 'myCustomResponseQuery'
-          client.getEtchPacket({ variables: $.variables, responseQuery })
+          await client.getEtchPacket({ variables: $.variables, responseQuery })
 
           expect(client.requestGraphQL).to.have.been.calledOnce
           const [options, clientOptions] = client.requestGraphQL.lastCall.args
@@ -837,11 +837,11 @@ describe('Anvil API Client', function () {
         sinon.stub(client, 'requestGraphQL')
       })
 
-      it('calls requestGraphQL with overridden mutation', function () {
+      it('calls requestGraphQL with overridden mutation', async function () {
         const variables = { foo: 'bar' }
         const mutationOverride = 'forgeSubmitOverride()'
 
-        client.forgeSubmit({ variables, mutation: mutationOverride })
+        await client.forgeSubmit({ variables, mutation: mutationOverride })
 
         expect(client.requestGraphQL).to.have.been.calledOnce
         const [options, clientOptions] = client.requestGraphQL.lastCall.args
@@ -858,7 +858,7 @@ describe('Anvil API Client', function () {
 
       it('calls requestGraphQL with default responseQuery', async function () {
         const variables = { foo: 'bar' }
-        client.forgeSubmit({ variables })
+        await client.forgeSubmit({ variables })
 
         expect(client.requestGraphQL).to.have.been.calledOnce
         const [options, clientOptions] = client.requestGraphQL.lastCall.args
@@ -876,7 +876,7 @@ describe('Anvil API Client', function () {
       it('calls requestGraphQL with overridden responseQuery', async function () {
         const variables = { foo: 'bar' }
         const customResponseQuery = 'myCustomResponseQuery'
-        client.forgeSubmit({ variables, responseQuery: customResponseQuery })
+        await client.forgeSubmit({ variables, responseQuery: customResponseQuery })
 
         expect(client.requestGraphQL).to.have.been.calledOnce
         const [options, clientOptions] = client.requestGraphQL.lastCall.args
@@ -897,11 +897,11 @@ describe('Anvil API Client', function () {
         sinon.stub(client, 'requestGraphQL')
       })
 
-      it('calls requestGraphQL with overridden mutation', function () {
+      it('calls requestGraphQL with overridden mutation', async function () {
         const variables = { foo: 'bar' }
         const mutationOverride = 'removeWeldDataOverride()'
 
-        client.removeWeldData({ variables, mutation: mutationOverride })
+        await client.removeWeldData({ variables, mutation: mutationOverride })
 
         expect(client.requestGraphQL).to.have.been.calledOnce
         const [options, clientOptions] = client.requestGraphQL.lastCall.args

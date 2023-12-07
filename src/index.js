@@ -7,7 +7,7 @@ import { RateLimiter } from 'limiter'
 
 import UploadWithOptions from './UploadWithOptions'
 import { version, description } from '../package.json'
-import { looksLikeError, normalizeErrors } from './errors'
+import { looksLikeJsonError, normalizeNodeError, normalizeJsonErrors } from './errors'
 import { queries, mutations } from './graphql'
 import {
   isFile,
@@ -661,6 +661,7 @@ class Anvil {
 
       let json
       let isError = false
+      let nodeError
 
       const contentType = response.headers.get('content-type') || response.headers.get('Content-Type') || ''
 
@@ -671,18 +672,18 @@ class Anvil {
         dataType = DATA_TYPE_JSON
         try {
           json = await response.json()
-          isError = looksLikeError({ json })
+          isError = looksLikeJsonError({ json })
         } catch (err) {
+          nodeError = err
           if (debug) {
             console.warn(`Problem parsing JSON response for status ${statusCode}:`)
             console.warn(err)
-            console.warn('Using statusText instead')
           }
         }
       }
 
-      if (isError || statusCode >= 300) {
-        const errors = await normalizeErrors({ json, statusText })
+      if (nodeError || isError || statusCode >= 300) {
+        const errors = nodeError ? normalizeNodeError({ error: nodeError }) : normalizeJsonErrors({ json, statusText })
         return { response, statusCode, errors }
       }
 

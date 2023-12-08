@@ -1,10 +1,10 @@
 // See if the JSON looks like it's got errors
-export function looksLikeError ({ json }) {
+export function looksLikeJsonError ({ json }) {
   return !!(json && (json.errors || json.message || json.name))
 }
 
 // Should return an array
-export function normalizeErrors ({ json, statusText = 'Unknown Error' }) {
+export function normalizeJsonErrors ({ json, statusText = 'Unknown Error' }) {
   if (json) {
     // Normal, GraphQL way
     if (json.errors) {
@@ -30,4 +30,18 @@ export function normalizeErrors ({ json, statusText = 'Unknown Error' }) {
 
   // Hmm, ok. Default way
   return [{ name: statusText, message: statusText }]
+}
+
+// Should return an array
+export function normalizeNodeError ({ error, statusText = 'Unknown Error' }) {
+  if (error) {
+    return [pickError(error)]
+  }
+
+  // Hmm, ok. Default way
+  return [{ name: statusText, message: statusText }]
+}
+
+function pickError (error) {
+  return (({ name, message, code, cause, stack }) => ({ name, message, code, cause, stack }))(error)
 }

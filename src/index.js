@@ -7,7 +7,7 @@ import { RateLimiter } from 'limiter'
 
 import UploadWithOptions from './UploadWithOptions'
 import { version, description } from '../package.json'
-import { looksLikeError, normalizeErrors } from './errors'
+import { looksLikeJsonError, normalizeNodeError, normalizeJsonErrors } from './errors'
 import { queries, mutations } from './graphql'
 import {
   isFile,
@@ -464,7 +464,7 @@ class Anvil {
     if (filesMap.size) {
       // @ts-ignore
       const abortController = new AbortController()
-      Fetch ??= await import('node-fetch')
+      Fetch ??= await import('@anvilco/node-fetch')
       // This is a dependency of 'node-fetch'`
       FormDataModule ??= await import('formdata-polyfill/esm.min.js')
       const form = new FormDataModule.FormData()
@@ -605,7 +605,7 @@ class Anvil {
 
   async _request (...args) {
     // Only load Fetch once per module process lifetime
-    Fetch = Fetch || await import('node-fetch')
+    Fetch = Fetch || await import('@anvilco/node-fetch')
     fetch = Fetch.default
     // Monkey-patch so we only try any of this once per Anvil Client instance
     this._request = this.__request
@@ -661,6 +661,7 @@ class Anvil {
 
       let json
       let isError = false
+      let nodeError
 
       const contentType = response.headers.get('content-type') || response.headers.get('Content-Type') || ''
 
@@ -671,18 +672,18 @@ class Anvil {
         dataType = DATA_TYPE_JSON
         try {
           json = await response.json()
-          isError = looksLikeError({ json })
+          isError = looksLikeJsonError({ json })
         } catch (err) {
+          nodeError = err
           if (debug) {
             console.warn(`Problem parsing JSON response for status ${statusCode}:`)
             console.warn(err)
-            console.warn('Using statusText instead')
           }
         }
       }
 
-      if (isError || statusCode >= 300) {
-        const errors = await normalizeErrors({ json, statusText })
+      if (nodeError || isError || statusCode >= 300) {
+        const errors = nodeError ? normalizeNodeError({ error: nodeError }) : normalizeJsonErrors({ json, statusText })
         return { response, statusCode, errors }
       }
 

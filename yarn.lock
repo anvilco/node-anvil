@@ -15,7 +15,7 @@
     "@jridgewell/gen-mapping" "^0.3.0"
     "@jridgewell/trace-mapping" "^0.3.9"
 
-"@anvilco/node-fetch@^3.3.3-beta.0":
+"@anvilco/node-fetch@3.3.3-beta.0":
   version "3.3.3-beta.0"
   resolved "https://registry.yarnpkg.com/@anvilco/node-fetch/-/node-fetch-3.3.3-beta.0.tgz#4d0fdb4214a6c851651333307ee0b32b3068465d"
   integrity sha512-hiruVZHjUvBxaTBSCRoeGNRknJWSwatrAm+uczyjcDGMpblOQb28sPjFVqGJ3EyOFzbIfXrm03/uIg8pr1NILA==

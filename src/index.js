@@ -674,9 +674,8 @@ class Anvil {
           json = await response.json()
           isError = looksLikeJsonError({ json })
         } catch (err) {
-          console.log('err response: ', response)
           nodeError = err
-          if (debug || true) {
+          if (debug) {
             console.warn(`Problem parsing JSON response for status ${statusCode}:`)
             console.warn(err)
           }

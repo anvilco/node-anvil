@@ -51,7 +51,7 @@
     "test-e2e:install": "npm --prefix test/e2e run prep && npm --prefix test/e2e install"
   },
   "dependencies": {
-    "@anvilco/node-fetch": "3.3.3-beta.0",
+    "@anvilco/node-fetch": "^3.3.3-beta.0",
     "abort-controller": "^3.0.0",
     "extract-files": "^13",
     "limiter": "^2.1.0"

@@ -464,7 +464,7 @@ class Anvil {
     if (filesMap.size) {
       // @ts-ignore
       const abortController = new AbortController()
-      Fetch ??= await import('node-fetch')
+      Fetch ??= await import('@anvilco/node-fetch')
       // This is a dependency of 'node-fetch'`
       FormDataModule ??= await import('formdata-polyfill/esm.min.js')
       const form = new FormDataModule.FormData()
@@ -605,7 +605,7 @@ class Anvil {
 
   async _request (...args) {
     // Only load Fetch once per module process lifetime
-    Fetch = Fetch || await import('node-fetch')
+    Fetch = Fetch || await import('@anvilco/node-fetch')
     fetch = Fetch.default
     // Monkey-patch so we only try any of this once per Anvil Client instance
     this._request = this.__request
@@ -674,8 +674,9 @@ class Anvil {
           json = await response.json()
           isError = looksLikeJsonError({ json })
         } catch (err) {
+          console.log('err response: ', response)
           nodeError = err
-          if (debug) {
+          if (debug || true) {
             console.warn(`Problem parsing JSON response for status ${statusCode}:`)
             console.warn(err)
           }

@@ -1,6 +1,6 @@
 {
   "name": "@anvilco/anvil",
-  "version": "3.2.0-beta.0",
+  "version": "3.2.0-beta.1",
   "description": "Anvil API Client",
   "author": "Anvil Foundry Inc.",
   "homepage": "https://github.com/anvilco/node-anvil#readme",
@@ -41,6 +41,7 @@
     "build": "babel src --out-dir ./dist",
     "clean": "yarn rimraf ./dist",
     "prepare": "yarn tsc && yarn clean && yarn build",
+    "publish:beta": "npm publish --tag beta",
     "test": "yarn prepare && mocha --config ./test/mocha.js",
     "lint": "eslint src/**/*.js test/**/*.js",
     "lint:quiet": "yarn run lint --quiet",
@@ -53,7 +54,7 @@
     "abort-controller": "^3.0.0",
     "extract-files": "^13",
     "limiter": "^2.1.0",
-    "node-fetch": "^3.3.2"
+    "@anvilco/node-fetch": "^3.3.3-beta.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.22.10",

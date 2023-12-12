@@ -1,5 +1,6 @@
 # Babel's output
 dist/
+build/
 
 yarn-error.log
 

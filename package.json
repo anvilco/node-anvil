@@ -24,7 +24,7 @@
     "registry": "https://registry.npmjs.org",
     "@anvilco:registry": "https://registry.npmjs.org"
   },
-  "main": "index.js",
+  "main": "dist/index.js",
   "files": [
     "package.json",
     "README.md",
@@ -36,11 +36,14 @@
     "!**/.DS_STORE",
     "!**/.DS_Store"
   ],
-  "types": "./types/src/index.d.ts",
+  "types": "dist/Anvil.d.ts",
   "scripts": {
-    "build": "babel src --out-dir ./dist",
-    "clean": "yarn rimraf ./dist",
-    "prepare": "yarn tsc && yarn clean && yarn build",
+    "cp:src-dist": "cp -R src dist",
+    "build:dist": "babel dist --out-dir ./dist",
+    "clean:dist": "yarn rimraf ./dist",
+    "clean:types": "yarn rimraf ./types",
+    "clean": "yarn clean:dist && yarn clean:types",
+    "prepare": "yarn clean && yarn cp:src-dist && yarn tsc && yarn build:dist",
     "publish:beta": "npm publish --tag beta",
     "test": "yarn prepare && mocha --config ./test/mocha.js",
     "lint": "eslint src/**/*.js test/**/*.js",

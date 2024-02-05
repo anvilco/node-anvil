@@ -14,7 +14,7 @@ import {
   graphQLUploadSchemaIsValid,
 } from './validation'
 
-class Warning extends Error {}
+class Warning extends Error { }
 
 let extractFiles
 let FormDataModule
@@ -129,7 +129,7 @@ class Anvil {
   /**
    * @param {AnvilOptions?} options
    */
-  constructor (options) {
+  constructor(options) {
     if (!options) throw new Error('options are required')
 
     this.options = {
@@ -166,7 +166,7 @@ class Anvil {
    * @param {number} options.intervalMs
    * @private
    */
-  _setRateLimiter ({ tokens, intervalMs }) {
+  _setRateLimiter({ tokens, intervalMs }) {
     if (
       // Both must be truthy
       !(tokens && intervalMs) ||
@@ -211,7 +211,7 @@ class Anvil {
    * @return {UploadWithOptions} - A class that wraps the stream-like-thing and any options
    *   up together nicely in a way that we can also tell that it was us who did it.
    */
-  static prepareGraphQLFile (pathOrStreamLikeThing, { ignoreFilenameValidation, ...formDataAppendOptions } = {}) {
+  static prepareGraphQLFile(pathOrStreamLikeThing, { ignoreFilenameValidation, ...formDataAppendOptions } = {}) {
     if (typeof pathOrStreamLikeThing === 'string') {
       // @ts-ignore
       // no-op for this logic path. It's a path and we will load it later and it will at least
@@ -263,7 +263,7 @@ class Anvil {
    * @param {string} [data.mutation]
    * @returns {Promise<GraphQLResponse>}
    */
-  createEtchPacket ({ variables, responseQuery, mutation }) {
+  createEtchPacket({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
       {
         query: mutation || generateCreateEtchPacketMutation(responseQuery),
@@ -278,7 +278,7 @@ class Anvil {
    * @param {Object} [clientOptions]
    * @returns {Promise<RESTResponse>}
    */
-  downloadDocuments (documentGroupEid, clientOptions = {}) {
+  downloadDocuments(documentGroupEid, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
     if (dataType && !supportedDataTypes.includes(dataType)) {
@@ -300,7 +300,7 @@ class Anvil {
    * @param {Object} [clientOptions]
    * @returns {Promise<RESTResponse>}
    */
-  fillPDF (pdfTemplateID, payload, clientOptions = {}) {
+  fillPDF(pdfTemplateID, payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
     if (dataType && !supportedDataTypes.includes(dataType)) {
@@ -335,7 +335,7 @@ class Anvil {
    * @param {string} [data.mutation]
    * @returns {Promise<GraphQLResponse>}
    */
-  forgeSubmit ({ variables, responseQuery, mutation }) {
+  forgeSubmit({ variables, responseQuery, mutation }) {
     return this.requestGraphQL(
       {
         query: mutation || generateForgeSubmitMutation(responseQuery),
@@ -350,7 +350,7 @@ class Anvil {
    * @param {Object} [clientOptions]
    * @returns {Promise<RESTResponse>}
    */
-  generatePDF (payload, clientOptions = {}) {
+  generatePDF(payload, clientOptions = {}) {
     const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
     if (dataType && !supportedDataTypes.includes(dataType)) {
@@ -379,7 +379,7 @@ class Anvil {
    * @param {string} [data.responseQuery]
    * @returns {Promise<GraphQLResponse>}
    */
-  getEtchPacket ({ variables, responseQuery }) {
+  getEtchPacket({ variables, responseQuery }) {
     return this.requestGraphQL(
       {
         query: generateEtchPacketQuery(responseQuery),
@@ -394,7 +394,7 @@ class Anvil {
    * @param {Object} data.variables
    * @returns {Promise<{url?: string, errors?: Array<ResponseError>, statusCode: number}>}
    */
-  async generateEtchSignUrl ({ variables }) {
+  async generateEtchSignUrl({ variables }) {
     const { statusCode, data, errors } = await this.requestGraphQL(
       {
         query: generateEtchSignUrlMutation(),
@@ -416,7 +416,7 @@ class Anvil {
    * @param {string} [data.mutation]
    * @returns {Promise<GraphQLResponse>}
    */
-  removeWeldData ({ variables, mutation }) {
+  removeWeldData({ variables, mutation }) {
     return this.requestGraphQL(
       {
         query: mutation || generateRemoveWeldDataMutation(),
@@ -433,7 +433,7 @@ class Anvil {
    * @param {Object} [clientOptions]
    * @returns {Promise<GraphQLResponse>}
    */
-  async requestGraphQL ({ query, variables = {} }, clientOptions) {
+  async requestGraphQL({ query, variables = {} }, clientOptions) {
     // Some helpful resources on how this came to be:
     // https://github.com/jaydenseric/graphql-upload/issues/125#issuecomment-440853538
     // https://zach.codes/building-a-file-upload-hook/
@@ -574,7 +574,7 @@ class Anvil {
    * @param {Object} [clientOptions]
    * @returns {Promise<RESTResponse>}
    */
-  async requestREST (url, fetchOptions, clientOptions) {
+  async requestREST(url, fetchOptions, clientOptions) {
     const {
       response,
       statusCode,
@@ -603,7 +603,7 @@ class Anvil {
   // USERS OF THIS MODULE SHOULD NOT USE ANY OF THESE METHODS DIRECTLY
   // ******************************************************************************
 
-  async _request (...args) {
+  async _request(...args) {
     // Only load Fetch once per module process lifetime
     Fetch = Fetch || await import('@anvilco/node-fetch')
     fetch = Fetch.default
@@ -618,7 +618,7 @@ class Anvil {
    * @returns {Promise}
    * @private
    */
-  __request (url, options) {
+  __request(url, options) {
     if (!url.startsWith(this.options.baseURL)) {
       url = this._url(url)
     }
@@ -632,7 +632,7 @@ class Anvil {
    * @returns {Promise<*>}
    * @private
    */
-  _wrapRequest (retryableRequestFn, clientOptions = {}) {
+  _wrapRequest(retryableRequestFn, clientOptions = {}) {
     return this._throttle(async (retry) => {
       let { dataType, debug } = clientOptions
       const response = await retryableRequestFn()
@@ -694,7 +694,7 @@ class Anvil {
           data = response.body
           break
         case DATA_TYPE_BUFFER:
-          data = await response.buffer()
+          data = await response.arrayBuffer()
           break
         case DATA_TYPE_JSON:
           // Can't call json() twice, so we'll see if we already did that
@@ -719,7 +719,7 @@ class Anvil {
    * @returns {string}
    * @private
    */
-  _url (path) {
+  _url(path) {
     return this.options.baseURL + path
   }
 
@@ -731,7 +731,7 @@ class Anvil {
    * @returns {*&{headers: {}}}
    * @private
    */
-  _addHeaders ({ options: existingOptions, headers: newHeaders }, internalOptions = {}) {
+  _addHeaders({ options: existingOptions, headers: newHeaders }, internalOptions = {}) {
     const { headers: existingHeaders = {} } = existingOptions
     const { defaults = false } = internalOptions
 
@@ -759,7 +759,7 @@ class Anvil {
    * @returns {*}
    * @private
    */
-  _addDefaultHeaders (options) {
+  _addDefaultHeaders(options) {
     const { userAgent } = this.options
     return this._addHeaders(
       {
@@ -778,7 +778,7 @@ class Anvil {
    * @returns {Promise<*>}
    * @private
    */
-  async _throttle (fn) {
+  async _throttle(fn) {
     // If this is one of the first requests being made, we'll want to dynamically
     // set the Rate Limiter values from the API response, and hold up everyone else
     // while this is happening.
@@ -814,7 +814,7 @@ Anvil.UploadWithOptions = UploadWithOptions
  * @returns {number}
  * @private
  */
-function getRetryMS (retryAfterSeconds) {
+function getRetryMS(retryAfterSeconds) {
   return Math.round((Math.abs(parseFloat(retryAfterSeconds)) || 0) * 1000) + failBufferMS
 }
 
@@ -823,7 +823,7 @@ function getRetryMS (retryAfterSeconds) {
  * @returns {Promise<any>}
  * @private
  */
-function sleep (ms) {
+function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })

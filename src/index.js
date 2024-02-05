@@ -694,7 +694,7 @@ class Anvil {
           data = response.body
           break
         case DATA_TYPE_BUFFER:
-          data = await response.buffer()
+          data = await response.arrayBuffer()
           break
         case DATA_TYPE_JSON:
           // Can't call json() twice, so we'll see if we already did that

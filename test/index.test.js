@@ -15,6 +15,7 @@ function mockNodeFetchResponse (options = {}) {
     statusText,
     json,
     buffer,
+    arrayBuffer,
     headers = {
       'x-ratelimit-limit': 1,
       'x-ratelimit-interval-ms': 1000,
@@ -33,7 +34,20 @@ function mockNodeFetchResponse (options = {}) {
     headers['content-type'] = 'application/json'
   }
 
-  mock.buffer = typeof buffer === 'function' ? buffer : () => buffer
+  mock.buffer = typeof buffer === 'function' ? buffer : () => buffer instanceof Buffer ? buffer : Buffer.from(buffer)
+  if (arrayBuffer) {
+    mock.arrayBuffer = typeof buffer === 'function' ? arrayBuffer : () => arrayBuffer
+  } else {
+    mock.arrayBuffer = () => {
+      const buffer = mock.buffer()
+      const ab = new ArrayBuffer(buffer.length)
+      const view = new Uint8Array(ab)
+      for (let i = 0; i < buffer.length; ++i) {
+        view[i] = buffer[i]
+      }
+      return ab
+    }
+  }
 
   mock.body = body
 
@@ -297,7 +311,7 @@ describe('Anvil API Client', function () {
           const result = await client.fillPDF('cast123', payload)
 
           expect(result.statusCode).to.eql(200)
-          expect(result.data).to.eql('This would be PDF data...')
+          expect(result.data.toString()).to.eql('This would be PDF data...')
 
           expect(client._request).to.have.been.calledOnce
 
@@ -317,7 +331,7 @@ describe('Anvil API Client', function () {
           const result = await client.fillPDF('cast123', payload, { versionNumber: 5 })
 
           expect(result.statusCode).to.eql(200)
-          expect(result.data).to.eql('This would be PDF data...')
+          expect(result.data.toString()).to.eql('This would be PDF data...')
 
           expect(client._request).to.have.been.calledOnce
 
@@ -391,7 +405,7 @@ describe('Anvil API Client', function () {
           const result = await client.generatePDF(payload)
 
           expect(result.statusCode).to.eql(200)
-          expect(result.data).to.eql('This would be PDF data...')
+          expect(result.data.toString()).to.eql('This would be PDF data...')
 
           expect(client._request).to.have.been.calledOnce
 
@@ -456,9 +470,19 @@ describe('Anvil API Client', function () {
       context('everything goes well', function () {
         it('returns data as buffer', async function () {
           const { statusCode, response, data, errors } = await client.downloadDocuments('docGroupEid123')
+          expect(data).to.be.an.instanceOf(Buffer)
           expect(statusCode).to.eql(200)
           expect(response).to.deep.eql($.nodeFetchResponse)
-          expect(data).to.eql($.buffer)
+          expect(data.toString()).to.eql($.buffer)
+          expect(errors).to.be.undefined
+        })
+
+        it('returns data asn arrayBuffer', async function () {
+          const { statusCode, response, data, errors } = await client.downloadDocuments('docGroupEid123', { dataType: 'arrayBuffer' })
+          expect(data).to.be.an.instanceOf(ArrayBuffer)
+          expect(statusCode).to.eql(200)
+          expect(response).to.deep.eql($.nodeFetchResponse)
+          expect(Buffer.from(data).toString()).to.eql($.buffer)
           expect(errors).to.be.undefined
         })
 
@@ -476,7 +500,7 @@ describe('Anvil API Client', function () {
           try {
             await client.downloadDocuments('docGroupEid123', { dataType: 'json' })
           } catch (e) {
-            expect(e.message).to.eql('dataType must be one of: stream|buffer')
+            expect(e.message).to.eql('dataType must be one of: stream|buffer|arrayBuffer')
           }
         })
       })

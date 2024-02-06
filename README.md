@@ -139,10 +139,10 @@ fs.writeFileSync('filled.pdf', data, { encoding: null })
   * `data` (Object) - The data to fill the PDF. The keys in this object will correspond to a field's ID in the PDF. These field IDs and their types are available on the `API Info` tab on your PDF template's page in the Anvil dashboard.
     * For example `{ "someFieldId": "Hello World!" }`
 * `options` (Object) - _optional_ Any additional options for the request
-  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'stream'` is also supported.
+  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'arrayBuffer'` and `'stream'` are also supported.
 * Returns a `Promise` that resolves to an `Object`
   * `statusCode` (Number) - the HTTP status code; `200` is success
-  * `data` (Buffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer or a Stream, depending on `dataType` option supplied to the request.
+  * `data` (Buffer | ArrayBuffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer, ArrayBuffer, or a Stream, depending on `dataType` option supplied to the request.
   * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
     * `message` (String)
 
@@ -224,10 +224,10 @@ fs.writeFileSync('generated.pdf', data, { encoding: null })
   * `data` (Array of Objects) - The data that generates the PDF. See [the docs](https://useanvil.com/docs/api/generate-pdf#supported-format-of-data) for all supported objects
     * For example `[{ "label": "Hello World!", "content": "Test" }]`
 * `options` (Object) - _optional_ Any additional options for the request
-  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'stream'` is also supported.
+  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'arrayBuffer'` and `'stream'` are also supported.
 * Returns a `Promise` that resolves to an `Object`
   * `statusCode` (Number) - the HTTP status code; `200` is success
-  * `data` (Buffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer or a Stream, depending on `dataType` option supplied to the request.
+  * `data` (Buffer | ArrayBuffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer, ArrayBuffer, or a Stream, depending on `dataType` option supplied to the request.
   * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
     * `message` (String)
 
@@ -273,14 +273,14 @@ Generates an Etch sign URL for an Etch Packet signer. The Etch Packet and its si
 
 ##### downloadDocuments(documentGroupEid[, options])
 
-Returns a Buffer or Stream of the document group specified by the documentGroupEid in Zip file format.
+Returns a Buffer, ArrayBuffer, or Stream of the document group specified by the documentGroupEid in Zip file format.
 * `documentGroupEid` (string) - the eid of the document group to download
 * `options` (Object) - _optional_ Any additional options for the request
-  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'stream'` is also supported.
+  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'arrayBuffer'` and `'stream'` are also supported.
 * Returns a `Promise` that resolves to an `Object`
    * `statusCode` (Number) - the HTTP status code, `200` is success
    * `response` (Object) - the Response object resulting from the client's request to the Anvil app
-   * `data` (Buffer | Stream) - The raw binary data of the downloaded documents if success. Will be in the format of either a Buffer or a Stream, depending on `dataType` option supplied to the request.
+   * `data` (Buffer | ArrayBuffer | Stream) - The raw binary data of the downloaded documents if success. Will be in the format of either a Buffer, ArrayBuffer, or a Stream, depending on `dataType` option supplied to the request.
    * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
       * `message` (String)
 
@@ -348,10 +348,10 @@ const result = await this.requestREST(
 * `url` (String) - URL from the baseURL. e.g. `/api/v1/fill`
 * `fetchOptions` (Object) - Options passed to [node-fetch](https://github.com/node-fetch/node-fetch)
 * `clientOptions` (Object) - _optional_ Any additional options for the request
-  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, `'stream'` and `'json'` are also supported.
+  * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, `'arrayBuffer'`, `'stream'`, and `'json'` are also supported.
 * Returns a `Promise` that resolves to an `Object`
   * `statusCode` (Number) - the HTTP status code; `200` is success
-  * `data` (Buffer | Stream | JSON) - The raw binary data of the filled PDF if success. Will be either a Buffer or a Stream, depending on `dataType` option supplied to the request.
+  * `data` (Buffer | ArrayBuffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer, ArrayBuffer, or a Stream, depending on `dataType` option supplied to the request.
   * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
     * `message` (String)
 

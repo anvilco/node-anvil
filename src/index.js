@@ -102,7 +102,14 @@ const {
 
 const DATA_TYPE_STREAM = 'stream'
 const DATA_TYPE_BUFFER = 'buffer'
+const DATA_TYPE_ARRAY_BUFFER = 'arrayBuffer'
 const DATA_TYPE_JSON = 'json'
+
+const SUPPORTED_BINARY_DATA_TYPES = Object.freeze([
+  DATA_TYPE_STREAM,
+  DATA_TYPE_BUFFER,
+  DATA_TYPE_ARRAY_BUFFER,
+])
 
 // Version number to use for latest versions (usually drafts)
 const VERSION_LATEST = -1
@@ -279,10 +286,9 @@ class Anvil {
    * @returns {Promise<RESTResponse>}
    */
   downloadDocuments (documentGroupEid, clientOptions = {}) {
-    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
-    if (dataType && !supportedDataTypes.includes(dataType)) {
-      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    if (dataType && !SUPPORTED_BINARY_DATA_TYPES.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${SUPPORTED_BINARY_DATA_TYPES.join('|')}`)
     }
     return this.requestREST(
       `/api/document-group/${documentGroupEid}.zip`,
@@ -301,10 +307,9 @@ class Anvil {
    * @returns {Promise<RESTResponse>}
    */
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
-    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
-    if (dataType && !supportedDataTypes.includes(dataType)) {
-      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    if (dataType && !SUPPORTED_BINARY_DATA_TYPES.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${SUPPORTED_BINARY_DATA_TYPES.join('|')}`)
     }
 
     const versionNumber = clientOptions.versionNumber
@@ -351,10 +356,9 @@ class Anvil {
    * @returns {Promise<RESTResponse>}
    */
   generatePDF (payload, clientOptions = {}) {
-    const supportedDataTypes = [DATA_TYPE_STREAM, DATA_TYPE_BUFFER]
     const { dataType = DATA_TYPE_BUFFER } = clientOptions
-    if (dataType && !supportedDataTypes.includes(dataType)) {
-      throw new Error(`dataType must be one of: ${supportedDataTypes.join('|')}`)
+    if (dataType && !SUPPORTED_BINARY_DATA_TYPES.includes(dataType)) {
+      throw new Error(`dataType must be one of: ${SUPPORTED_BINARY_DATA_TYPES.join('|')}`)
     }
 
     return this.requestREST(
@@ -694,7 +698,15 @@ class Anvil {
           data = response.body
           break
         case DATA_TYPE_BUFFER:
-          data = await response.buffer()
+          // Will ask for it as an arrayBuffer (to avoid deprecation warning) but then convert it to a
+          // Node Buffer.
+          // https://github.com/node-fetch/node-fetch/pull/1212
+          // https://github.com/node-fetch/node-fetch/pull/1345
+          // https://github.com/anvilco/node-anvil/pull/442
+          data = Buffer.from(await response.arrayBuffer())
+          break
+        case DATA_TYPE_ARRAY_BUFFER:
+          data = await response.arrayBuffer()
           break
         case DATA_TYPE_JSON:
           // Can't call json() twice, so we'll see if we already did that

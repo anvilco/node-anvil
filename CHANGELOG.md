@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.3.0]
+- Add support for `arrayBuffer` response type.
+- Use `arrayBuffer` type underneath `buffer` response type to stop triggering `buffer` deprecation warning. https://github.com/anvilco/node-anvil/pull/442
+- Updated various dependencies
+
 ## [v3.2.0]
 - Swap out `node-fetch` for `@anvilco/node-fetch` in order to fix `Premature close`. https://github.com/anvilco/node-fetch/pull/1
 - Fixed bug around some error handling. https://github.com/anvilco/node-anvil/issues/376

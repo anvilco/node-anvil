@@ -37,7 +37,7 @@ let fetch
  * @type {Object}
  * @property {number} statusCode
  * @property {GraphQLResponseData} [data]
- * @property {Array<ResponseError>} [errors]
+ * @property {Array<ResponseError | NodeError>} [errors]
  */
 
 /** @typedef {{
@@ -49,9 +49,17 @@ let fetch
  * @type {Object}
  * @property {number} statusCode
  * @property {Buffer|Stream|Object} [data]
- * @property {Array<ResponseError>} [errors]
+ * @property {Array<ResponseError | NodeError>} [errors]
  * @property {any} [response] node-fetch Response
  */
+
+/** @typedef {{
+  name: string;
+  message: string;
+  stack: string;
+  code: string;
+  cause?: any;
+}} NodeError */
 
 /** @typedef {{
   message: string,
@@ -396,7 +404,7 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {Object} data.variables
-   * @returns {Promise<{url?: string, errors?: Array<ResponseError>, statusCode: number}>}
+   * @returns {Promise<{url?: string, errors?: Array<ResponseError | NodeError>, statusCode: number}>}
    */
   async generateEtchSignUrl ({ variables }) {
     const { statusCode, data, errors } = await this.requestGraphQL(

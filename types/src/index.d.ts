@@ -10,7 +10,7 @@ export type AnvilOptions = {
 export type GraphQLResponse = {
     statusCode: number;
     data?: GraphQLResponseData;
-    errors?: Array<ResponseError>;
+    errors?: Array<ResponseError | NodeError>;
 };
 export type GraphQLResponseData = {
     data: {
@@ -20,11 +20,18 @@ export type GraphQLResponseData = {
 export type RESTResponse = {
     statusCode: number;
     data?: Buffer | Stream | any;
-    errors?: Array<ResponseError>;
+    errors?: Array<ResponseError | NodeError>;
     /**
      * node-fetch Response
      */
     response?: any;
+};
+export type NodeError = {
+    name: string;
+    message: string;
+    stack: string;
+    code: string;
+    cause?: any;
 };
 export type ResponseError = {
     [key: string]: any;
@@ -140,13 +147,13 @@ declare class Anvil {
     /**
      * @param {Object} data
      * @param {Object} data.variables
-     * @returns {Promise<{url?: string, errors?: Array<ResponseError>, statusCode: number}>}
+     * @returns {Promise<{url?: string, errors?: Array<ResponseError | NodeError>, statusCode: number}>}
      */
     generateEtchSignUrl({ variables }: {
         variables: any;
     }): Promise<{
         url?: string;
-        errors?: Array<ResponseError>;
+        errors?: Array<ResponseError | NodeError>;
         statusCode: number;
     }>;
     /**

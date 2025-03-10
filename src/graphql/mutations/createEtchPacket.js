@@ -3,6 +3,7 @@ const defaultResponseQuery = `{
   name
   status
   isTest
+  allowUpdates
   numberRemainingSigners
   detailsURL
   webhookURL
@@ -45,7 +46,8 @@ export const generateMutation = (responseQuery = defaultResponseQuery) => `
     $enableEmails: JSON,
     $createCastTemplatesFromUploads: Boolean,
     $duplicateCasts: Boolean,
-    $mergePDFs: Boolean
+    $mergePDFs: Boolean,
+    $allowUpdates: Boolean
   ) {
     createEtchPacket(
       name: $name,
@@ -65,6 +67,7 @@ export const generateMutation = (responseQuery = defaultResponseQuery) => `
       enableEmails: $enableEmails,
       createCastTemplatesFromUploads: $createCastTemplatesFromUploads,
       duplicateCasts: $duplicateCasts,
-      mergePDFs: $mergePDFs
+      mergePDFs: $mergePDFs,
+      allowUpdates: $allowUpdates
     ) ${responseQuery}
   }`

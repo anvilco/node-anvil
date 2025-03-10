@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [v3.3.2]
-- Update the default `createEtchPacket` mutation to suport `allowUpdates`[`#502`](https://github.com/anvilco/node-anvil/pull/502)
+- Update the default `createEtchPacket` mutation to support `allowUpdates`[`#502`](https://github.com/anvilco/node-anvil/pull/502)
 
 ## [v3.3.1]
 - Added a `NodeError` type. https://github.com/anvilco/node-anvil/issues/476

@@ -1,6 +1,6 @@
 {
   "name": "@anvilco/anvil",
-  "version": "3.3.2",
+  "version": "3.3.1",
   "description": "Anvil API Client",
   "author": "Anvil Foundry Inc.",
   "homepage": "https://github.com/anvilco/node-anvil#readme",

@@ -96,9 +96,11 @@ const anvilClient = new Anvil({ apiKey: 'abc123' })
 
 Fills a PDF template with your JSON data.
 
-First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/docs/api/fill-pdf#creating-a-pdf-template). You can find the PDF template's id on the `API Info` tab of your PDF template's page:
+First, you will need to have [uploaded a PDF to Anvil](https://useanvil.com/docs/api/fill-pdf#creating-a-pdf-template). You can find the PDF template's ID on PDF template's page:
 
-<img width="725" alt="pdf-template-id" src="https://user-images.githubusercontent.com/69169/73693549-4a598280-468b-11ea-81a3-5df4472de8a4.png">
+![PDF Template ID](./images/pdf-template-id.png)
+
+If you already have the URL to the page in Anvil, the ID is there as well: `https://app.useanvil.com/org/<your-org-slug>/pdf/<pdf-template-id>`
 
 An example:
 
@@ -136,7 +138,7 @@ fs.writeFileSync('filled.pdf', data, { encoding: null })
   * `title` (String) - _optional_ Set the title encoded into the PDF document
   * `fontSize` (Number) - _optional_ Set the fontSize of all filled text. Default is 10.
   * `color` (String) - _optional_ Set the text color of all filled text. Default is dark blue.
-  * `data` (Object) - The data to fill the PDF. The keys in this object will correspond to a field's ID in the PDF. These field IDs and their types are available on the `API Info` tab on your PDF template's page in the Anvil dashboard.
+  * `data` (Object) - The data to fill the PDF. The keys in this object will correspond to a field's ID in the PDF. These field IDs and their types are available on the PDF template's page in the Anvil dashboard.
     * For example `{ "someFieldId": "Hello World!" }`
 * `options` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'arrayBuffer'` and `'stream'` are also supported.

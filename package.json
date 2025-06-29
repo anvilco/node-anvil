@@ -77,7 +77,7 @@
     "eslint-plugin-react": "^7.29.4",
     "eslint-plugin-react-camel-case": "^1.1.1",
     "eslint-plugin-standard": "^5.0.0",
-    "mocha": "^10.0.0",
+    "mocha": "^11.0.1",
     "nodemon": "^3.0.1",
     "rimraf": "^5.0.0",
     "sinon": "^17.0.1",

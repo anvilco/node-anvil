@@ -995,6 +995,19 @@ describe('Anvil API Client', function () {
       expect(decoded).to.eql(`${apiKey}:`)
       expect(decoded.endsWith(':')).to.be.true
     })
+
+    it('sends JWT tokens as-is without base64 encoding', function () {
+      const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123signature'
+      const client = new Anvil({ accessToken: jwt })
+      expect(client.authHeader).to.eql(`Bearer ${jwt}`)
+    })
+
+    it('base64-encodes non-JWT access tokens', function () {
+      const token = 'plain-oauth-token'
+      const client = new Anvil({ accessToken: token })
+      const expected = `Bearer ${Buffer.from(token, 'ascii').toString('base64')}`
+      expect(client.authHeader).to.eql(expected)
+    })
   })
 
   describe('prepareGraphQLFile', function () {

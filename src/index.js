@@ -157,9 +157,13 @@ class Anvil {
     const { apiKey, accessToken } = this.options
     if (!(apiKey || accessToken)) throw new Error('apiKey or accessToken required')
 
-    this.authHeader = accessToken
-      ? `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
-      : `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
+    if (accessToken) {
+      this.authHeader = isJWT(accessToken)
+        ? `Bearer ${accessToken}`
+        : `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
+    } else {
+      this.authHeader = `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
+    }
 
     // Indicates that we have not dynamically set the Rate Limit from the API response
     this.hasSetLimiterFromResponse = false
@@ -847,6 +851,18 @@ function sleep (ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
+}
+
+/**
+ * Detects if a token is a JWT (three dot-separated base64url segments).
+ * @param {string} token
+ * @returns {boolean}
+ * @private
+ */
+function isJWT (token) {
+  if (!token || typeof token !== 'string') return false
+  const parts = token.split('.')
+  return parts.length === 3 && parts.every((part) => part.length > 0)
 }
 
 Anvil.VERSION_LATEST = VERSION_LATEST

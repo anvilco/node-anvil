@@ -948,6 +948,55 @@ describe('Anvil API Client', function () {
     })
   })
 
+  describe('version constants', function () {
+    it('exposes VERSION_LATEST as -1', function () {
+      expect(Anvil.VERSION_LATEST).to.eql(-1)
+    })
+
+    it('exposes VERSION_LATEST_PUBLISHED as -2', function () {
+      expect(Anvil.VERSION_LATEST_PUBLISHED).to.eql(-2)
+    })
+  })
+
+  describe('baseURL configuration', function () {
+    it('defaults to https://app.useanvil.com', function () {
+      const client = new Anvil({ apiKey: 'test-key' })
+      expect(client.options.baseURL).to.eql('https://app.useanvil.com')
+    })
+
+    it('accepts a custom baseURL', function () {
+      const client = new Anvil({ apiKey: 'test-key', baseURL: 'https://staging.useanvil.com' })
+      expect(client.options.baseURL).to.eql('https://staging.useanvil.com')
+    })
+  })
+
+  describe('OAuth edge cases', function () {
+    it('prefers accessToken over apiKey when both provided', function () {
+      const client = new Anvil({ apiKey: 'my-api-key', accessToken: 'my-token' })
+      expect(client.authHeader).to.include('Bearer')
+      expect(client.authHeader).to.not.include('Basic')
+    })
+
+    it('encodes accessToken without trailing colon', function () {
+      const accessToken = 'my-oauth-token'
+      const client = new Anvil({ accessToken })
+      const expected = `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
+      expect(client.authHeader).to.eql(expected)
+      // Ensure no colon was appended
+      const decoded = Buffer.from(client.authHeader.replace('Bearer ', ''), 'base64').toString('ascii')
+      expect(decoded).to.eql(accessToken)
+      expect(decoded).to.not.include(':')
+    })
+
+    it('encodes apiKey with trailing colon', function () {
+      const apiKey = 'my-api-key'
+      const client = new Anvil({ apiKey })
+      const decoded = Buffer.from(client.authHeader.replace('Basic ', ''), 'base64').toString('ascii')
+      expect(decoded).to.eql(`${apiKey}:`)
+      expect(decoded.endsWith(':')).to.be.true
+    })
+  })
+
   describe('prepareGraphQLFile', function () {
     it('works', function () {
       expect(() =>

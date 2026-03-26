@@ -388,9 +388,27 @@ Options for the Anvil Client. Defaults are shown after each option key.
 
 ```js
 {
-  apiKey: <your_api_key>, // Required. Your API key from your Anvil  organization settings
+  apiKey: <your_api_key>,       // Your API key from your Anvil organization settings
+  accessToken: <oauth_token>,   // OR an OAuth access token (Bearer auth)
+  baseURL: 'https://app.useanvil.com', // Advanced: override the base URL for API requests
 }
 ```
+
+At least one of `apiKey` or `accessToken` is required. If both are provided, `accessToken` takes precedence.
+
+**API Key Auth:**
+```js
+const client = new Anvil({ apiKey: 'your-api-key' })
+```
+
+**OAuth Auth:**
+```js
+const client = new Anvil({ accessToken: 'your-oauth-token' })
+```
+
+**Version Constants:**
+- `Anvil.VERSION_LATEST` (`-1`) — use the latest version (including drafts)
+- `Anvil.VERSION_LATEST_PUBLISHED` (`-2`) — use the latest published version (default)
 
 ### Rate Limits
 
@@ -431,3 +449,4 @@ yarn test
 # Watches the `src` and `test` directories
 yarn test:watch
 ```
+

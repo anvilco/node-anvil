@@ -65,9 +65,53 @@ const client = new Anvil({
 | Secret | Description |
 |--------|-------------|
 | `NPM_TOKEN` | npm authentication token for publishing |
+| `ANTHROPIC_API_KEY` | Anthropic API key for changelog generation |
+| `PUBLISH_PAT` | Personal access token with `contents: write` — needed to push the changelog commit and create GitHub Releases when branch protection is enabled. Falls back to `GITHUB_TOKEN` if not set (will fail if branch protection requires PR reviews). |
 
-## Publishing Guidelines
+## Changelog Generation
 
-- All PRs must pass lint and test checks before merging.
-- Publishing to npm is triggered automatically when changes are merged to `main`.
-- Ensure version bumps follow semver conventions before merging release PRs.
+The publish workflow automatically generates a changelog entry before publishing.
+You can also run it manually:
+
+```sh
+node scripts/generate-changelog.js <version>
+```
+
+The script:
+- If `CHANGELOG.md` has an `[Unreleased]` section with content, it stamps it
+  with the given version and today's date.
+- If there's no `[Unreleased]` content, it reads the git log since the last
+  tag and uses Claude to generate an entry.
+- A fresh empty `[Unreleased]` section is added above the new entry.
+
+## Publishing
+
+Publishing is tag-based. Merging to `main` does not publish — only pushing a
+version tag triggers a release.
+
+1. Bump the version in `package.json` in a PR and merge to `main`.
+2. Create and push a tag **from the main branch** matching the version:
+   ```sh
+   git checkout main && git pull
+   git tag v3.4.0
+   git push origin v3.4.0
+   ```
+3. The publish workflow will:
+   - Verify the tag is on the `main` branch (rejects tags on other branches)
+   - Verify the tag matches `package.json` (fails if they differ)
+   - Run lint and tests
+   - Generate a changelog entry and auto-commit it to `main`
+   - Validate the package with `npm pack --dry-run`
+   - Publish to npm with `--provenance` for supply chain attestation
+   - Create a GitHub Release with the changelog as release notes
+
+### Pre-release versions
+
+Tags like `v1.2.3-alpha.1` or `v1.2.3-beta.0` are detected as pre-releases.
+They publish to npm under the `next` tag (instead of `latest`) and the GitHub
+Release is marked as a pre-release.
+
+### Tag format
+
+Only tags matching `v<major>.<minor>.<patch>` trigger the workflow (e.g.,
+`v3.4.0`, `v3.4.0-alpha.1`). Tags like `latest` or `release` are ignored.

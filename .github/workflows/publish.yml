@@ -2,16 +2,42 @@ name: Publish to npm
 
 on:
   push:
-    branches: [main]
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
+    env:
+      GH_TOKEN: ${{ secrets.PUBLISH_PAT }}
     steps:
+      - name: Resolve token
+        id: token
+        run: echo "value=${GH_TOKEN:-${{ github.token }}}" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ steps.token.outputs.value }}
+
+      - name: Extract version from tag
+        id: tag
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Verify tag is on main branch
+        run: |
+          if ! git branch -r --contains ${{ github.ref_name }} | grep -q 'origin/main'; then
+            echo "::error::Tag ${{ github.ref_name }} is not on the main branch. Tags must be created from main."
+            exit 1
+          fi
 
       - name: Read .nvmrc
         id: nvmrc
@@ -24,6 +50,27 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: yarn
 
+      - name: Verify tag matches package.json version
+        run: |
+          MANIFEST_VERSION=$(node -p 'require("./package.json").version')
+          TAG_VERSION=${{ steps.tag.outputs.version }}
+          if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match package.json version ($MANIFEST_VERSION). Bump the version in package.json before tagging."
+            exit 1
+          fi
+
+      - name: Check for pre-release version
+        id: prerelease
+        run: |
+          VERSION=${{ steps.tag.outputs.version }}
+          if echo "$VERSION" | grep -qE '[-]'; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "npm_tag=next" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "npm_tag=latest" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
@@ -33,7 +80,46 @@ jobs:
       - name: Run tests
         run: yarn test
 
+      - name: Validate package
+        run: npm pack --dry-run
+
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish --access public --tag ${{ steps.prerelease.outputs.npm_tag }} --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Generate changelog entry
+        run: node scripts/generate-changelog.js ${{ steps.tag.outputs.version }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Commit changelog
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          branch: main
+          commit_message: "docs: update CHANGELOG.md for v${{ steps.tag.outputs.version }}"
+          file_pattern: CHANGELOG.md
+          token: ${{ steps.token.outputs.value }}
+
+      - name: Extract changelog for release notes
+        id: changelog
+        run: |
+          VERSION=${{ steps.tag.outputs.version }}
+          NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/{ /## \[${VERSION}\]/d; /## \[/d; p; }" CHANGELOG.md)
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "notes<<$EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.tag.outputs.version }}
+          body: ${{ steps.changelog.outputs.notes }}
+          prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+          token: ${{ steps.token.outputs.value }}

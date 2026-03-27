@@ -204,12 +204,10 @@ describe('Anvil API Client', function () {
         const result = await client.requestREST('/non-existing-endpoint', options, clientOptions)
         expect(result.statusCode).to.eql(404)
         expect(result.errors).to.be.an('array').of.length(1)
-        expect(result.errors[0]).to.include({
-          name: 'SyntaxError',
-          message: 'Unexpected token w in JSON at position 0',
-          code: undefined,
-          cause: undefined,
-        })
+        expect(result.errors[0].name).to.eql('SyntaxError')
+        expect(result.errors[0].message).to.match(/Unexpected token/)
+        expect(result.errors[0].code).to.eql(undefined)
+        expect(result.errors[0].cause).to.eql(undefined)
       })
 
       it('sets the rate limiter from the response headers', async function () {

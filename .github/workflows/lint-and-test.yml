@@ -97,10 +97,7 @@ jobs:
       - build-e2e-package
     strategy:
       matrix:
-        node-version: [14, 16, 18, 20]
-        include:
-          - node-version: 14
-            npm-version: 7
+        node-version: [18, 20, 22]
     steps:
     - uses: actions/checkout@v3
 
@@ -118,11 +115,6 @@ jobs:
         path: ${{ env.TARBALL_PATH }}
         key: ${{ runner.os }}-node-${{ needs.prepare-node.outputs.build-node-version }}-${{ env.GITHUB_SHA }}
 
-    # Some versions of Node (like Node 14) ships with a version of NPM that does not work for us
-    # so we need to install a specific version
-    - name: Optionally update NPM if needed
-      if: ${{ matrix.npm-version }}
-      run: npm i -g npm@${{ matrix.npm-version }}
     # Just make sure it installs correctly for now and we'll call it good. No testing.
     - run: yarn test-e2e:install
 

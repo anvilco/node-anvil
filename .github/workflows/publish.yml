@@ -39,14 +39,10 @@ jobs:
             exit 1
           fi
 
-      - name: Read .nvmrc
-        id: nvmrc
-        run: echo "node_version=$(cat .nvmrc | tr -d 'v')" >> $GITHUB_OUTPUT
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ steps.nvmrc.outputs.node_version }}
+          node-version-file: 'package.json'
           registry-url: 'https://registry.npmjs.org'
           cache: yarn
 

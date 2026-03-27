@@ -20,6 +20,10 @@
   "engines": {
     "node": ">=18"
   },
+  "volta": {
+    "node": "22.22.0",
+    "yarn": "1.22.22"
+  },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "@anvilco:registry": "https://registry.npmjs.org"

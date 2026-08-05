@@ -1,0 +1,21 @@
+# Language declaration for anvilco/marketing-site. Read at build time to source
+# the JavaScript and TypeScript SDK pages from this repo (one repo serves both).
+# `supported` is omitted so it derives from repo visibility (public = live).
+# TypeScript has no separate example files here, so its code samples fall back
+# to the marketing-site's committed content until .ts examples are added.
+products:
+  - generate
+  - fill
+  - sign
+packageManagerInstall: npm install @anvilco/anvil
+languages:
+  - key: javascript
+    label: JavaScript
+    slug: javascript
+    examples:
+      generate: example/script/generate-markdown-pdf.js
+      fill: example/script/fill-pdf.js
+      sign: example/script/create-etch-packet.js
+  - key: typescript
+    label: TypeScript
+    slug: typescript

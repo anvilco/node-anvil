@@ -1,5 +1,7 @@
 packageManagerInstall:
   - npm install @anvilco/anvil
+  - yarn add @anvilco/anvil
+  - pnpm add @anvilco/anvil
 languages:
   - key: javascript
     label: JavaScript

@@ -1,14 +1,7 @@
-products:
-  - generate
-  - fill
-  - sign
-packageManagerInstall: npm install @anvilco/anvil
+packageManagerInstall:
+  - npm install @anvilco/anvil
 languages:
   - key: javascript
     label: JavaScript
-    examples:
-      generate: example/script/generate-markdown-pdf.js
-      fill: example/script/fill-pdf.js
-      sign: example/script/create-etch-packet.js
   - key: typescript
     label: TypeScript

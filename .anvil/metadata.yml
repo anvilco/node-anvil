@@ -6,5 +6,7 @@ packageManagerInstall:
 languages:
   - key: javascript
     label: JavaScript
+    extension: js
   - key: typescript
     label: TypeScript
+    extension: ts

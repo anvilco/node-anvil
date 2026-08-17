@@ -1,0 +1,12 @@
+packageManagerInstall:
+  - npm install @anvilco/anvil
+  - yarn add @anvilco/anvil
+  - pnpm add @anvilco/anvil
+  - bun add @anvilco/anvil
+languages:
+  - key: javascript
+    label: JavaScript
+    extension: js
+  - key: typescript
+    label: TypeScript
+    extension: ts

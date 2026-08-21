@@ -15,7 +15,7 @@ module.exports = {
         // modules: 'commonjs',
         targets: {
           // Keep this roughly in-line with our "engines.node" value in package.json
-          node: '14',
+          node: '18',
         },
         exclude: [
           // Node 14+ supports this natively AND we need it to operate natively

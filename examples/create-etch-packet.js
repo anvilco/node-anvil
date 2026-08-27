@@ -37,6 +37,10 @@ async function createEtchPacket () {
       // your billed packets
       isTest: true,
 
+      // Set to true for interactive signing, where signers fill fields as they
+      // sign. Over the API that needs the Product pack or Enterprise plan
+      allowUpdates: false,
+
       name: `Test Docs - ${signerName}`,
       signatureEmailSubject: 'Custom email subject',
       signatureEmailBody: 'Custom please sign these documents....',

@@ -2,7 +2,7 @@
 // Docs: https://www.useanvil.com/docs/api/e-signatures
 //
 // Run it from a project with @anvilco/anvil installed:
-//   ANVIL_API_KEY=yourKey node create-etch-packet.js your.real.email@example.com
+//   ANVIL_API_KEY=yourKey node sign.js your.real.email@example.com
 //
 // A signature request email is sent to the address you pass, so use your real
 // email address. The new packet also appears in your dashboard's e-sign area.
@@ -13,7 +13,8 @@ import Anvil from '@anvilco/anvil'
 const apiKey = process.env.ANVIL_API_KEY ?? ''
 
 // A sample PDF template available to any account. See
-// https://www.useanvil.com/help/tutorials/set-up-a-pdf-template to set up your own
+// https://www.useanvil.com/help/tutorials/set-up-a-pdf-template
+// to set up your own
 const pdfTemplateID = '05xXsZko33JIO6aq5Pnr'
 
 const signerName = 'Testy Signer'
@@ -37,8 +38,9 @@ async function createEtchPacket () {
       // your billed packets
       isTest: true,
 
-      // Set to true for interactive signing, where signers fill fields as they
-      // sign. Over the API that needs the Product pack or Enterprise plan
+      // Set to true for interactive signing, where signers fill fields as
+      // they sign. Over the API that needs the Product pack or Enterprise
+      // plan
       allowUpdates: false,
 
       name: `Test Docs - ${signerName}`,
@@ -47,15 +49,16 @@ async function createEtchPacket () {
 
       files: [
         {
-          // Your own ID for referencing this file in `data` and `signers` below
+          // Your own ID for referencing this file in `data` and
+          // `signers` below
           id: 'sampleTemplate',
           castEid: pdfTemplateID,
         },
       ],
 
       data: {
-        // This data fills the PDF before it is sent to any signers. IDs here
-        // match the fields configured on the PDF template
+        // This data fills the PDF before it is sent to any signers. IDs
+        // here match the fields configured on the PDF template
         payloads: {
           sampleTemplate: {
             data: {
@@ -88,10 +91,14 @@ async function createEtchPacket () {
 
   if (errors) {
     // GraphQL can return a 200 status code even when there are errors
-    console.log('There were errors:', statusCode, JSON.stringify(errors, null, 2))
+    console.log(
+      'There were errors:', statusCode, JSON.stringify(errors, null, 2)
+    )
   } else {
     const packetDetails = data?.data?.createEtchPacket
-    console.log('Visit the new packet on your dashboard:', packetDetails?.detailsURL)
+    console.log(
+      'Visit the new packet on your dashboard:', packetDetails?.detailsURL
+    )
   }
 }
 

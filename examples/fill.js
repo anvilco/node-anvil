@@ -11,13 +11,14 @@ import Anvil from '@anvilco/anvil'
 const apiKey = process.env.ANVIL_API_KEY ?? ''
 
 // A sample PDF template available to any account. See
-// https://www.useanvil.com/help/tutorials/set-up-a-pdf-template to set up your own
+// https://www.useanvil.com/help/tutorials/set-up-a-pdf-template
+// to set up your own
 const pdfTemplateID = '05xXsZko33JIO6aq5Pnr'
 
 async function fillPDF () {
   const anvilClient = new Anvil({ apiKey })
 
-  const { statusCode, data, errors } = await anvilClient.fillPDF(pdfTemplateID, {
+  const payload = {
     title: 'My PDF Title',
     fontSize: 10,
     textColor: '#333333',
@@ -44,15 +45,20 @@ async function fillPDF () {
       percent: 50.3,
       longText: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
     },
-  })
+  }
+
+  const { statusCode, data, errors } =
+    await anvilClient.fillPDF(pdfTemplateID, payload)
 
   if (statusCode === 200 && data) {
-    // `data` is the filled PDF binary; save it with no encoding or the file
-    // will be corrupt
+    // `data` is the filled PDF binary; save it with no encoding or the
+    // file will be corrupt
     fs.writeFileSync('fill-output.pdf', data, { encoding: null })
     console.log('Filled PDF saved to fill-output.pdf')
   } else {
-    console.log('Error filling PDF:', statusCode, JSON.stringify(errors, null, 2))
+    console.log(
+      'Error filling PDF:', statusCode, JSON.stringify(errors, null, 2)
+    )
   }
 }
 

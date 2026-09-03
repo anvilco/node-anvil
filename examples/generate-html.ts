@@ -20,16 +20,18 @@ async function generateHTMLPDF () {
       html: `
         <h1 class='header-one'>What is Lorem Ipsum?</h1>
         <p>
-          Lorem Ipsum is simply dummy text of the printing and typesetting
-          industry. Lorem Ipsum has been the industry's standard dummy text
-          ever since the <strong>1500s</strong>, when an unknown printer took
-          a galley of type and scrambled it to make a type specimen book.
+          Lorem Ipsum is simply dummy text of the printing and
+          typesetting industry. Lorem Ipsum has been the industry's
+          standard dummy text ever since the <strong>1500s</strong>,
+          when an unknown printer took a galley of type and scrambled
+          it to make a type specimen book.
         </p>
         <h3 class='header-two'>Where does it come from?</h3>
         <p>
-          Contrary to popular belief, Lorem Ipsum is not simply random text.
-          It has roots in a piece of classical Latin literature from
-          <i>45 BC</i>, making it over <strong>2000</strong> years old.
+          Contrary to popular belief, Lorem Ipsum is not simply random
+          text. It has roots in a piece of classical Latin literature
+          from <i>45 BC</i>, making it over <strong>2000</strong> years
+          old.
         </p>
       `,
       css: `
@@ -41,12 +43,14 @@ async function generateHTMLPDF () {
   })
 
   if (statusCode === 200 && data) {
-    // `data` is the generated PDF binary; save it with no encoding or the file
-    // will be corrupt
+    // `data` is the generated PDF binary; save it with no encoding or the
+    // file will be corrupt
     fs.writeFileSync('generate-html-output.pdf', data, { encoding: null })
     console.log('Generated PDF saved to generate-html-output.pdf')
   } else {
-    console.log('Error generating PDF:', statusCode, JSON.stringify(errors, null, 2))
+    console.log(
+      'Error generating PDF:', statusCode, JSON.stringify(errors, null, 2)
+    )
   }
 }
 

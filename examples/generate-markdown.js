@@ -19,7 +19,12 @@ async function generateMarkdownPDF () {
       label: 'Name',
       content: 'Sally Jones',
     }, {
-      content: 'Lorem **ipsum** dolor sit _amet_, consectetur adipiscing elit, sed [do eiusmod](https://www.useanvil.com/docs) tempor incididunt ut labore et dolore magna aliqua.\n\n* Sagittis eu volutpat odio facilisis.\n\n* Erat nam at lectus urna.',
+      content: 'Lorem **ipsum** dolor sit _amet_, consectetur ' +
+        'adipiscing elit, sed ' +
+        '[do eiusmod](https://www.useanvil.com/docs) tempor ' +
+        'incididunt ut labore et dolore magna aliqua.\n\n' +
+        '* Sagittis eu volutpat odio facilisis.\n\n' +
+        '* Erat nam at lectus urna.',
     }, {
       table: {
         firstRowHeaders: true,
@@ -34,12 +39,16 @@ async function generateMarkdownPDF () {
   })
 
   if (statusCode === 200 && data) {
-    // `data` is the generated PDF binary; save it with no encoding or the file
-    // will be corrupt
-    fs.writeFileSync('generate-markdown-output.pdf', data, { encoding: null })
+    // `data` is the generated PDF binary; save it with no encoding or the
+    // file will be corrupt
+    fs.writeFileSync(
+      'generate-markdown-output.pdf', data, { encoding: null }
+    )
     console.log('Generated PDF saved to generate-markdown-output.pdf')
   } else {
-    console.log('Error generating PDF:', statusCode, JSON.stringify(errors, null, 2))
+    console.log(
+      'Error generating PDF:', statusCode, JSON.stringify(errors, null, 2)
+    )
   }
 }
 

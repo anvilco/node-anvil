@@ -34,16 +34,16 @@ export type NodeError = {
     cause?: any;
 };
 export type ResponseError = {
-    [key: string]: any;
     message: string;
     status?: number;
     name?: string;
     fields?: Array<ResponseErrorField>;
+    [key: string]: any;
 };
 export type ResponseErrorField = {
-    [key: string]: any;
     message: string;
     property?: string;
+    [key: string]: any;
 };
 export type Readable = {
     path: string;

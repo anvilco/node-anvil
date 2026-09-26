@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Unit tests for OAuth/Bearer auth header encoding, including precedence when both `apiKey` and `accessToken` are provided.
+- Unit tests for `baseURL` constructor configuration.
+- Unit tests for version constants (`VERSION_LATEST`, `VERSION_LATEST_PUBLISHED`).
+- Unit tests verifying API key trailing colon encoding and OAuth token encoding.
+- GitHub Actions publish workflow — publishes to npm on merge to main.
+- Integration test script at `scripts/integration-test.js`.
+- `CONTRIBUTING.md` with development setup, testing, CI/CD, and publishing documentation.
+
+### Changed
+- README updated with OAuth auth documentation and version constants reference.
+- `baseURL` documented as an advanced constructor option.
+
 ## [v3.3.2]
 - Update the default `createEtchPacket` mutation to support `allowUpdates`[`#502`](https://github.com/anvilco/node-anvil/pull/502)
 

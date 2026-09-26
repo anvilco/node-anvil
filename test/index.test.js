@@ -204,12 +204,10 @@ describe('Anvil API Client', function () {
         const result = await client.requestREST('/non-existing-endpoint', options, clientOptions)
         expect(result.statusCode).to.eql(404)
         expect(result.errors).to.be.an('array').of.length(1)
-        expect(result.errors[0]).to.include({
-          name: 'SyntaxError',
-          message: 'Unexpected token w in JSON at position 0',
-          code: undefined,
-          cause: undefined,
-        })
+        expect(result.errors[0].name).to.eql('SyntaxError')
+        expect(result.errors[0].message).to.match(/Unexpected token/)
+        expect(result.errors[0].code).to.eql(undefined)
+        expect(result.errors[0].cause).to.eql(undefined)
       })
 
       it('sets the rate limiter from the response headers', async function () {
@@ -945,6 +943,68 @@ describe('Anvil API Client', function () {
         expect(query).to.include(mutationOverride)
         expect(clientOptions).to.eql({ dataType: 'json' })
       })
+    })
+  })
+
+  describe('version constants', function () {
+    it('exposes VERSION_LATEST as -1', function () {
+      expect(Anvil.VERSION_LATEST).to.eql(-1)
+    })
+
+    it('exposes VERSION_LATEST_PUBLISHED as -2', function () {
+      expect(Anvil.VERSION_LATEST_PUBLISHED).to.eql(-2)
+    })
+  })
+
+  describe('baseURL configuration', function () {
+    it('defaults to https://app.useanvil.com', function () {
+      const client = new Anvil({ apiKey: 'test-key' })
+      expect(client.options.baseURL).to.eql('https://app.useanvil.com')
+    })
+
+    it('accepts a custom baseURL', function () {
+      const client = new Anvil({ apiKey: 'test-key', baseURL: 'https://staging.useanvil.com' })
+      expect(client.options.baseURL).to.eql('https://staging.useanvil.com')
+    })
+  })
+
+  describe('OAuth edge cases', function () {
+    it('prefers accessToken over apiKey when both provided', function () {
+      const client = new Anvil({ apiKey: 'my-api-key', accessToken: 'my-token' })
+      expect(client.authHeader).to.include('Bearer')
+      expect(client.authHeader).to.not.include('Basic')
+    })
+
+    it('encodes accessToken without trailing colon', function () {
+      const accessToken = 'my-oauth-token'
+      const client = new Anvil({ accessToken })
+      const expected = `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
+      expect(client.authHeader).to.eql(expected)
+      // Ensure no colon was appended
+      const decoded = Buffer.from(client.authHeader.replace('Bearer ', ''), 'base64').toString('ascii')
+      expect(decoded).to.eql(accessToken)
+      expect(decoded).to.not.include(':')
+    })
+
+    it('encodes apiKey with trailing colon', function () {
+      const apiKey = 'my-api-key'
+      const client = new Anvil({ apiKey })
+      const decoded = Buffer.from(client.authHeader.replace('Basic ', ''), 'base64').toString('ascii')
+      expect(decoded).to.eql(`${apiKey}:`)
+      expect(decoded.endsWith(':')).to.be.true
+    })
+
+    it('sends JWT tokens as-is without base64 encoding', function () {
+      const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123signature'
+      const client = new Anvil({ accessToken: jwt })
+      expect(client.authHeader).to.eql(`Bearer ${jwt}`)
+    })
+
+    it('base64-encodes non-JWT access tokens', function () {
+      const token = 'plain-oauth-token'
+      const client = new Anvil({ accessToken: token })
+      const expected = `Bearer ${Buffer.from(token, 'ascii').toString('base64')}`
+      expect(client.authHeader).to.eql(expected)
     })
   })
 

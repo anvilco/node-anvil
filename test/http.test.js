@@ -190,6 +190,19 @@ describe('Anvil API Client over HTTP', function () {
       expect(decodeAuthHeader(authorization, 'Bearer')).to.eql('my-access-token')
     })
 
+    it('sends Bearer auth with a JWT access token as-is', async function () {
+      const accessToken = [
+        Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url'),
+        Buffer.from(JSON.stringify({ sub: 'user123' })).toString('base64url'),
+        'c2lnbmF0dXJl',
+      ].join('.')
+      const client = createClient({ apiKey: undefined, accessToken })
+
+      await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+      expect(server.requests[0].headers.authorization).to.eql(`Bearer ${accessToken}`)
+    })
+
     it('sends the default User-Agent', async function () {
       const { version, description } = require('../package.json')
       const client = createClient()

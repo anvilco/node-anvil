@@ -109,6 +109,42 @@ describe('Anvil API Client', function () {
       expect(decoded).to.equal('def345')
     })
 
+    describe('when the accessToken is a JWT', function () {
+      function base64url (object) {
+        return Buffer.from(JSON.stringify(object)).toString('base64')
+          .replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
+      }
+
+      const header = base64url({ alg: 'HS256', typ: 'JWT' })
+      const payload = base64url({ sub: 'user123', aud: 'https://app.useanvil.com' })
+
+      it('sends the JWT as-is', async function () {
+        const accessToken = `${header}.${payload}.c2lnbmF0dXJl`
+        const client = new Anvil({ accessToken })
+        expect(client.authHeader).to.equal(`Bearer ${accessToken}`)
+      })
+
+      it('sends an unsigned JWT as-is', async function () {
+        const accessToken = `${base64url({ alg: 'none' })}.${payload}.`
+        const client = new Anvil({ accessToken })
+        expect(client.authHeader).to.equal(`Bearer ${accessToken}`)
+      })
+
+      it('base64 encodes a token that only looks like a JWT', async function () {
+        for (const accessToken of [
+          'a.b.c',
+          `${header}.${payload}`,
+          `${header}.${payload}.sig.extra`,
+          `${base64url({ typ: 'JWT' })}.${payload}.sig`,
+          `${header}.${base64url('a string')}.sig`,
+          `${header}.not-json.sig`,
+        ]) {
+          const client = new Anvil({ accessToken })
+          expect(client.authHeader).to.equal(`Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`)
+        }
+      })
+    })
+
     it('prefers the accessToken when both apiKey and accessToken passed in', async function () {
       const client = new Anvil({ apiKey: 'abc123', accessToken: 'def345' })
       expect(client.authHeader).to.equal(`Bearer ${Buffer.from('def345', 'ascii').toString('base64')}`)

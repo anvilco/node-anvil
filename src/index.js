@@ -134,6 +134,9 @@ const FILENAME_IGNORE_MESSAGE = 'If you think you can ignore this, please pass `
 
 const failBufferMS = 50
 
+// Three dot-separated base64url segments. The signature can be empty.
+const JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/
+
 class Anvil {
   // {
   //   apiKey: <yourAPIKey>,
@@ -157,9 +160,15 @@ class Anvil {
     const { apiKey, accessToken } = this.options
     if (!(apiKey || accessToken)) throw new Error('apiKey or accessToken required')
 
-    this.authHeader = accessToken
-      ? `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
-      : `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
+    if (accessToken) {
+      // Anvil's OAuth access tokens are JWTs, which the API wants as-is. Anything
+      // else is base64 encoded, which the API still accepts for backwards compatibility.
+      this.authHeader = isJWT(accessToken)
+        ? `Bearer ${accessToken}`
+        : `Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`
+    } else {
+      this.authHeader = `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
+    }
 
     // Indicates that we have not dynamically set the Rate Limit from the API response
     this.hasSetLimiterFromResponse = false
@@ -836,6 +845,37 @@ Anvil.UploadWithOptions = UploadWithOptions
  */
 function getRetryMS (retryAfterSeconds) {
   return Math.round((Math.abs(parseFloat(retryAfterSeconds)) || 0) * 1000) + failBufferMS
+}
+
+/**
+ * Whether a token is a JWT: three base64url segments where the header and
+ * payload decode to JSON objects. This is a bit stricter than the API's check,
+ * so anything it says yes to, the API will treat as a JWT too.
+ * @param {string} token
+ * @returns {boolean}
+ * @private
+ */
+function isJWT (token) {
+  if (typeof token !== 'string' || !JWT_RE.test(token)) {
+    return false
+  }
+
+  const [header, payload] = token.split('.').slice(0, 2).map(decodeJSONSegment)
+  return !!(header && payload && typeof header.alg === 'string')
+}
+
+/**
+ * @param {string} segment
+ * @returns {Object|undefined}
+ * @private
+ */
+function decodeJSONSegment (segment) {
+  try {
+    const decoded = JSON.parse(Buffer.from(segment, 'base64').toString('utf8'))
+    return decoded && typeof decoded === 'object' ? decoded : undefined
+  } catch (err) {
+    return undefined
+  }
 }
 
 /**

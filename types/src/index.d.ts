@@ -90,6 +90,10 @@ declare class Anvil {
     limiterSettingInProgress: boolean;
     rateLimiterSetupPromise: Promise<any>;
     rateLimiterPromiseResolver: (value: any) => void;
+    /** @type {number[]} */
+    requestTimes: number[];
+    limitTokens: number;
+    limitIntervalMs: number;
     /**
      * @param {Object} options
      * @param {number} options.tokens
@@ -97,9 +101,6 @@ declare class Anvil {
      * @private
      */
     private _setRateLimiter;
-    limitTokens: any;
-    limitIntervalMs: number;
-    limiter: RateLimiter;
     /**
      * Runs the createEtchPacket mutation.
      * @param {Object} data
@@ -235,6 +236,14 @@ declare class Anvil {
      * @private
      */
     private _throttle;
+    /**
+     * Waits until another request would keep us within limitTokens requests in any
+     * limitIntervalMs. The API counts requests the same way, over a sliding window, so
+     * this avoids 429s without holding back requests that are within the limit.
+     * @returns {Promise<void>}
+     * @private
+     */
+    private _waitForRateLimit;
 }
 declare namespace Anvil {
     export { UploadWithOptions };
@@ -242,7 +251,6 @@ declare namespace Anvil {
     export { VERSION_LATEST_PUBLISHED };
 }
 import { Stream } from 'stream';
-import { RateLimiter } from 'limiter';
 import UploadWithOptions from './UploadWithOptions';
 declare const VERSION_LATEST: -1;
 declare const VERSION_LATEST_PUBLISHED: -2;

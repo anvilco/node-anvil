@@ -47,7 +47,6 @@ __metadata:
     eslint-plugin-react-camel-case: "npm:^1.1.1"
     eslint-plugin-standard: "npm:^5.0.0"
     extract-files: "npm:^13"
-    limiter: "npm:^2.1.0"
     mocha: "npm:^10.0.0"
     nodemon: "npm:^3.0.1"
     rimraf: "npm:^5.0.0"
@@ -4405,13 +4404,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"just-performance@npm:4.3.0":
-  version: 4.3.0
-  resolution: "just-performance@npm:4.3.0"
-  checksum: 10c0/869bf2090332ca475859ca0566fc23e81be4d258cb882533876d6dfb3f912effcf5452d605dcfe6b63cfde083f45107a3fc7b166e1c82a09424abfca35c79dc0
-  languageName: node
-  linkType: hard
-
 "keyv@npm:^4.5.3":
   version: 4.5.3
   resolution: "keyv@npm:4.5.3"
@@ -4435,15 +4427,6 @@ __metadata:
     prelude-ls: "npm:^1.2.1"
     type-check: "npm:~0.4.0"
   checksum: 10c0/effb03cad7c89dfa5bd4f6989364bfc79994c2042ec5966cb9b95990e2edee5cd8969ddf42616a0373ac49fac1403437deaf6e9050fbbaa3546093a59b9ac94e
-  languageName: node
-  linkType: hard
-
-"limiter@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "limiter@npm:2.1.0"
-  dependencies:
-    just-performance: "npm:4.3.0"
-  checksum: 10c0/048ae59ddf9dce99ca8443ec6cd80d0f2149c1ff8b0e03fad7f7a00479813a452114834e3d7e15dc1073889d0ac27f755fa535f14d72551ec0a850402ba5ba34
   languageName: node
   linkType: hard
 

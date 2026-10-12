@@ -18,7 +18,7 @@
     "url": "git+https://github.com/anvilco/node-anvil.git"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",

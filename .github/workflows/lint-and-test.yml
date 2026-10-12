@@ -19,15 +19,15 @@ jobs:
       build-node-version: ${{ steps.setup-node.outputs.node-version }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Setup Node.js
       id: setup-node
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v7
       with:
         node-version-file: '.nvmrc'
         cache: 'yarn'
-    - run: yarn install
+    - run: yarn install --frozen-lockfile
 
   lint:
     name: Lint
@@ -35,15 +35,15 @@ jobs:
     needs: prepare-node
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v7
       with:
         node-version-file: '.nvmrc'
         cache: 'yarn'
 
-    - run: yarn install
+    - run: yarn install --frozen-lockfile
     - run: yarn lint:quiet
 
   unit-test:
@@ -51,17 +51,20 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - prepare-node
+    strategy:
+      matrix:
+        node-version: [18, 20, 22, 24]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Setup Node.js
       id: setup-node
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v7
       with:
-        node-version-file: '.nvmrc'
+        node-version: ${{ matrix.node-version }}
         cache: 'yarn'
-    - run: yarn install
+    - run: yarn install --frozen-lockfile
     - run: yarn test
 
   build-e2e-package:
@@ -70,23 +73,23 @@ jobs:
     needs: prepare-node
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Setup Node.js
       id: setup-node
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v7
       with:
         node-version-file: '.nvmrc'
         cache: 'yarn'
 
     - name: Cache Package Build
-      uses: actions/cache@v3
+      uses: actions/cache@v6
       with:
         # We'll cache this file
         path: ${{ env.TARBALL_PATH }}
         key: ${{ runner.os }}-node-${{ needs.prepare-node.outputs.build-node-version }}-${{ env.GITHUB_SHA }}
 
-    - run: yarn install
+    - run: yarn install --frozen-lockfile
     - run: yarn test-e2e:build
 
   supported-version-sanity-checks:
@@ -97,32 +100,24 @@ jobs:
       - build-e2e-package
     strategy:
       matrix:
-        node-version: [14, 16, 18, 20]
-        include:
-          - node-version: 14
-            npm-version: 7
+        node-version: [18, 20, 22, 24]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Setup Node.js
       id: setup-node
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'yarn'
 
     - name: Restore Cached Package Build
-      uses: actions/cache@v3
+      uses: actions/cache@v6
       with:
         # This is the file to cache / restore
         path: ${{ env.TARBALL_PATH }}
         key: ${{ runner.os }}-node-${{ needs.prepare-node.outputs.build-node-version }}-${{ env.GITHUB_SHA }}
 
-    # Some versions of Node (like Node 14) ships with a version of NPM that does not work for us
-    # so we need to install a specific version
-    - name: Optionally update NPM if needed
-      if: ${{ matrix.npm-version }}
-      run: npm i -g npm@${{ matrix.npm-version }}
     # Just make sure it installs correctly for now and we'll call it good. No testing.
     - run: yarn test-e2e:install
 

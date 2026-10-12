@@ -15,10 +15,10 @@ module.exports = {
         // modules: 'commonjs',
         targets: {
           // Keep this roughly in-line with our "engines.node" value in package.json
-          node: '14',
+          node: '18',
         },
         exclude: [
-          // Node 14+ supports this natively AND we need it to operate natively
+          // Node 18+ supports this natively AND we need it to operate natively
           // so do NOT transpile it
           'proposal-dynamic-import',
         ],

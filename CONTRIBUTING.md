@@ -4,27 +4,41 @@ How to work on the client and publish it. For using the client, see the [README]
 
 ## Development
 
-First install the dependencies
+Install the dependencies:
 
 ```sh
 yarn install
 ```
 
-Running tests
+Lint, and run the unit tests. `yarn test` also builds the client into `dist/` and its types into `types/`.
 
 ```sh
-yarn test
-yarn test:watch
-```
-
-Building with babel will output in the `/lib` directory.
-
-```sh
+yarn lint
 yarn test
 
 # Watches the `src` and `test` directories
 yarn test:watch
 ```
+
+Build the client into `dist/` without testing:
+
+```sh
+yarn build
+```
+
+## Testing against a real environment
+
+[`test-client.js`](test-client.js) builds the client, then runs every method against an Anvil environment and prints a `PASS`, `FAIL` or `SKIP` for each. It uses staging by default, and needs an API key for that environment:
+
+```sh
+ANVIL_API_KEY=<your staging API key> yarn test-client
+```
+
+* `ANVIL_BASE_URL` - _optional_ Test another environment instead, e.g. `http://localhost:3000`.
+* `ANVIL_PDF_TEMPLATE_ID` - _optional_ The PDF template to test `fillPDF` with. Defaults to the first template in your organization that has example data.
+* `ANVIL_FORGE_EID` - _optional_ The webform (Forge) in a Workflow to test `forgeSubmit` with. Defaults to the first one in your organization.
+
+Everything it creates is test data. It creates a test Etch packet each run, and removes the Workflow submission it creates.
 
 ## Publishing
 

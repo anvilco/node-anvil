@@ -18,7 +18,7 @@
     "url": "git+https://github.com/anvilco/node-anvil.git"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18.17"
   },
   "packageManager": "yarn@4.18.1",
   "volta": {
@@ -58,10 +58,9 @@
     "test-e2e:install": "npm --prefix test/e2e run prep && npm --prefix test/e2e install"
   },
   "dependencies": {
-    "@anvilco/node-fetch": "^3.3.3-beta.0",
-    "abort-controller": "^3.0.0",
     "extract-files": "^13",
-    "limiter": "^2.1.0"
+    "limiter": "^2.1.0",
+    "undici": "^6.29.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.22.10",

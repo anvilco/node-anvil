@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - BREAKING: Drop support for `Node 14` and `Node 16`. The minimum supported version is now `Node 18`.
 - Add support for `Node 22` and `Node 24`.
+- BREAKING: Use [undici](https://github.com/nodejs/undici)'s `fetch` instead of `node-fetch`. This fixes `Premature close` errors on complete responses, which node-fetch could raise when a response was read after its connection had closed. A response that really is cut short is now always an error, rather than truncated data.
+  - The `response` that REST methods resolve with is now undici's fetch `Response`.
+  - When a request can't be made at all, methods reject with `TypeError: fetch failed`, with details like `code: 'ECONNREFUSED'` in `error.cause`, instead of a node-fetch `FetchError`.
+  - Requests no longer go through Node's `http.globalAgent`, so proxy setups that patch it (like `global-agent`) no longer apply. Pass an undici `ProxyAgent` as the new `dispatcher` option instead.
+  - Options that only node-fetch supported, like `agent`, `timeout`, `size`, `follow` and `compress`, are ignored in `requestREST`'s `fetchOptions`.
+  - Requires `Node 18.17` or later.
+- Add a `dispatcher` option, for sending requests through your own undici `Dispatcher`, such as a `ProxyAgent`.
+- `requestREST` accepts a stream as `fetchOptions.body`.
+- Fix retrying an upload after a `429`. Files given as a path or a file stream are sent in full again. Other streams can only be read once, so the retry now fails with an error, rather than sending an empty file.
+- Fix uploading a file stream created with `start` or `end`, and a stream that yields strings.
+- Fix uploading a stream that has no `path`, like a `Readable` with a `filename` passed to `prepareGraphQLFile`.
+- Upload files that have no filename as `blob`, rather than as `undefined` or with no filename.
 - Send OAuth access tokens that are JWTs as-is (`Bearer <token>`). Other access tokens are still base64 encoded.
 
 ## [v3.3.2]

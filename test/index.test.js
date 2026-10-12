@@ -1,7 +1,6 @@
 import fs from 'fs'
 import path from 'path'
 
-import { RateLimiter } from 'limiter'
 import { Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
 
@@ -304,7 +303,6 @@ describe('Anvil API Client', function () {
         expect(client.rateLimiterSetupPromise).to.be.an.instanceof(Promise)
         expect(client.limitTokens).to.eql(1)
         expect(client.limitIntervalMs).to.eql(1000)
-        expect(client.limiter).to.be.an.instanceof(RateLimiter)
 
         client._request.callsFake((url, options) => {
           return Promise.resolve(
@@ -329,7 +327,6 @@ describe('Anvil API Client', function () {
         expect(client.hasSetLimiterFromResponse).to.eql(true)
         expect(client.limitTokens).to.eql(42)
         expect(client.limitIntervalMs).to.eql(4200)
-        expect(client.limiter).to.be.an.instanceof(RateLimiter)
       })
 
       it('retries when a 429 response', async function () {

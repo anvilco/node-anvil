@@ -42,7 +42,14 @@ function startServer (handler) {
         json,
         body,
         delayMS = 0,
+        destroy = false,
       } = (await handler(recorded, requests.length - 1)) || {}
+
+      // Drop the connection without responding
+      if (destroy) {
+        req.socket.destroy()
+        return
+      }
 
       if (delayMS) {
         await new Promise((resolve) => setTimeout(resolve, delayMS))
@@ -296,23 +303,92 @@ describe('Anvil API Client over HTTP', function () {
       }
     })
 
-    it('does not send more requests per interval than the server allows', async function () {
+    it('never sends more requests in any interval than the server allows', async function () {
       this.timeout(5000)
-      const intervalMs = 400
+      const intervalMs = 300
       handler = () => ({
         json: { data: { ok: true } },
         headers: { 'x-ratelimit-limit': '2', 'x-ratelimit-interval-ms': String(intervalMs) },
       })
       const client = createClient({ requestLimit: 2, requestLimitMS: intervalMs })
 
-      await Promise.all([1, 2, 3, 4].map(() =>
+      await Promise.all([1, 2, 3, 4, 5, 6].map(() =>
         client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' }),
       ))
 
-      expect(server.requests).to.have.length(4)
-      const start = server.requests[0].receivedAt
-      const inFirstInterval = server.requests.filter(({ receivedAt }) => receivedAt - start < intervalMs)
-      expect(inFirstInterval).to.have.length.at.most(2)
+      // The API counts requests over a sliding window, so check every window, not just
+      // the ones starting at the first request
+      const times = server.requests.map(({ receivedAt }) => receivedAt)
+      expect(times).to.have.length(6)
+      for (const time of times) {
+        const inWindow = times.filter((other) => other >= time && other - time < intervalMs)
+        expect(inWindow).to.have.length.at.most(2)
+      }
+    })
+
+    it('sends the first request right away', async function () {
+      // The default starting limit of 1 request per second
+      const client = new Anvil({ apiKey: 'test-api-key', baseURL: server.baseURL })
+
+      const start = Date.now()
+      await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+      expect(Date.now() - start).to.be.below(300)
+    })
+
+    it('does not hold back requests that are within the limit', async function () {
+      handler = () => ({
+        json: { data: { ok: true } },
+        headers: { 'x-ratelimit-limit': '5', 'x-ratelimit-interval-ms': '1000' },
+      })
+      const client = new Anvil({ apiKey: 'test-api-key', baseURL: server.baseURL })
+
+      const start = Date.now()
+      for (let i = 0; i < 5; i++) {
+        await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+      }
+
+      expect(server.requests).to.have.length(5)
+      expect(Date.now() - start).to.be.below(500)
+    })
+
+    it('waits for the interval from the server, not requestLimitMS', async function () {
+      handler = () => ({
+        json: { data: { ok: true } },
+        headers: { 'x-ratelimit-limit': '1', 'x-ratelimit-interval-ms': '200' },
+      })
+      // requestLimitMS defaults to 1000
+      const client = new Anvil({ apiKey: 'test-api-key', baseURL: server.baseURL })
+
+      await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+      await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+      const waitedMS = server.requests[1].receivedAt - server.requests[0].receivedAt
+      // 200ms interval + 50ms buffer
+      expect(waitedMS).to.be.within(240, 700)
+    })
+
+    it('lets waiting requests go ahead when the first request fails', async function () {
+      handler = (request, index) => index === 0 ? { destroy: true, delayMS: 50 } : { json: { data: { ok: true } } }
+      const client = createClient()
+
+      const results = await Promise.allSettled([1, 2, 3].map(() =>
+        client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' }),
+      ))
+
+      expect(results[0].status).to.eql('rejected')
+      expect(results[0].reason.message).to.eql('fetch failed')
+      expect(results.slice(1).map(({ status, value }) => status === 'fulfilled' && value.statusCode)).to.eql([200, 200])
+    })
+
+    it('falls back to 1 request per second when the starting limits are invalid', async function () {
+      const client = createClient({ requestLimit: 0, requestLimitMS: -5 })
+      expect(client.limitTokens).to.eql(1)
+      expect(client.limitIntervalMs).to.eql(1000)
+
+      const { statusCode } = await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
     })
 
     it('retries a 429 after retry-after seconds plus a 50ms buffer', async function () {

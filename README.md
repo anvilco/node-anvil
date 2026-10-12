@@ -618,6 +618,8 @@ They also throw for invalid arguments, like an unsupported `dataType`.
 
 Our API has request rate limits in place. The initial request made by this client will parse the limits for your account from the `X-RateLimit-Limit` and `X-RateLimit-Interval-Ms` response headers, and then handle the throttling of subsequent requests for you automatically. Any requests made while waiting for that first response will wait for it before being sent.
 
+Like the API, the client counts requests over a sliding window: it only holds a request back when `X-RateLimit-Limit` requests have already been sent in the last `X-RateLimit-Interval-Ms`.
+
 In the event that this client still receives a `429 Too Many Requests` error response, it will wait for the number of seconds in the `Retry-After` header, plus 50ms, then retry the request.
 
 See the [Anvil API docs](https://www.useanvil.com/docs/api/getting-started/#rate-limits) for more information on the specifics of the rate limits.

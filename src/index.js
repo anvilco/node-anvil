@@ -1,8 +1,8 @@
 import fs from 'fs'
 import { basename } from 'path'
+import { performance } from 'perf_hooks'
 import { Readable as NodeReadable, Stream } from 'stream'
 
-import { RateLimiter } from 'limiter'
 import { Agent, fetch, FormData } from 'undici'
 
 import UploadWithOptions from './UploadWithOptions'
@@ -185,7 +185,13 @@ class Anvil {
       this.rateLimiterPromiseResolver = resolve
     })
 
-    // Set our initial limiter
+    // When the requests in the current rate limit window were sent, oldest first
+    /** @type {number[]} */
+    this.requestTimes = []
+
+    // Set our initial limits, falling back to 1 request per second if those given are invalid
+    this.limitTokens = 1
+    this.limitIntervalMs = 1000
     this._setRateLimiter({ tokens: this.options.requestLimit, intervalMs: this.options.requestLimitMS })
   }
 
@@ -196,35 +202,14 @@ class Anvil {
    * @private
    */
   _setRateLimiter ({ tokens, intervalMs }) {
-    if (
-      // Both must be truthy
-      !(tokens && intervalMs) ||
-      // Things should not be the same as they already are
-      (this.limitTokens === tokens && this.limitIntervalMs === intervalMs)
-    ) {
+    // Both must be positive numbers
+    if (!(tokens > 0 && intervalMs > 0)) {
       return
     }
 
-    const newLimiter = new RateLimiter({ tokensPerInterval: tokens, interval: intervalMs })
-
-    // If we already had a limiter, let's try to pick up where it left off
-    if (this.limiter) {
-      const tokensInUse = Math.max(
-        // getTokensRemaining() can return a decimal, so we round it down
-        // so as to be conservative about potentially hitting the API again
-        this.limitTokens - Math.floor(this.limiter.getTokensRemaining()),
-        0,
-      )
-      const tokensToRemove = Math.min(tokens, tokensInUse)
-      if (tokensToRemove) {
-        newLimiter.tryRemoveTokens(tokensToRemove)
-      }
-      delete this.limiter
-    }
-
+    // requestTimes carries over, so requests already sent still count against the new limits
     this.limitTokens = tokens
     this.limitIntervalMs = intervalMs
-    this.limiter = newLimiter
   }
 
   /**
@@ -686,7 +671,18 @@ class Anvil {
   _wrapRequest (retryableRequestFn, clientOptions = {}) {
     return this._throttle(async (retry) => {
       let { dataType, debug } = clientOptions
-      const response = await retryableRequestFn()
+      let response
+      try {
+        response = await retryableRequestFn()
+      } catch (err) {
+        if (!this.hasSetLimiterFromResponse) {
+          // There won't be a response to set the limits from, so let any requests waiting for
+          // one go ahead at the starting limits, rather than waiting forever
+          this.limiterSettingInProgress = false
+          this.rateLimiterPromiseResolver()
+        }
+        throw err
+      }
 
       if (!this.hasSetLimiterFromResponse) {
         // OK, this is the response sets the rate-limiter values from the
@@ -850,16 +846,41 @@ class Anvil {
       }
     }
 
-    const remainingRequests = await this.limiter.removeTokens(1)
-    if (remainingRequests < 1) {
-      await sleep(this.options.requestLimitMS + failBufferMS)
-    }
+    await this._waitForRateLimit()
     const retry = async (ms) => {
       await sleep(ms)
       return this._throttle(fn)
     }
 
     return fn(retry)
+  }
+
+  /**
+   * Waits until another request would keep us within limitTokens requests in any
+   * limitIntervalMs. The API counts requests the same way, over a sliding window, so
+   * this avoids 429s without holding back requests that are within the limit.
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _waitForRateLimit () {
+    for (;;) {
+      // Not Date.now(), so that changes to the system clock can't hold requests up
+      const now = performance.now()
+      // Requests sent before this no longer count. The buffer allows for requests that
+      // were sent further apart than they arrive.
+      const windowStart = now - this.limitIntervalMs - failBufferMS
+      while (this.requestTimes.length && this.requestTimes[0] <= windowStart) {
+        this.requestTimes.shift()
+      }
+
+      if (this.requestTimes.length < this.limitTokens) {
+        this.requestTimes.push(now)
+        return
+      }
+
+      // Wait for the oldest request to leave the window, then check again
+      await sleep(this.requestTimes[0] - windowStart)
+    }
   }
 }
 

@@ -59,7 +59,6 @@
   },
   "dependencies": {
     "extract-files": "^13",
-    "limiter": "^2.1.0",
     "undici": "^6.29.0"
   },
   "devDependencies": {

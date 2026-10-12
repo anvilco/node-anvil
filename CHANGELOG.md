@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `requestREST` accepts a stream as `fetchOptions.body`.
 - Fix retrying an upload after a `429`. Files given as a path or a file stream are sent in full again. Other streams can only be read once, so the retry now fails with an error, rather than sending an empty file.
 - Fix uploading a file stream created with `start` or `end`, and a stream that yields strings.
+- Stop delaying requests that are within the rate limit. Every client's first request used to wait about a second, and so did any request that used up the last of the limit. The client now counts requests over a sliding window, like the API does, and only waits when the limit has been reached. This drops the `limiter` dependency.
+- Fix a client hanging forever if its first request failed, e.g. because of a network error.
 - Fix uploading a stream that has no `path`, like a `Readable` with a `filename` passed to `prepareGraphQLFile`.
 - Upload files that have no filename as `blob`, rather than as `undefined` or with no filename.
 - Send OAuth access tokens that are JWTs as-is (`Bearer <token>`). Other access tokens are still base64 encoded.

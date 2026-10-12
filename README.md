@@ -431,3 +431,34 @@ yarn test
 # Watches the `src` and `test` directories
 yarn test:watch
 ```
+
+### Publishing
+
+Publishing to npm is done by the [Publish workflow](.github/workflows/publish.yml) when a version tag is pushed. Merging to `main` does not publish anything.
+
+1. In a PR, bump `version` in `package.json` and rename the `[Unreleased]` section of `CHANGELOG.md` to the new version, e.g. `[v4.0.0]`. Merge it to `main`.
+1. Tag that commit on `main` and push the tag:
+   ```sh
+   git checkout main && git pull
+   git tag v4.0.0
+   git push origin v4.0.0
+   ```
+
+The workflow then:
+
+1. Checks the tag is on `main` and matches the `package.json` version.
+1. Lints, tests and builds the commit that was tagged.
+1. Publishes to npm. Versions like `v4.0.0` go to the `latest` dist-tag. Pre-releases like `v4.0.0-beta.1` go to a dist-tag named after their label (`beta`), and are marked as pre-releases on GitHub.
+1. Creates a GitHub release, using that version's `CHANGELOG.md` section as the release notes.
+
+#### Setup
+
+The workflow uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers), so there is no npm token to store in GitHub secrets. Before the first release, a maintainer of the npm package needs to add a trusted publisher on npmjs.com, under the package's Settings:
+
+* Publisher: GitHub Actions
+* Organization or user: `anvilco`
+* Repository: `node-anvil`
+* Workflow filename: `publish.yml`
+* Allow `npm publish`
+
+npm automatically adds [provenance](https://docs.npmjs.com/generating-provenance-statements) to packages published this way. No GitHub secrets are needed: the release is created with the workflow's own `GITHUB_TOKEN`.

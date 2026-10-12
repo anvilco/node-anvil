@@ -96,6 +96,57 @@ describe('Anvil API Client', function () {
       const client = new Anvil({ accessToken })
       expect(client.authHeader).to.equal(`Bearer ${Buffer.from(accessToken, 'ascii').toString('base64')}`)
     })
+
+    it('puts a trailing colon after the apiKey before encoding', async function () {
+      const client = new Anvil({ apiKey: 'abc123' })
+      const decoded = Buffer.from(client.authHeader.replace('Basic ', ''), 'base64').toString('ascii')
+      expect(decoded).to.equal('abc123:')
+    })
+
+    it('does not put a trailing colon after the accessToken', async function () {
+      const client = new Anvil({ accessToken: 'def345' })
+      const decoded = Buffer.from(client.authHeader.replace('Bearer ', ''), 'base64').toString('ascii')
+      expect(decoded).to.equal('def345')
+    })
+
+    it('prefers the accessToken when both apiKey and accessToken passed in', async function () {
+      const client = new Anvil({ apiKey: 'abc123', accessToken: 'def345' })
+      expect(client.authHeader).to.equal(`Bearer ${Buffer.from('def345', 'ascii').toString('base64')}`)
+    })
+
+    it('defaults the baseURL to production', async function () {
+      const client = new Anvil({ apiKey: 'abc123' })
+      expect(client.options.baseURL).to.equal('https://app.useanvil.com')
+      expect(client._url('/graphql')).to.equal('https://app.useanvil.com/graphql')
+    })
+
+    it('accepts a custom baseURL', async function () {
+      const client = new Anvil({ apiKey: 'abc123', baseURL: 'https://staging.useanvil.com' })
+      expect(client.options.baseURL).to.equal('https://staging.useanvil.com')
+      expect(client._url('/graphql')).to.equal('https://staging.useanvil.com/graphql')
+    })
+
+    it('starts with a limit of 1 request per second', async function () {
+      const client = new Anvil({ apiKey: 'abc123' })
+      expect(client.limitTokens).to.equal(1)
+      expect(client.limitIntervalMs).to.equal(1000)
+    })
+
+    it('accepts custom starting rate limits', async function () {
+      const client = new Anvil({ apiKey: 'abc123', requestLimit: 5, requestLimitMS: 500 })
+      expect(client.limitTokens).to.equal(5)
+      expect(client.limitIntervalMs).to.equal(500)
+    })
+  })
+
+  describe('version constants', function () {
+    it('exposes VERSION_LATEST as -1', function () {
+      expect(Anvil.VERSION_LATEST).to.equal(-1)
+    })
+
+    it('exposes VERSION_LATEST_PUBLISHED as -2', function () {
+      expect(Anvil.VERSION_LATEST_PUBLISHED).to.equal(-2)
+    })
   })
 
   describe('REST endpoints', function () {
@@ -206,10 +257,11 @@ describe('Anvil API Client', function () {
         expect(result.errors).to.be.an('array').of.length(1)
         expect(result.errors[0]).to.include({
           name: 'SyntaxError',
-          message: 'Unexpected token w in JSON at position 0',
           code: undefined,
           cause: undefined,
         })
+        // The wording of this message changed in Node 20
+        expect(result.errors[0].message).to.match(/^Unexpected token/)
       })
 
       it('sets the rate limiter from the response headers', async function () {
@@ -964,6 +1016,51 @@ describe('Anvil API Client', function () {
       expect(uploadWithOptions.streamLikeThing).to.be.ok
       expect(uploadWithOptions.formDataAppendOptions).to.include({
         filename: 'test.pdf',
+      })
+    })
+
+    it('returns an UploadWithOptions', function () {
+      const uploadWithOptions = Anvil.prepareGraphQLFile(Buffer.from('test'), { filename: 'test.pdf' })
+      expect(uploadWithOptions).to.be.an.instanceof(Anvil.UploadWithOptions)
+      expect(uploadWithOptions.file).to.equal(uploadWithOptions.streamLikeThing)
+      expect(uploadWithOptions.options).to.equal(uploadWithOptions.formDataAppendOptions)
+    })
+
+    it('accepts a path to a file without a filename', function () {
+      const filePath = path.join(assetsDir, 'dummy.pdf')
+      const uploadWithOptions = Anvil.prepareGraphQLFile(filePath)
+      expect(uploadWithOptions.file).to.equal(filePath)
+      expect(uploadWithOptions.options).to.eql({})
+    })
+
+    it('accepts a file stream without a filename', function () {
+      const stream = fs.createReadStream(path.join(assetsDir, 'dummy.pdf'))
+      const uploadWithOptions = Anvil.prepareGraphQLFile(stream)
+      expect(uploadWithOptions.file).to.equal(stream)
+      stream.destroy()
+    })
+
+    it('accepts a File-like object with a name without a filename', function () {
+      const file = { name: 'from-a-file.pdf' }
+      const uploadWithOptions = Anvil.prepareGraphQLFile(file)
+      expect(uploadWithOptions.file).to.equal(file)
+    })
+
+    it('requires a filename for things that do not have a name or path', function () {
+      class Blobby {}
+      expect(() => Anvil.prepareGraphQLFile(new Blobby()))
+        .to.throw('When passing a Blobby to prepareGraphQLFile, `options.filename` must be provided.')
+    })
+
+    it('passes the filename and mimetype through, but not ignoreFilenameValidation', function () {
+      const uploadWithOptions = Anvil.prepareGraphQLFile(Buffer.from('test'), {
+        filename: 'test.pdf',
+        mimetype: 'application/pdf',
+        ignoreFilenameValidation: true,
+      })
+      expect(uploadWithOptions.options).to.eql({
+        filename: 'test.pdf',
+        mimetype: 'application/pdf',
       })
     })
   })

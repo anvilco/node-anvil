@@ -1,9 +1,9 @@
 import fs from 'fs'
-// We are only importing this for the type..
-import { Stream } from 'stream' // eslint-disable-line no-unused-vars
+import { basename } from 'path'
+import { Readable as NodeReadable, Stream } from 'stream'
 
-import AbortController from 'abort-controller'
 import { RateLimiter } from 'limiter'
+import { Agent, fetch, FormData } from 'undici'
 
 import UploadWithOptions from './UploadWithOptions'
 import { version, description } from '../package.json'
@@ -17,9 +17,6 @@ import {
 class Warning extends Error {}
 
 let extractFiles
-let FormDataModule
-let Fetch
-let fetch
 
 /**
  * @typedef AnvilOptions
@@ -30,6 +27,8 @@ let fetch
  * @property {string} [userAgent]
  * @property {number} [requestLimit]
  * @property {number} [requestLimitMS]
+ * @property {import('undici').Dispatcher} [dispatcher] An undici dispatcher to send requests
+ *   with, e.g. a ProxyAgent. Defaults to an Agent of the client's own.
  */
 
 /**
@@ -48,9 +47,9 @@ let fetch
  * @typedef RESTResponse
  * @type {Object}
  * @property {number} statusCode
- * @property {Buffer|Stream|Object} [data]
+ * @property {Buffer|ArrayBuffer|Stream|Object} [data]
  * @property {Array<ResponseError | NodeError>} [errors]
- * @property {any} [response] node-fetch Response
+ * @property {import('undici').Response} [response] The fetch Response
  */
 
 /** @typedef {{
@@ -133,6 +132,12 @@ const defaultOptions = {
 const FILENAME_IGNORE_MESSAGE = 'If you think you can ignore this, please pass `options.ignoreFilenameValidation` as `true`.'
 
 const failBufferMS = 50
+
+// Our own connection pool. Without one, undici uses a process-wide default that, on
+// Node 18 and 20, Node's own older copy of undici takes over as soon as anything touches
+// the global fetch, FormData or Headers. That copy doesn't notice when a chunked response
+// is cut short, and would hand back truncated data as a success.
+const defaultDispatcher = new Agent()
 
 // Three dot-separated base64url segments. The signature can be empty.
 const JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/
@@ -483,12 +488,13 @@ class Anvil {
     }
 
     if (filesMap.size) {
-      // @ts-ignore
       const abortController = new AbortController()
-      Fetch ??= await import('@anvilco/node-fetch')
-      // This is a dependency of 'node-fetch'`
-      FormDataModule ??= await import('formdata-polyfill/esm.min.js')
-      const form = new FormDataModule.FormData()
+      // If a file stream errors, cancel the API call
+      const abortOnError = (stream) => stream.on('error', (err) => {
+        console.warn(err)
+        abortController.abort()
+      })
+      const form = new FormData()
 
       form.append('operations', operationJSON)
 
@@ -513,41 +519,59 @@ class Anvil {
           throw new Error('No file provided. Options were: ' + JSON.stringify(options))
         }
 
-        // If this is a stream-like thing, attach a listener to the 'error' event so that we
-        // can cancel the API call if something goes wrong
+        // If this is a stream-like thing, cancel the API call if something goes wrong with it
         if (typeof file.on === 'function') {
-          file.on('error', (err) => {
-            console.warn(err)
-            abortController.abort()
-          })
+          abortOnError(file)
         }
 
         // If file a path to a file?
         if (typeof file === 'string') {
-          file = Fetch.fileFromSync(file, mimetype)
-        } else if (file instanceof Buffer) {
-          const buffer = file
-          // https://developer.mozilla.org/en-US/docs/Web/API/File/File
-          file = new Fetch.File(
-            [buffer],
-            filename,
-            {
-              type: mimetype,
-            },
-          )
-        } else if (file instanceof Stream) {
-          // https://github.com/node-fetch/node-fetch#post-data-using-a-file
-          const stream = file
-          file = {
-            [Symbol.toStringTag]: 'File',
-            // @ts-ignore
-            size: fs.statSync(stream.path).size,
-            stream: () => stream,
+          const filePath = file
+          filename ??= basename(filePath)
+          // Only opened when the request is sent, and streamed rather than read into memory.
+          // Opened again if the request is retried.
+          file = streamedFile(() => abortOnError(fs.createReadStream(filePath)), {
+            name: filename,
+            size: fs.statSync(filePath).size,
             type: mimetype,
-          }
-
+          })
+        } else if (file instanceof Buffer) {
+          // https://developer.mozilla.org/en-US/docs/Web/API/Blob/Blob
+          file = new Blob([file], { type: mimetype })
+        } else if (file instanceof Stream) {
+          const stream = file
           // @ts-ignore
-          filename ??= stream.path.split('/').pop()
+          const streamPath = typeof stream.path === 'string' ? stream.path : undefined
+          filename ??= streamPath && basename(streamPath)
+
+          let getStream
+          let size
+          if (streamPath) {
+            // A file stream: we know its size, and can open it again if the request is retried
+            // @ts-ignore
+            const { start = 0, end = Infinity } = stream
+            const fileSize = fs.statSync(streamPath).size
+            size = Math.max(Math.min(end + 1, fileSize) - start, 0)
+            let used = false
+            getStream = () => {
+              if (!used) {
+                used = true
+                return stream
+              }
+              return abortOnError(fs.createReadStream(streamPath, { start, end }))
+            }
+          } else {
+            // Any other stream can only be read once, and is sent without a size
+            let used = false
+            getStream = () => {
+              if (used) {
+                throw new Error(`Can't send ${filename || 'a stream'} again because its stream has already been read. To upload a file in a request that may be retried, pass a path, a file stream or a Buffer.`)
+              }
+              used = true
+              return stream
+            }
+          }
+          file = streamedFile(getStream, { name: filename, size, type: mimetype })
         } else if (file.constructor.name !== 'File') {
           // Like a Blob or something
           if (!filename) {
@@ -563,11 +587,19 @@ class Anvil {
         }
 
         // https://developer.mozilla.org/en-US/docs/Web/API/FormData/append
-        form.append(`${++i}`, file, filename)
+        // Passing an undefined filename would name the file "undefined"
+        if (filename === undefined) {
+          form.append(`${++i}`, file)
+        } else {
+          form.append(`${++i}`, file, filename)
+        }
       })
 
       options.signal = abortController.signal
       options.body = form
+      // When following redirects, fetch keeps a copy of the body to send again, and that
+      // copy would buffer every file in memory. The API doesn't redirect uploads.
+      options.redirect = 'error'
     } else {
       options.headers['Content-Type'] = 'application/json'
       options.body = operationJSON
@@ -624,26 +656,24 @@ class Anvil {
   // USERS OF THIS MODULE SHOULD NOT USE ANY OF THESE METHODS DIRECTLY
   // ******************************************************************************
 
-  async _request (...args) {
-    // Only load Fetch once per module process lifetime
-    Fetch = Fetch || await import('@anvilco/node-fetch')
-    fetch = Fetch.default
-    // Monkey-patch so we only try any of this once per Anvil Client instance
-    this._request = this.__request
-    return this._request(...args)
-  }
-
   /**
    * @param {string} url
    * @param {Object} options
-   * @returns {Promise}
+   * @returns {Promise<import('undici').Response>}
    * @private
    */
-  __request (url, options) {
+  _request (url, options) {
     if (!url.startsWith(this.options.baseURL)) {
       url = this._url(url)
     }
-    const opts = this._addDefaultHeaders(options)
+    const opts = {
+      dispatcher: this.options.dispatcher || defaultDispatcher,
+      ...this._addDefaultHeaders(options),
+    }
+    // fetch needs this to send a stream body
+    if (isStreamBody(opts.body) && !opts.duplex) {
+      opts.duplex = 'half'
+    }
     return fetch(url, opts)
   }
 
@@ -712,14 +742,11 @@ class Anvil {
 
       switch (dataType) {
         case DATA_TYPE_STREAM:
-          data = response.body
+          // fetch gives a web ReadableStream, but we've always returned a Node stream
+          data = response.body ? NodeReadable.fromWeb(response.body) : NodeReadable.from([])
           break
         case DATA_TYPE_BUFFER:
-          // Will ask for it as an arrayBuffer (to avoid deprecation warning) but then convert it to a
-          // Node Buffer.
-          // https://github.com/node-fetch/node-fetch/pull/1212
-          // https://github.com/node-fetch/node-fetch/pull/1345
-          // https://github.com/anvilco/node-anvil/pull/442
+          // fetch only gives an ArrayBuffer, so convert it to a Node Buffer
           data = Buffer.from(await response.arrayBuffer())
           break
         case DATA_TYPE_ARRAY_BUFFER:
@@ -876,6 +903,45 @@ function decodeJSONSegment (segment) {
   } catch (err) {
     return undefined
   }
+}
+
+/**
+ * A File-like object whose contents come from a stream. FormData reads it with
+ * stream(), so the file is sent without reading it all into memory.
+ * @param {() => any} getStream A function that returns a Node stream, opened when the file is sent
+ * @param {Object} options
+ * @param {string} [options.name]
+ * @param {number} [options.size] Leave out if unknown. The request is then sent chunked.
+ * @param {string} [options.type]
+ * @returns {Object}
+ * @private
+ */
+function streamedFile (getStream, { name, size, type }) {
+  return {
+    [Symbol.toStringTag]: 'File',
+    // Without a name, the part would have no filename and the API would treat it as text
+    name: name || 'blob',
+    size,
+    type: type || '',
+    // FormData only handles chunks that are bytes, and stops at an empty one
+    stream: async function * () {
+      for await (const chunk of getStream()) {
+        const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : chunk
+        if (bytes.length) {
+          yield bytes
+        }
+      }
+    },
+  }
+}
+
+/**
+ * @param {any} body
+ * @returns {boolean}
+ * @private
+ */
+function isStreamBody (body) {
+  return !!body && (body instanceof Stream || typeof body.getReader === 'function')
 }
 
 /**

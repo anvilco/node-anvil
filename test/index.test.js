@@ -2,7 +2,10 @@ import fs from 'fs'
 import path from 'path'
 
 import { RateLimiter } from 'limiter'
-import { AbortSignal } from 'abort-controller'
+import { Readable } from 'stream'
+import { ReadableStream } from 'stream/web'
+
+import { FormData } from 'undici'
 
 import Anvil from '../index'
 
@@ -62,13 +65,7 @@ function fakeThrottle (fn) {
   return fn(() => fakeThrottle(fn))
 }
 
-let FormDataModule
-
 describe('Anvil API Client', function () {
-  before(async function () {
-    FormDataModule ??= await import('formdata-polyfill/esm.min.js')
-  })
-
   beforeEach(function () {
     sinon.stub(Anvil.prototype, '_throttle').callsFake(fakeThrottle)
   })
@@ -541,7 +538,12 @@ describe('Anvil API Client', function () {
     describe('downloadDocuments', function () {
       def('statusCode', 200)
       def('buffer', 'This would be Zip file data buffer...')
-      def('body', 'This would be Zip file data stream')
+      def('body', () => new ReadableStream({
+        start (controller) {
+          controller.enqueue(Buffer.from('This would be Zip file data stream'))
+          controller.close()
+        },
+      }))
       def('nodeFetchResponse', () => mockNodeFetchResponse({
         status: $.statusCode,
         buffer: $.buffer,
@@ -578,7 +580,11 @@ describe('Anvil API Client', function () {
           const { statusCode, response, data, errors } = await client.downloadDocuments('docGroupEid123', { dataType: 'stream' })
           expect(statusCode).to.eql(200)
           expect(response).to.deep.eql($.nodeFetchResponse)
-          expect(data).to.eql($.body)
+          // A Node stream, made from the response's web stream
+          expect(data).to.be.an.instanceof(Readable)
+          const chunks = []
+          for await (const chunk of data) chunks.push(chunk)
+          expect(Buffer.concat(chunks).toString()).to.eql('This would be Zip file data stream')
           expect(errors).to.be.undefined
         })
       })
@@ -664,7 +670,7 @@ describe('Anvil API Client', function () {
 
       describe('with files', function () {
         beforeEach(function () {
-          sinon.spy(FormDataModule.FormData.prototype, 'append')
+          sinon.spy(FormData.prototype, 'append')
         })
 
         describe('schema is good', function () {
@@ -703,10 +709,10 @@ describe('Anvil API Client', function () {
               expect(JSON.parse(body).variables).to.eql($.variables)
             } else {
               expect(headers).to.eql({}) // node-fetch will add appropriate header
-              expect(body).to.be.an.instanceof(FormDataModule.FormData)
+              expect(body).to.be.an.instanceof(FormData)
               expect(signal).to.be.an.instanceof(AbortSignal)
               expect(
-                FormDataModule.FormData.prototype.append.withArgs(
+                FormData.prototype.append.withArgs(
                   'map',
                   JSON.stringify({ 1: ['variables.aNested.file'] }),
                 ),

@@ -18,7 +18,7 @@ Learn more on our [Anvil developer page](https://www.useanvil.com/developers/). 
 
 This library and the Anvil APIs are intended to be used on a server or server-like environment. It will fail in a browser environment.
 
-Requires Node 18 or later.
+Requires Node 18.17 or later.
 
 ```sh
 yarn add @anvilco/anvil
@@ -471,7 +471,7 @@ const result = await this.requestREST(
 ```
 
 * `url` (String) - URL from the baseURL. e.g. `/api/v1/fill`
-* `fetchOptions` (Object) - Options passed to [node-fetch](https://github.com/node-fetch/node-fetch)
+* `fetchOptions` (Object) - Options passed to [fetch](https://undici.nodejs.org/#/docs/api/Fetch). The client uses [undici](https://github.com/nodejs/undici)'s `fetch`.
 * `clientOptions` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, `'arrayBuffer'`, `'stream'`, and `'json'` are also supported.
 * Returns a `Promise` that resolves to an `Object`
@@ -486,7 +486,7 @@ const result = await this.requestREST(
 
 ##### prepareGraphQLFile(pathOrStreamLikeThing[, options])
 
-A nice helper to prepare a [File](https://developer.mozilla.org/en-US/docs/Web/API/File) upload for use with our GraphQL API. By default, this will upload your files as multipart uploads over the [jaydenseric / GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec). We use `node-fetch` under the hood, and you can see [this example](https://github.com/node-fetch/node-fetch#post-data-using-a-file) to get a bit of an understanding of what's happening behind the scenes. NOTE: Please see below about certain scenarios where you may need to manually provide a `filename`.
+A nice helper to prepare a [File](https://developer.mozilla.org/en-US/docs/Web/API/File) upload for use with our GraphQL API. By default, this will upload your files as multipart uploads over the [jaydenseric / GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec). Files given as a path or a stream are streamed to the API rather than read into memory first. If a request has to be retried (see [Rate Limits](#rate-limits)), files given as a path, a file stream or a `Buffer` are sent again; any other stream can only be read once, so the retry fails with an error instead. NOTE: Please see below about certain scenarios where you may need to manually provide a `filename`.
 
 * `pathOrSupportedInstance` (String | File | Blob | Stream | Buffer) - Can be one of several things. Here's a list of what's supported, in order of preference:
   1. A `File` instance.
@@ -521,6 +521,10 @@ Options for the Anvil Client. Defaults are shown after each option key.
   // the API tells the client your actual limits. See Rate Limits.
   requestLimit: 1,
   requestLimitMS: 1000,
+
+  // An undici Dispatcher to send requests with, e.g. to use a proxy:
+  // new ProxyAgent('http://proxy.example.com:8080'). Defaults to the client's own Agent.
+  dispatcher: <undici_dispatcher>,
 }
 ```
 
@@ -595,7 +599,20 @@ if (errors) {
   [{ name: 'SyntaxError', message: 'Unexpected end of JSON input', stack: '...' }]
   ```
 
-The methods do reject when a request can't be made at all, e.g. because of a network error. They also throw for invalid arguments, like an unsupported `dataType`.
+The methods do reject when a request can't be made at all, e.g. because of a network error. These are `fetch` errors, with details in `cause`:
+
+```js
+try {
+  await anvilClient.fillPDF(pdfTemplateID, payload)
+} catch (error) {
+  console.log(error.message) // 'fetch failed'
+  console.log(error.cause.code) // e.g. 'ECONNREFUSED'
+}
+```
+
+If the connection closes before the whole response arrives, a method that returns binary data (like `fillPDF` or `downloadDocuments`) rejects with `TypeError: terminated`. One that returns JSON resolves with `errors: [{ name: 'TypeError', message: 'terminated' }]`.
+
+They also throw for invalid arguments, like an unsupported `dataType`.
 
 ### Rate Limits
 

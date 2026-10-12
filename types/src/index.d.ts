@@ -6,6 +6,11 @@ export type AnvilOptions = {
     userAgent?: string;
     requestLimit?: number;
     requestLimitMS?: number;
+    /**
+     * An undici dispatcher to send requests
+     * with, e.g. a ProxyAgent. Defaults to an Agent of the client's own.
+     */
+    dispatcher?: import('undici').Dispatcher;
 };
 export type GraphQLResponse = {
     statusCode: number;
@@ -19,12 +24,12 @@ export type GraphQLResponseData = {
 };
 export type RESTResponse = {
     statusCode: number;
-    data?: Buffer | Stream | any;
+    data?: Buffer | ArrayBuffer | Stream | any;
     errors?: Array<ResponseError | NodeError>;
     /**
-     * node-fetch Response
+     * The fetch Response
      */
-    response?: any;
+    response?: import('undici').Response;
 };
 export type NodeError = {
     name: string;
@@ -74,6 +79,11 @@ declare class Anvil {
         userAgent: string;
         requestLimit: number;
         requestLimitMS: number;
+        /**
+         * An undici dispatcher to send requests
+         * with, e.g. a ProxyAgent. Defaults to an Agent of the client's own.
+         */
+        dispatcher?: import("undici/types/dispatcher").default;
     };
     authHeader: string;
     hasSetLimiterFromResponse: boolean;
@@ -184,14 +194,13 @@ declare class Anvil {
      * @returns {Promise<RESTResponse>}
      */
     requestREST(url: string, fetchOptions: any, clientOptions?: any): Promise<RESTResponse>;
-    _request(...args: any[]): any;
     /**
      * @param {string} url
      * @param {Object} options
-     * @returns {Promise}
+     * @returns {Promise<import('undici').Response>}
      * @private
      */
-    private __request;
+    private _request;
     /**
      * @param {CallableFunction} retryableRequestFn
      * @param {Object} [clientOptions]

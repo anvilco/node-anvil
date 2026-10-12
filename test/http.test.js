@@ -1,6 +1,10 @@
 import fs from 'fs'
 import http from 'http'
+import net from 'net'
 import path from 'path'
+import { Readable } from 'stream'
+
+import { Agent } from 'undici'
 
 import Anvil from '../index'
 
@@ -60,7 +64,11 @@ function startServer (handler) {
       resolve({
         baseURL: `http://127.0.0.1:${port}`,
         requests,
-        close: () => new Promise((resolve) => server.close(resolve)),
+        close: () => new Promise((resolve) => {
+          server.close(resolve)
+          // Node 18 waits for keep-alive connections to time out otherwise
+          server.closeAllConnections()
+        }),
       })
     })
   })
@@ -413,9 +421,12 @@ describe('Anvil API Client over HTTP', function () {
       const client = createClient()
       await server.close()
 
-      await expect(
-        client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' }),
-      ).to.be.rejectedWith(/ECONNREFUSED/)
+      const error = await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+        .then(() => null, (err) => err)
+
+      expect(error).to.be.an.instanceof(TypeError)
+      expect(error.message).to.eql('fetch failed')
+      expect(error.cause.code).to.eql('ECONNREFUSED')
     })
   })
 
@@ -499,6 +510,136 @@ describe('Anvil API Client over HTTP', function () {
       expect(getPart(request, '2')).to.include('filename="b.pdf"')
     })
 
+    it('sends a file from a path using its own filename, with a Content-Length', async function () {
+      const client = createClient()
+      const filePath = path.join(assetsDir, 'dummy.pdf')
+
+      await client.createEtchPacket({
+        variables: { files: [{ id: 'file1', file: Anvil.prepareGraphQLFile(filePath) }] },
+      })
+
+      const [request] = server.requests
+      expect(request.headers['content-length']).to.eql(String(request.body.length))
+      expect(getPart(request, '1')).to.include('filename="dummy.pdf"')
+      expect(Buffer.from(getPartBody(getPart(request, '1')), 'latin1')).to.eql(fs.readFileSync(filePath))
+    })
+
+    it('sends a stream that has no path, using the given filename', async function () {
+      const client = createClient()
+      const file = Anvil.prepareGraphQLFile(Readable.from([Buffer.from('%PDF-1.7 '), Buffer.from('streamed')]), {
+        filename: 'from-a-stream.pdf',
+        mimetype: 'application/pdf',
+      })
+
+      await client.createEtchPacket({ variables: { files: [{ id: 'file1', file }] } })
+
+      const [request] = server.requests
+      // Its size isn't known up front, so the request is chunked
+      expect(request.headers['transfer-encoding']).to.eql('chunked')
+      const filePart = getPart(request, '1')
+      expect(filePart).to.include('filename="from-a-stream.pdf"')
+      expect(filePart).to.include('Content-Type: application/pdf')
+      expect(getPartBody(filePart)).to.eql('%PDF-1.7 streamed')
+    })
+
+    it('does not name a file "undefined" when there is no filename', async function () {
+      const client = createClient()
+      const file = Anvil.prepareGraphQLFile(Buffer.from('data'), { ignoreFilenameValidation: true })
+
+      await client.createEtchPacket({ variables: { files: [{ id: 'file1', file }] } })
+
+      const filePart = getPart(server.requests[0], '1')
+      expect(filePart).to.include('filename="blob"')
+      expect(getPartBody(filePart)).to.eql('data')
+    })
+
+    it('sends a stream of strings', async function () {
+      const client = createClient()
+      const file = Anvil.prepareGraphQLFile(Readable.from(['%PDF-1.7 ', '', 'from strings']), { filename: 'strings.pdf' })
+
+      await client.createEtchPacket({ variables: { files: [{ id: 'file1', file }] } })
+
+      expect(getPartBody(getPart(server.requests[0], '1'))).to.eql('%PDF-1.7 from strings')
+    })
+
+    it('sends only the part of a file stream between its start and end', async function () {
+      const client = createClient()
+      const filePath = path.join(assetsDir, 'dummy.pdf')
+      const file = fs.createReadStream(filePath, { start: 10, end: 99 })
+
+      await client.createEtchPacket({ variables: { files: [{ id: 'file1', file }] } })
+
+      const [request] = server.requests
+      expect(request.headers['content-length']).to.eql(String(request.body.length))
+      expect(Buffer.from(getPartBody(getPart(request, '1')), 'latin1')).to.eql(fs.readFileSync(filePath).subarray(10, 100))
+    })
+
+    it('names a stream with no path or filename "blob"', async function () {
+      const client = createClient()
+      const file = Anvil.prepareGraphQLFile(Readable.from([Buffer.from('data')]), { ignoreFilenameValidation: true })
+
+      await client.createEtchPacket({ variables: { files: [{ id: 'file1', file }] } })
+
+      expect(getPart(server.requests[0], '1')).to.include('filename="blob"')
+    })
+
+    describe('when the upload is retried after a 429', function () {
+      const filePath = path.join(assetsDir, 'dummy.pdf')
+
+      beforeEach(function () {
+        handler = (request, index) => index === 0
+          ? { status: 429, headers: { 'retry-after': '0' } }
+          : { json: { data: { ok: true } } }
+      })
+
+      it('sends a file from a path in full again', async function () {
+        const client = createClient()
+
+        const { statusCode } = await client.createEtchPacket({
+          variables: { files: [{ id: 'file1', file: Anvil.prepareGraphQLFile(filePath) }] },
+        })
+
+        expect(statusCode).to.eql(200)
+        expect(server.requests).to.have.length(2)
+        expect(Buffer.from(getPartBody(getPart(server.requests[1], '1')), 'latin1')).to.eql(fs.readFileSync(filePath))
+      })
+
+      it('sends a file stream in full again', async function () {
+        const client = createClient()
+
+        const { statusCode } = await client.createEtchPacket({
+          variables: { files: [{ id: 'file1', file: fs.createReadStream(filePath) }] },
+        })
+
+        expect(statusCode).to.eql(200)
+        expect(server.requests).to.have.length(2)
+        expect(Buffer.from(getPartBody(getPart(server.requests[1], '1')), 'latin1')).to.eql(fs.readFileSync(filePath))
+      })
+
+      it('fails, rather than sending an empty file, for a stream that can only be read once', async function () {
+        const client = createClient()
+        const file = Anvil.prepareGraphQLFile(Readable.from([Buffer.from('data')]), { filename: 'once.pdf' })
+
+        const error = await client.createEtchPacket({ variables: { files: [{ id: 'file1', file }] } })
+          .then(() => null, (err) => err)
+
+        expect(server.requests).to.have.length(1)
+        expect(error.message).to.eql('fetch failed')
+        expect(error.cause.message).to.match(/^Can't send once.pdf again because its stream has already been read/)
+      })
+    })
+
+    it('does not follow redirects for uploads', async function () {
+      handler = () => ({ status: 307, headers: { location: '/graphql-elsewhere' } })
+      const client = createClient()
+
+      await expect(client.createEtchPacket({
+        variables: { files: [{ id: 'file1', file: Anvil.prepareGraphQLFile(Buffer.from('data'), { filename: 'a.pdf' }) }] },
+      })).to.be.rejectedWith('fetch failed')
+
+      expect(server.requests).to.have.length(1)
+    })
+
     it('sends a base64 upload as plain JSON', async function () {
       const client = createClient()
       const file = {
@@ -512,6 +653,149 @@ describe('Anvil API Client over HTTP', function () {
       const [request] = server.requests
       expect(request.headers['content-type']).to.eql('application/json')
       expect(JSON.parse(request.body.toString()).variables.files[0].file).to.eql(file)
+    })
+  })
+
+  describe('responses', function () {
+    it('returns a Node stream for dataType stream', async function () {
+      handler = () => ({ body: 'zip data' })
+      const client = createClient()
+
+      const { data } = await client.downloadDocuments('docGroupEid123', { dataType: 'stream' })
+
+      expect(data).to.be.an.instanceof(Readable)
+      const chunks = []
+      for await (const chunk of data) chunks.push(chunk)
+      expect(Buffer.concat(chunks).toString()).to.eql('zip data')
+    })
+
+    it('sends a stream body passed to requestREST', async function () {
+      handler = () => ({ json: { ok: true } })
+      const client = createClient()
+
+      const { statusCode } = await client.requestREST('/api/v1/upload', {
+        method: 'POST',
+        body: Readable.from([Buffer.from('streamed '), Buffer.from('body')]),
+      }, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
+      expect(server.requests[0].body.toString()).to.eql('streamed body')
+    })
+
+    it('sends requests with the dispatcher option', async function () {
+      let dispatched = 0
+      class CountingAgent extends Agent {
+        dispatch (options, handler) {
+          dispatched++
+          return super.dispatch(options, handler)
+        }
+      }
+      const client = createClient({ dispatcher: new CountingAgent() })
+
+      await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+      expect(dispatched).to.eql(1)
+      expect(server.requests).to.have.length(1)
+    })
+
+    it('follows a redirect to another host without sending the Authorization header', async function () {
+      const storage = await startServer(() => ({ body: 'zip data' }))
+      handler = () => ({ status: 302, headers: { location: `${storage.baseURL}/signed/docs.zip` } })
+      const client = createClient()
+
+      try {
+        const { statusCode, data } = await client.downloadDocuments('docGroupEid123')
+
+        expect(statusCode).to.eql(200)
+        expect(data.toString()).to.eql('zip data')
+        expect(server.requests[0].headers.authorization).to.match(/^Basic /)
+        expect(storage.requests[0].url).to.eql('/signed/docs.zip')
+        expect(storage.requests[0].headers.authorization).to.be.undefined
+      } finally {
+        await storage.close()
+      }
+    })
+
+    // https://github.com/anvilco/anvil/issues/4626
+    describe('chunked responses', function () {
+      const json = JSON.stringify({ data: { weldData: { eid: 'x'.repeat(2000) } } })
+      const chunk = (string) => `${Buffer.byteLength(string).toString(16)}\r\n${string}\r\n`
+      const head = 'HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n'
+
+      let rawServer
+      let writes
+
+      // A raw TCP server, so we control exactly how the response is split into packets
+      beforeEach(async function () {
+        rawServer = net.createServer((socket) => {
+          socket.once('data', async () => {
+            socket.setNoDelay(true)
+            for (const write of writes.slice(0, -1)) {
+              socket.write(write)
+              await new Promise((resolve) => setTimeout(resolve, 20))
+            }
+            // Close in the same write as the last bytes
+            socket.end(writes[writes.length - 1])
+          })
+        })
+        await new Promise((resolve) => rawServer.listen(0, '127.0.0.1', resolve))
+      })
+
+      afterEach(function () {
+        rawServer.close()
+      })
+
+      function createRawClient () {
+        return new Anvil({
+          apiKey: 'test-api-key',
+          baseURL: `http://127.0.0.1:${rawServer.address().port}`,
+          requestLimit: 10,
+        })
+      }
+
+      for (const [description, ending] of [
+        ['in one packet', ['0\r\n\r\n']],
+        ['split "0\\r\\n\\r" | "\\n"', ['0\r\n\r', '\n']],
+        ['split "0\\r\\n" | "\\r\\n"', ['0\r\n', '\r\n']],
+        ['followed by a trailer', ['0\r\nX-Done: yes\r\n\r\n']],
+      ]) {
+        it(`reads a complete response whose last chunk arrives ${description}`, async function () {
+          writes = [
+            head + 'Content-Type: application/octet-stream\r\n\r\n',
+            chunk(json.slice(0, 1000)) + chunk(json.slice(1000)),
+            ...ending,
+          ]
+          const client = createRawClient()
+
+          const { statusCode, data } = await client.requestREST('/graphql', { method: 'POST' }, { dataType: 'stream' })
+          // Like a busy app, don't read the body until after the connection has closed
+          await new Promise((resolve) => setTimeout(resolve, 100))
+          const chunks = []
+          for await (const chunk of data) chunks.push(chunk)
+          const text = Buffer.concat(chunks).toString()
+
+          expect(statusCode).to.eql(200)
+          expect(text).to.eql(json)
+        })
+      }
+
+      it('fails when the connection closes before the response is complete', async function () {
+        writes = [head + 'Content-Type: application/pdf\r\n\r\n', chunk('%PDF-1.7 the first part')]
+        const client = createRawClient()
+
+        await expect(client.fillPDF('castEid123', { data: {} })).to.be.rejectedWith(/terminated/)
+      })
+
+      it('returns an error when the connection closes before a JSON response is complete', async function () {
+        writes = [head + 'Content-Type: application/json\r\n\r\n', chunk(json.slice(0, 1000))]
+        const client = createRawClient()
+
+        const { statusCode, errors } = await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+        expect(statusCode).to.eql(200)
+        expect(errors).to.have.length(1)
+        expect(errors[0].message).to.eql('terminated')
+      })
     })
   })
 })

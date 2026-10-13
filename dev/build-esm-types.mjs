@@ -23,8 +23,13 @@ function copyDir (from, to) {
       copyDir(fromPath, path.join(to, name))
     } else if (name.endsWith('.d.ts')) {
       let text = fs.readFileSync(fromPath, 'utf8')
-      // Relative imports must point at the .d.mts copies, and ESM needs the extension
-      text = text.replace(/(from |import\()(['"])(\.\.?\/[^'"]+?)(\.js)?\2/g, '$1$2$3.mjs$2')
+      // Relative imports must point at the .d.mts copies, and ESM needs the full path:
+      // the extension, and index for a directory
+      text = text.replace(/(from |import\()(['"])(\.\.?\/[^'"]+?)(\.js)?\2/g, (match, prefix, quote, specifier) => {
+        const target = path.resolve(from, specifier)
+        const isDirectory = !fs.existsSync(`${target}.d.ts`) && fs.existsSync(target) && fs.statSync(target).isDirectory()
+        return `${prefix}${quote}${specifier}${isDirectory ? '/index' : ''}.mjs${quote}`
+      })
       // The source map is for the .d.ts, not this copy
       text = text.replace(/^\/\/# sourceMappingURL=.*\n?/m, '')
       fs.writeFileSync(path.join(to, name.replace(/\.d\.ts$/, '.d.mts')), text)

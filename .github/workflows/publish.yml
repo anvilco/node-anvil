@@ -19,7 +19,7 @@ jobs:
   # install scripts never run where they could get a publishing token.
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     outputs:
       dist-tag: ${{ steps.dist-tag.outputs.tag }}
       prerelease: ${{ steps.dist-tag.outputs.prerelease }}
@@ -93,7 +93,7 @@ jobs:
   publish:
     name: Publish to npm
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       # To create the GitHub release
       contents: write

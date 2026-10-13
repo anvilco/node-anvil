@@ -14,7 +14,7 @@ jobs:
   # Several things need this, so we do it up front once for caching/performance
   prepare-node:
     name: Prepare Node
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     outputs:
       build-node-version: ${{ steps.setup-node.outputs.node-version }}
 
@@ -31,7 +31,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: prepare-node
 
     steps:
@@ -48,7 +48,7 @@ jobs:
 
   unit-test:
     name: Unit Test
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs:
       - prepare-node
     strategy:
@@ -69,7 +69,7 @@ jobs:
 
   build-e2e-package:
     name: Build E2E Package
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: prepare-node
 
     steps:
@@ -94,7 +94,7 @@ jobs:
 
   supported-version-sanity-checks:
     name: Sanity Checks
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs:
       - prepare-node
       - build-e2e-package

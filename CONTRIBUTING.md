@@ -4,6 +4,8 @@ How to work on the client and publish it. For using the client, see the [README]
 
 ## Development
 
+The Node and Yarn versions to use are pinned in `package.json`, under `volta` and `packageManager`. With [Volta](https://volta.sh) installed, both are picked up automatically. Without it, use Node 24 and run `corepack enable` once, which makes `yarn` the pinned version.
+
 Install the dependencies:
 
 ```sh

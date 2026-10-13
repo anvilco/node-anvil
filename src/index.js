@@ -600,6 +600,7 @@ class Anvil {
     }
 
     const {
+      response,
       statusCode,
       data,
       errors,
@@ -607,6 +608,11 @@ class Anvil {
       () => this._request('/graphql', options),
       clientOptions,
     )
+
+    // The response isn't returned, so nothing else could read a body that wasn't needed
+    if (response && !response.bodyUsed) {
+      await discardBody(response)
+    }
 
     return {
       statusCode,
@@ -686,9 +692,11 @@ class Anvil {
    * @returns {Promise<*>}
    * @private
    */
-  _wrapRequest (retryableRequestFn, clientOptions = {}) {
+  _wrapRequest (retryableRequestFn, clientOptions) {
     return this._throttle(async (retry) => {
-      let { dataType, debug } = clientOptions
+      // Nothing before the try below may throw: a throw here on the first request would
+      // leave the gate in _throttle closed, and every later request waiting on it
+      let { dataType, debug } = clientOptions || {}
       let response
       try {
         response = await retryableRequestFn()
@@ -721,6 +729,7 @@ class Anvil {
       const { status: statusCode, statusText } = response
 
       if (statusCode === 429) {
+        await discardBody(response)
         return retry(getRetryMS(response.headers.get('retry-after')))
       }
 
@@ -994,6 +1003,22 @@ class StreamedFile extends File {
     } catch (err) {
       this.onError(err)
     }
+  }
+}
+
+/**
+ * Reads and throws away a response body that nothing is going to use. Until it has
+ * been read, the body holds on to its pooled connection, and the next request has
+ * to open another.
+ * @param {import('undici').Response} response
+ * @returns {Promise<void>}
+ * @private
+ */
+async function discardBody (response) {
+  try {
+    await response.arrayBuffer()
+  } catch (err) {
+    // A body that can't be read isn't holding a connection
   }
 }
 

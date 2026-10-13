@@ -33,6 +33,8 @@ function startServer (handler) {
         headers: req.headers,
         body: Buffer.concat(chunks),
         receivedAt: Date.now(),
+        // Identifies the connection, to see whether requests reuse them
+        connection: req.socket.remotePort,
       }
       requests.push(recorded)
 
@@ -381,6 +383,19 @@ describe('Anvil API Client over HTTP', function () {
       expect(results.slice(1).map(({ status, value }) => status === 'fulfilled' && value.statusCode)).to.eql([200, 200])
     })
 
+    it('accepts null client options, even on the first request', async function () {
+      // This used to throw before the request was sent, which left the gate for the
+      // first response closed and every later request waiting on it forever
+      const client = createClient()
+
+      const first = await client.requestREST('/api/v1/generate-pdf', { method: 'GET' }, null)
+      expect(first.statusCode).to.eql(200)
+
+      const { statusCode } = await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+      expect(statusCode).to.eql(200)
+      expect(server.requests).to.have.length(2)
+    })
+
     it('falls back to 1 request per second when the starting limits are invalid', async function () {
       const client = createClient({ requestLimit: 0, requestLimitMS: -5 })
       expect(client.limitTokens).to.eql(1)
@@ -435,6 +450,42 @@ describe('Anvil API Client over HTTP', function () {
 
       expect(statusCode).to.eql(200)
       expect(server.requests).to.have.length(4)
+    })
+  })
+
+  describe('connections', function () {
+    // A response body that is never read holds on to its connection, so the next
+    // request has to open another. Bodies that nothing will use are read and discarded.
+    const bigBody = 'x'.repeat(200 * 1024)
+    const connections = () => new Set(server.requests.map(({ connection }) => connection)).size
+
+    it('reuses the connection after retrying a 429 that had a body', async function () {
+      handler = (request, index) => index < 3
+        ? { status: 429, headers: { 'retry-after': '0' }, body: bigBody }
+        : { json: { data: { ok: true } } }
+      const client = createClient()
+
+      const { statusCode } = await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
+      expect(server.requests).to.have.length(4)
+      expect(connections()).to.eql(1)
+    })
+
+    it('reuses the connection after a non-JSON error response to a GraphQL request', async function () {
+      handler = (request, index) => index === 0
+        ? { status: 502, body: bigBody }
+        : { json: { data: { ok: true } } }
+      const client = createClient()
+
+      const { errors } = await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+      expect(errors).to.eql([{ name: 'Bad Gateway', message: 'Bad Gateway' }])
+      // undici returns the connection to its pool a tick after the body has been read
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      const { statusCode } = await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
+      expect(connections()).to.eql(1)
     })
   })
 

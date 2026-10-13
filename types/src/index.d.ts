@@ -89,18 +89,10 @@ declare class Anvil {
      * @param {AnvilOptions?} options
      */
     constructor(options: AnvilOptions | null);
-    options: {
-        apiKey?: string;
-        accessToken?: string;
-        baseURL: string;
-        userAgent: string;
+    /** @type {AnvilOptions & typeof defaultOptions & { requestLimit: number, requestLimitMS: number }} */
+    options: AnvilOptions & typeof defaultOptions & {
         requestLimit: number;
         requestLimitMS: number;
-        /**
-         * An undici dispatcher to send requests
-         * with, e.g. a ProxyAgent. Defaults to an Agent of the client's own.
-         */
-        dispatcher?: import("undici/types/dispatcher").default;
     };
     authHeader: string;
     hasSetLimiterFromResponse: boolean;
@@ -312,6 +304,10 @@ declare namespace Anvil {
     export { VERSION_LATEST_PUBLISHED };
 }
 import { Stream } from 'stream';
+declare namespace defaultOptions {
+    let baseURL: string;
+    let userAgent: string;
+}
 import { File } from 'buffer';
 import UploadWithOptions from './UploadWithOptions';
 declare const VERSION_LATEST: -1;

@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix a client hanging forever if its first request failed, e.g. because of a network error.
 - Fix uploading a stream that has no `path`, like a `Readable` with a `filename` passed to `prepareGraphQLFile`.
 - Upload files that have no filename as `blob`, rather than as `undefined` or with no filename.
+- Every method with an acronym in its name can also be called with the acronym in plain camel case, and vice versa: `fillPdf`, `generatePdf`, `requestGraphql` or `requestGraphQl`, `requestRest`, `prepareGraphqlFile` or `prepareGraphQlFile`, and `generateEtchSignURL`. The `baseURL` option is also accepted as `baseUrl`.
 - Send OAuth access tokens that are JWTs as-is (`Bearer <token>`). Other access tokens are still base64 encoded.
 
 ## [v3.3.2]

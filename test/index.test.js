@@ -158,6 +158,17 @@ describe('Anvil API Client', function () {
       expect(client._url('/graphql')).to.equal('https://staging.useanvil.com/graphql')
     })
 
+    it('accepts baseUrl as another spelling of baseURL', async function () {
+      const client = new Anvil({ apiKey: 'abc123', baseUrl: 'https://staging.useanvil.com' })
+      expect(client.options.baseURL).to.equal('https://staging.useanvil.com')
+      expect(client.options).to.not.have.property('baseUrl')
+    })
+
+    it('prefers baseURL when both spellings are given', async function () {
+      const client = new Anvil({ apiKey: 'abc123', baseURL: 'https://a.example.com', baseUrl: 'https://b.example.com' })
+      expect(client.options.baseURL).to.equal('https://a.example.com')
+    })
+
     it('starts with a limit of 1 request per second', async function () {
       const client = new Anvil({ apiKey: 'abc123' })
       expect(client.limitTokens).to.equal(1)
@@ -907,6 +918,67 @@ describe('Anvil API Client', function () {
           expect(errors).to.be.undefined
         })
       })
+    })
+
+    describe('method names', function () {
+      // Each method with an acronym in its name is also available with the acronym in
+      // plain camel case, and vice versa
+      const ACRONYMS = { PDF: ['Pdf'], URL: ['Url'], REST: ['Rest'], GraphQL: ['Graphql', 'GraphQl'] }
+      const twinsOf = (name) => {
+        const twins = []
+        for (const [acronym, camels] of Object.entries(ACRONYMS)) {
+          const spellings = [acronym, ...camels]
+          const spelled = spellings.find((spelling) => name.includes(spelling))
+          if (!spelled) continue
+          for (const spelling of spellings) {
+            const twin = name.split(spelled).join(spelling)
+            if (twin !== name) twins.push(twin)
+          }
+        }
+        return twins
+      }
+      const publicMethods = (target) => Object.getOwnPropertyNames(target)
+        .filter((name) => !name.startsWith('_') && !['constructor', 'prototype'].includes(name))
+        .filter((name) => typeof Object.getOwnPropertyDescriptor(target, name).value === 'function')
+
+      for (const [label, target] of [['instance', Anvil.prototype], ['static', Anvil]]) {
+        it(`every ${label} method has its twin`, function () {
+          const names = publicMethods(target)
+          expect(names.length).to.be.above(0)
+          for (const name of names) {
+            for (const twin of twinsOf(name)) {
+              expect(target[twin], `${name} should also be available as ${twin}`).to.be.a('function')
+            }
+          }
+        })
+      }
+
+      const TWINS = [
+        ['fillPDF', 'fillPdf'],
+        ['generatePDF', 'generatePdf'],
+        ['generateEtchSignUrl', 'generateEtchSignURL'],
+        ['requestGraphQL', 'requestGraphql'],
+        ['requestGraphQL', 'requestGraphQl'],
+        ['requestREST', 'requestRest'],
+      ]
+
+      for (const [original, twin] of TWINS) {
+        it(`${twin} calls ${original} with the same arguments`, async function () {
+          sinon.stub(client, original).resolves('the result')
+          const result = await client[twin]('arg1', { arg: 2 }, 'arg3')
+          expect(client[original]).to.have.been.calledOnceWithExactly('arg1', { arg: 2 }, 'arg3')
+          expect(result).to.eql('the result')
+        })
+      }
+
+      for (const twin of ['prepareGraphqlFile', 'prepareGraphQlFile']) {
+        it(`${twin} calls prepareGraphQLFile with the same arguments`, function () {
+          sinon.stub(Anvil, 'prepareGraphQLFile').returns('the result')
+          const result = Anvil[twin]('path.pdf', { filename: 'a.pdf' })
+          expect(Anvil.prepareGraphQLFile).to.have.been.calledOnceWithExactly('path.pdf', { filename: 'a.pdf' })
+          expect(result).to.eql('the result')
+        })
+      }
     })
 
     describe('getEtchPacket', function () {

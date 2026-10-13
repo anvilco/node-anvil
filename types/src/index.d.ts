@@ -4,6 +4,10 @@ export type AnvilOptions = {
     apiKey?: string;
     accessToken?: string;
     baseURL?: string;
+    /**
+     * Another spelling of baseURL
+     */
+    baseUrl?: string;
     userAgent?: string;
     requestLimit?: number;
     requestLimitMS?: number;
@@ -69,6 +73,18 @@ declare class Anvil {
      *   up together nicely in a way that we can also tell that it was us who did it.
      */
     static prepareGraphQLFile(pathOrStreamLikeThing: string | Buffer | Readable | File | Blob, { ignoreFilenameValidation, ...formDataAppendOptions }?: any): UploadWithOptions;
+    /**
+     * The same as prepareGraphQLFile. See "Method names" in the README.
+     * @param {Parameters<typeof Anvil.prepareGraphQLFile>} args
+     * @returns {ReturnType<typeof Anvil.prepareGraphQLFile>}
+     */
+    static prepareGraphqlFile(pathOrStreamLikeThing: string | Blob | Buffer | File | Readable, args_1?: any): ReturnType<typeof Anvil.prepareGraphQLFile>;
+    /**
+     * The same as prepareGraphQLFile. See "Method names" in the README.
+     * @param {Parameters<typeof Anvil.prepareGraphQLFile>} args
+     * @returns {ReturnType<typeof Anvil.prepareGraphQLFile>}
+     */
+    static prepareGraphQlFile(pathOrStreamLikeThing: string | Blob | Buffer | File | Readable, args_1?: any): ReturnType<typeof Anvil.prepareGraphQLFile>;
     /**
      * @param {AnvilOptions?} options
      */
@@ -196,6 +212,50 @@ declare class Anvil {
      * @returns {Promise<RESTResponse>}
      */
     requestREST(url: string, fetchOptions: any, clientOptions?: any): Promise<RESTResponse>;
+    /**
+     * The same as fillPDF.
+     * @param {Parameters<Anvil['fillPDF']>} args
+     * @returns {ReturnType<Anvil['fillPDF']>}
+     */
+    fillPdf(pdfTemplateID: string, payload: any, clientOptions?: any): ReturnType<Anvil['fillPDF']>;
+    /**
+     * The same as generatePDF.
+     * @param {Parameters<Anvil['generatePDF']>} args
+     * @returns {ReturnType<Anvil['generatePDF']>}
+     */
+    generatePdf(payload: any, clientOptions?: any): ReturnType<Anvil['generatePDF']>;
+    /**
+     * The same as generateEtchSignUrl, spelled like the API's generateEtchSignURL mutation.
+     * @param {Parameters<Anvil['generateEtchSignUrl']>} args
+     * @returns {ReturnType<Anvil['generateEtchSignUrl']>}
+     */
+    generateEtchSignURL(args_0: {
+        variables: any;
+    }): ReturnType<Anvil['generateEtchSignUrl']>;
+    /**
+     * The same as requestGraphQL.
+     * @param {Parameters<Anvil['requestGraphQL']>} args
+     * @returns {ReturnType<Anvil['requestGraphQL']>}
+     */
+    requestGraphql(args_0: {
+        query: string;
+        variables?: any;
+    }, clientOptions?: any): ReturnType<Anvil['requestGraphQL']>;
+    /**
+     * The same as requestGraphQL.
+     * @param {Parameters<Anvil['requestGraphQL']>} args
+     * @returns {ReturnType<Anvil['requestGraphQL']>}
+     */
+    requestGraphQl(args_0: {
+        query: string;
+        variables?: any;
+    }, clientOptions?: any): ReturnType<Anvil['requestGraphQL']>;
+    /**
+     * The same as requestREST.
+     * @param {Parameters<Anvil['requestREST']>} args
+     * @returns {ReturnType<Anvil['requestREST']>}
+     */
+    requestRest(url: string, fetchOptions: any, clientOptions?: any): ReturnType<Anvil['requestREST']>;
     /**
      * @param {string} url
      * @param {Object} options

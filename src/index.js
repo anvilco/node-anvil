@@ -25,6 +25,7 @@ let extractFiles
  * @property {string} [apiKey]
  * @property {string} [accessToken]
  * @property {string} [baseURL]
+ * @property {string} [baseUrl] Another spelling of baseURL
  * @property {string} [userAgent]
  * @property {number} [requestLimit]
  * @property {number} [requestLimitMS]
@@ -156,11 +157,17 @@ class Anvil {
   constructor (options) {
     if (!options) throw new Error('options are required')
 
+    // baseUrl is accepted as another spelling of baseURL
+    const { baseUrl, ...givenOptions } = options
+    if (baseUrl && !givenOptions.baseURL) {
+      givenOptions.baseURL = baseUrl
+    }
+
     this.options = {
       ...defaultOptions,
       requestLimit: 1,
       requestLimitMS: 1000,
-      ...options,
+      ...givenOptions,
     }
 
     const { apiKey, accessToken } = this.options
@@ -268,6 +275,24 @@ class Anvil {
     }
 
     return new UploadWithOptions(pathOrStreamLikeThing, formDataAppendOptions)
+  }
+
+  /**
+   * The same as prepareGraphQLFile. See "Method names" in the README.
+   * @param {Parameters<typeof Anvil.prepareGraphQLFile>} args
+   * @returns {ReturnType<typeof Anvil.prepareGraphQLFile>}
+   */
+  static prepareGraphqlFile (...args) {
+    return Anvil.prepareGraphQLFile(...args)
+  }
+
+  /**
+   * The same as prepareGraphQLFile. See "Method names" in the README.
+   * @param {Parameters<typeof Anvil.prepareGraphQLFile>} args
+   * @returns {ReturnType<typeof Anvil.prepareGraphQLFile>}
+   */
+  static prepareGraphQlFile (...args) {
+    return Anvil.prepareGraphQLFile(...args)
   }
 
   /**
@@ -644,6 +669,69 @@ class Anvil {
       data,
       errors,
     }
+  }
+
+  // ******************************************************************************
+  // Method names
+  //
+  // Every method with an acronym in its name (PDF, URL, REST, GraphQL) can also be
+  // called with the acronym in plain camel case, and vice versa. GraphQL gets both
+  // Graphql and GraphQl. The tests check that no method is missing its twins, so add
+  // them here when adding a method.
+  // ******************************************************************************
+
+  /**
+   * The same as fillPDF.
+   * @param {Parameters<Anvil['fillPDF']>} args
+   * @returns {ReturnType<Anvil['fillPDF']>}
+   */
+  fillPdf (...args) {
+    return this.fillPDF(...args)
+  }
+
+  /**
+   * The same as generatePDF.
+   * @param {Parameters<Anvil['generatePDF']>} args
+   * @returns {ReturnType<Anvil['generatePDF']>}
+   */
+  generatePdf (...args) {
+    return this.generatePDF(...args)
+  }
+
+  /**
+   * The same as generateEtchSignUrl, spelled like the API's generateEtchSignURL mutation.
+   * @param {Parameters<Anvil['generateEtchSignUrl']>} args
+   * @returns {ReturnType<Anvil['generateEtchSignUrl']>}
+   */
+  generateEtchSignURL (...args) {
+    return this.generateEtchSignUrl(...args)
+  }
+
+  /**
+   * The same as requestGraphQL.
+   * @param {Parameters<Anvil['requestGraphQL']>} args
+   * @returns {ReturnType<Anvil['requestGraphQL']>}
+   */
+  requestGraphql (...args) {
+    return this.requestGraphQL(...args)
+  }
+
+  /**
+   * The same as requestGraphQL.
+   * @param {Parameters<Anvil['requestGraphQL']>} args
+   * @returns {ReturnType<Anvil['requestGraphQL']>}
+   */
+  requestGraphQl (...args) {
+    return this.requestGraphQL(...args)
+  }
+
+  /**
+   * The same as requestREST.
+   * @param {Parameters<Anvil['requestREST']>} args
+   * @returns {ReturnType<Anvil['requestREST']>}
+   */
+  requestRest (...args) {
+    return this.requestREST(...args)
   }
 
   // ******************************************************************************

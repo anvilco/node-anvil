@@ -1,9 +1,10 @@
+import { File } from 'buffer'
 import fs from 'fs'
-// We are only importing this for the type..
-import { Stream } from 'stream' // eslint-disable-line no-unused-vars
+import { basename } from 'path'
+import { performance } from 'perf_hooks'
+import { Readable as NodeReadable, Stream } from 'stream'
 
-import AbortController from 'abort-controller'
-import { RateLimiter } from 'limiter'
+import { Agent, fetch, FormData } from 'undici'
 
 import UploadWithOptions from './UploadWithOptions'
 import { version, description } from '../package.json'
@@ -17,9 +18,6 @@ import {
 class Warning extends Error {}
 
 let extractFiles
-let FormDataModule
-let Fetch
-let fetch
 
 /**
  * @typedef AnvilOptions
@@ -30,6 +28,8 @@ let fetch
  * @property {string} [userAgent]
  * @property {number} [requestLimit]
  * @property {number} [requestLimitMS]
+ * @property {import('undici').Dispatcher} [dispatcher] An undici dispatcher to send requests
+ *   with, e.g. a ProxyAgent. Defaults to an Agent of the client's own.
  */
 
 /**
@@ -48,9 +48,9 @@ let fetch
  * @typedef RESTResponse
  * @type {Object}
  * @property {number} statusCode
- * @property {Buffer|Stream|Object} [data]
+ * @property {Buffer|ArrayBuffer|Stream|Object} [data]
  * @property {Array<ResponseError | NodeError>} [errors]
- * @property {any} [response] node-fetch Response
+ * @property {import('undici').Response} [response] The fetch Response
  */
 
 /** @typedef {{
@@ -134,6 +134,12 @@ const FILENAME_IGNORE_MESSAGE = 'If you think you can ignore this, please pass `
 
 const failBufferMS = 50
 
+// Our own connection pool. Without one, undici uses a process-wide default that, on
+// Node 20, Node's own older copy of undici takes over as soon as anything touches the
+// global fetch, FormData or Headers. That copy doesn't notice when a chunked response is
+// cut short, and would hand back truncated data as a success.
+const defaultDispatcher = new Agent()
+
 // Three dot-separated base64url segments. The signature can be empty.
 const JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/
 
@@ -180,7 +186,13 @@ class Anvil {
       this.rateLimiterPromiseResolver = resolve
     })
 
-    // Set our initial limiter
+    // When the requests in the current rate limit window were sent, oldest first
+    /** @type {number[]} */
+    this.requestTimes = []
+
+    // Set our initial limits, falling back to 1 request per second if those given are invalid
+    this.limitTokens = 1
+    this.limitIntervalMs = 1000
     this._setRateLimiter({ tokens: this.options.requestLimit, intervalMs: this.options.requestLimitMS })
   }
 
@@ -191,35 +203,14 @@ class Anvil {
    * @private
    */
   _setRateLimiter ({ tokens, intervalMs }) {
-    if (
-      // Both must be truthy
-      !(tokens && intervalMs) ||
-      // Things should not be the same as they already are
-      (this.limitTokens === tokens && this.limitIntervalMs === intervalMs)
-    ) {
+    // Both must be positive numbers
+    if (!(tokens > 0 && intervalMs > 0)) {
       return
     }
 
-    const newLimiter = new RateLimiter({ tokensPerInterval: tokens, interval: intervalMs })
-
-    // If we already had a limiter, let's try to pick up where it left off
-    if (this.limiter) {
-      const tokensInUse = Math.max(
-        // getTokensRemaining() can return a decimal, so we round it down
-        // so as to be conservative about potentially hitting the API again
-        this.limitTokens - Math.floor(this.limiter.getTokensRemaining()),
-        0,
-      )
-      const tokensToRemove = Math.min(tokens, tokensInUse)
-      if (tokensToRemove) {
-        newLimiter.tryRemoveTokens(tokensToRemove)
-      }
-      delete this.limiter
-    }
-
+    // requestTimes carries over, so requests already sent still count against the new limits
     this.limitTokens = tokens
     this.limitIntervalMs = intervalMs
-    this.limiter = newLimiter
   }
 
   /**
@@ -483,12 +474,14 @@ class Anvil {
     }
 
     if (filesMap.size) {
-      // @ts-ignore
       const abortController = new AbortController()
-      Fetch ??= await import('@anvilco/node-fetch')
-      // This is a dependency of 'node-fetch'`
-      FormDataModule ??= await import('formdata-polyfill/esm.min.js')
-      const form = new FormDataModule.FormData()
+      // If a file stream errors, cancel the API call
+      const abortRequest = (err) => {
+        console.warn(err)
+        abortController.abort()
+      }
+      const abortOnError = (stream) => stream.on('error', abortRequest)
+      const form = new FormData()
 
       form.append('operations', operationJSON)
 
@@ -513,41 +506,64 @@ class Anvil {
           throw new Error('No file provided. Options were: ' + JSON.stringify(options))
         }
 
-        // If this is a stream-like thing, attach a listener to the 'error' event so that we
-        // can cancel the API call if something goes wrong
+        // If this is a stream-like thing, cancel the API call if something goes wrong with it
         if (typeof file.on === 'function') {
-          file.on('error', (err) => {
-            console.warn(err)
-            abortController.abort()
-          })
+          abortOnError(file)
         }
 
         // If file a path to a file?
         if (typeof file === 'string') {
-          file = Fetch.fileFromSync(file, mimetype)
-        } else if (file instanceof Buffer) {
-          const buffer = file
-          // https://developer.mozilla.org/en-US/docs/Web/API/File/File
-          file = new Fetch.File(
-            [buffer],
-            filename,
-            {
-              type: mimetype,
-            },
-          )
-        } else if (file instanceof Stream) {
-          // https://github.com/node-fetch/node-fetch#post-data-using-a-file
-          const stream = file
-          file = {
-            [Symbol.toStringTag]: 'File',
-            // @ts-ignore
-            size: fs.statSync(stream.path).size,
-            stream: () => stream,
+          const filePath = file
+          filename ??= basename(filePath)
+          // Only opened when the request is sent, and streamed rather than read into memory.
+          // Opened again if the request is retried.
+          file = new StreamedFile(() => abortOnError(fs.createReadStream(filePath)), {
+            name: filename,
+            size: fs.statSync(filePath).size,
             type: mimetype,
-          }
-
+            onError: abortRequest,
+          })
+        } else if (file instanceof Buffer) {
+          // https://developer.mozilla.org/en-US/docs/Web/API/Blob/Blob
+          file = new Blob([file], { type: mimetype })
+        } else if (file instanceof Stream) {
+          const stream = file
           // @ts-ignore
-          filename ??= stream.path.split('/').pop()
+          const streamPath = typeof stream.path === 'string' ? stream.path : undefined
+          filename ??= streamPath && basename(streamPath)
+
+          let getStream
+          let size
+          let canSend
+          if (streamPath) {
+            // A file stream: we know its size, and can open it again if the request is retried
+            // @ts-ignore
+            const { start = 0, end = Infinity } = stream
+            const fileSize = fs.statSync(streamPath).size
+            size = Math.max(Math.min(end + 1, fileSize) - start, 0)
+            let used = false
+            getStream = () => {
+              if (!used) {
+                used = true
+                return stream
+              }
+              return abortOnError(fs.createReadStream(streamPath, { start, end }))
+            }
+          } else {
+            // Any other stream can only be read once, and is sent without a size
+            let used = false
+            canSend = () => {
+              if (used) {
+                throw new Error(`Can't send ${filename || 'a stream'} again because its stream has already been read. To upload a file in a request that may be retried, pass a path, a file stream or a Buffer.`)
+              }
+            }
+            getStream = () => {
+              canSend()
+              used = true
+              return stream
+            }
+          }
+          file = new StreamedFile(getStream, { name: filename, size, type: mimetype, onError: abortRequest, canSend })
         } else if (file.constructor.name !== 'File') {
           // Like a Blob or something
           if (!filename) {
@@ -563,17 +579,28 @@ class Anvil {
         }
 
         // https://developer.mozilla.org/en-US/docs/Web/API/FormData/append
-        form.append(`${++i}`, file, filename)
+        // Passing an undefined filename would name the file "undefined". A StreamedFile
+        // carries its own name, and passing one would make FormData copy it into a plain
+        // File, which reads the whole file into memory and loses the stream.
+        if (filename === undefined || file instanceof StreamedFile) {
+          form.append(`${++i}`, file)
+        } else {
+          form.append(`${++i}`, file, filename)
+        }
       })
 
       options.signal = abortController.signal
       options.body = form
+      // When following redirects, fetch keeps a copy of the body to send again, and that
+      // copy would buffer every file in memory. The API doesn't redirect uploads.
+      options.redirect = 'error'
     } else {
       options.headers['Content-Type'] = 'application/json'
       options.body = operationJSON
     }
 
     const {
+      response,
       statusCode,
       data,
       errors,
@@ -581,6 +608,11 @@ class Anvil {
       () => this._request('/graphql', options),
       clientOptions,
     )
+
+    // The response isn't returned, so nothing else could read a body that wasn't needed
+    if (response && !response.bodyUsed) {
+      await discardBody(response)
+    }
 
     return {
       statusCode,
@@ -624,26 +656,33 @@ class Anvil {
   // USERS OF THIS MODULE SHOULD NOT USE ANY OF THESE METHODS DIRECTLY
   // ******************************************************************************
 
-  async _request (...args) {
-    // Only load Fetch once per module process lifetime
-    Fetch = Fetch || await import('@anvilco/node-fetch')
-    fetch = Fetch.default
-    // Monkey-patch so we only try any of this once per Anvil Client instance
-    this._request = this.__request
-    return this._request(...args)
-  }
-
   /**
    * @param {string} url
    * @param {Object} options
-   * @returns {Promise}
+   * @returns {Promise<import('undici').Response>}
    * @private
    */
-  __request (url, options) {
+  _request (url, options) {
     if (!url.startsWith(this.options.baseURL)) {
       url = this._url(url)
     }
-    const opts = this._addDefaultHeaders(options)
+    const opts = {
+      dispatcher: this.options.dispatcher || defaultDispatcher,
+      ...this._addDefaultHeaders(options),
+    }
+    // fetch needs this to send a stream body
+    if (isStreamBody(opts.body) && !opts.duplex) {
+      opts.duplex = 'half'
+    }
+    // Refuse up front to send a file whose stream has already been read, with a clear error.
+    // An error thrown while the body is being sent would not reach the caller.
+    if (opts.body instanceof FormData) {
+      for (const value of opts.body.values()) {
+        if (value instanceof StreamedFile) {
+          value.checkCanSend()
+        }
+      }
+    }
     return fetch(url, opts)
   }
 
@@ -653,10 +692,23 @@ class Anvil {
    * @returns {Promise<*>}
    * @private
    */
-  _wrapRequest (retryableRequestFn, clientOptions = {}) {
+  _wrapRequest (retryableRequestFn, clientOptions) {
     return this._throttle(async (retry) => {
-      let { dataType, debug } = clientOptions
-      const response = await retryableRequestFn()
+      // Nothing before the try below may throw: a throw here on the first request would
+      // leave the gate in _throttle closed, and every later request waiting on it
+      let { dataType, debug } = clientOptions || {}
+      let response
+      try {
+        response = await retryableRequestFn()
+      } catch (err) {
+        if (!this.hasSetLimiterFromResponse) {
+          // There won't be a response to set the limits from, so let any requests waiting for
+          // one go ahead at the starting limits, rather than waiting forever
+          this.limiterSettingInProgress = false
+          this.rateLimiterPromiseResolver()
+        }
+        throw err
+      }
 
       if (!this.hasSetLimiterFromResponse) {
         // OK, this is the response sets the rate-limiter values from the
@@ -677,6 +729,7 @@ class Anvil {
       const { status: statusCode, statusText } = response
 
       if (statusCode === 429) {
+        await discardBody(response)
         return retry(getRetryMS(response.headers.get('retry-after')))
       }
 
@@ -712,14 +765,11 @@ class Anvil {
 
       switch (dataType) {
         case DATA_TYPE_STREAM:
-          data = response.body
+          // fetch gives a web ReadableStream, but we've always returned a Node stream
+          data = response.body ? NodeReadable.fromWeb(response.body) : NodeReadable.from([])
           break
         case DATA_TYPE_BUFFER:
-          // Will ask for it as an arrayBuffer (to avoid deprecation warning) but then convert it to a
-          // Node Buffer.
-          // https://github.com/node-fetch/node-fetch/pull/1212
-          // https://github.com/node-fetch/node-fetch/pull/1345
-          // https://github.com/anvilco/node-anvil/pull/442
+          // fetch only gives an ArrayBuffer, so convert it to a Node Buffer
           data = Buffer.from(await response.arrayBuffer())
           break
         case DATA_TYPE_ARRAY_BUFFER:
@@ -823,16 +873,41 @@ class Anvil {
       }
     }
 
-    const remainingRequests = await this.limiter.removeTokens(1)
-    if (remainingRequests < 1) {
-      await sleep(this.options.requestLimitMS + failBufferMS)
-    }
+    await this._waitForRateLimit()
     const retry = async (ms) => {
       await sleep(ms)
       return this._throttle(fn)
     }
 
     return fn(retry)
+  }
+
+  /**
+   * Waits until another request would keep us within limitTokens requests in any
+   * limitIntervalMs. The API counts requests the same way, over a sliding window, so
+   * this avoids 429s without holding back requests that are within the limit.
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _waitForRateLimit () {
+    for (;;) {
+      // Not Date.now(), so that changes to the system clock can't hold requests up
+      const now = performance.now()
+      // Requests sent before this no longer count. The buffer allows for requests that
+      // were sent further apart than they arrive.
+      const windowStart = now - this.limitIntervalMs - failBufferMS
+      while (this.requestTimes.length && this.requestTimes[0] <= windowStart) {
+        this.requestTimes.shift()
+      }
+
+      if (this.requestTimes.length < this.limitTokens) {
+        this.requestTimes.push(now)
+        return
+      }
+
+      // Wait for the oldest request to leave the window, then check again
+      await sleep(this.requestTimes[0] - windowStart)
+    }
   }
 }
 
@@ -876,6 +951,84 @@ function decodeJSONSegment (segment) {
   } catch (err) {
     return undefined
   }
+}
+
+/**
+ * A File whose contents come from a stream. FormData only accepts real Files, and reads
+ * them with stream() and size, so the file is sent without reading it all into memory.
+ * @private
+ */
+class StreamedFile extends File {
+  /**
+   * @param {() => any} getStream A function that returns a Node stream, opened when the file is sent
+   * @param {Object} options
+   * @param {string} [options.name]
+   * @param {number} [options.size] Leave out if unknown. The request is then sent chunked.
+   * @param {string} [options.type]
+   * @param {(err: Error) => void} options.onError Called if the stream fails while being sent
+   * @param {() => void} [options.canSend] Throws if the file can't be sent (again)
+   */
+  constructor (getStream, { name, size, type, onError, canSend }) {
+    // Without a name, the part would have no filename and the API would treat it as text
+    super([], name || 'blob', { type: type || '' })
+    this.getStream = getStream
+    this.streamedSize = size
+    this.onError = onError
+    this.canSend = canSend
+  }
+
+  // @ts-ignore File's size is a number; this one is unknown for streams without a path
+  get size () {
+    return this.streamedSize
+  }
+
+  checkCanSend () {
+    if (this.canSend) {
+      this.canSend()
+    }
+  }
+
+  // FormData only handles chunks that are bytes, and stops at an empty one.
+  // This must never throw: undici doesn't catch errors from a body being sent, so one
+  // would be an unhandled rejection. Errors cancel the request through onError instead.
+  // @ts-ignore File's stream() returns a web ReadableStream; FormData is fine with any async iterable
+  async * stream () {
+    try {
+      for await (const chunk of this.getStream()) {
+        const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : chunk
+        if (bytes.length) {
+          yield bytes
+        }
+      }
+    } catch (err) {
+      this.onError(err)
+    }
+  }
+}
+
+/**
+ * Reads and throws away a response body that nothing is going to use. Until it has
+ * been read, the body holds on to its pooled connection, and the next request has
+ * to open another.
+ * @param {import('undici').Response} response
+ * @returns {Promise<void>}
+ * @private
+ */
+async function discardBody (response) {
+  try {
+    await response.arrayBuffer()
+  } catch (err) {
+    // A body that can't be read isn't holding a connection
+  }
+}
+
+/**
+ * @param {any} body
+ * @returns {boolean}
+ * @private
+ */
+function isStreamBody (body) {
+  return !!body && (body instanceof Stream || typeof body.getReader === 'function')
 }
 
 /**

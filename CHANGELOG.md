@@ -6,8 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- BREAKING: Drop support for `Node 14` and `Node 16`. The minimum supported version is now `Node 18`.
-- Add support for `Node 22` and `Node 24`.
+- BREAKING: Drop support for `Node 14`, `Node 16` and `Node 18`. The minimum supported version is now `Node 20`.
+- Add support for `Node 22`, `Node 24` and `Node 26`.
+- BREAKING: Use [undici](https://github.com/nodejs/undici)'s `fetch` instead of `node-fetch`. This fixes `Premature close` errors on complete responses, which node-fetch could raise when a response was read after its connection had closed. A response that really is cut short is now always an error, rather than truncated data.
+  - The `response` that REST methods resolve with is now undici's fetch `Response`.
+  - When a request can't be made at all, methods reject with `TypeError: fetch failed`, with details like `code: 'ECONNREFUSED'` in `error.cause`, instead of a node-fetch `FetchError`.
+  - Requests no longer go through Node's `http.globalAgent`, so proxy setups that patch it (like `global-agent`) no longer apply. Pass an undici `ProxyAgent` as the new `dispatcher` option instead.
+  - Options that only node-fetch supported, like `agent`, `timeout`, `size`, `follow` and `compress`, are ignored in `requestREST`'s `fetchOptions`.
+  - Requests now time out. node-fetch waited forever; undici's `Agent` waits up to 5 minutes for the response headers, and up to 5 minutes between chunks of the body, before rejecting with `TypeError: fetch failed` and a `HeadersTimeoutError` or `BodyTimeoutError` in `cause`. To change these, pass your own `Agent` as the `dispatcher` option.
+  - Connections are now kept alive and reused between requests. A request sent on a connection the server has just closed can fail with `TypeError: fetch failed` and `code: 'UND_ERR_SOCKET'` in `cause`; the client doesn't retry it.
+  - Requires `Node 20` or later.
+- Add a `dispatcher` option, for sending requests through your own undici `Dispatcher`, such as a `ProxyAgent`.
+- `requestREST` accepts a stream as `fetchOptions.body`.
+- Fix retrying an upload after a `429`. Files given as a path or a file stream are sent in full again. Other streams can only be read once, so the retry now fails with an error, rather than sending an empty file.
+- Fix uploading a file stream created with `start` or `end`, and a stream that yields strings.
+- Stop delaying requests that are within the rate limit. Every client's first request used to wait about a second, and so did any request that used up the last of the limit. The client now counts requests over a sliding window, like the API does, and only waits when the limit has been reached. This drops the `limiter` dependency.
+- Fix a client hanging forever if its first request failed, e.g. because of a network error.
+- Fix uploading a stream that has no `path`, like a `Readable` with a `filename` passed to `prepareGraphQLFile`.
+- Upload files that have no filename as `blob`, rather than as `undefined` or with no filename.
 - Send OAuth access tokens that are JWTs as-is (`Bearer <token>`). Other access tokens are still base64 encoded.
 
 ## [v3.3.2]

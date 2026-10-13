@@ -1,3 +1,4 @@
+/// <reference types="node" />
 export default Anvil;
 export type AnvilOptions = {
     apiKey?: string;
@@ -6,6 +7,11 @@ export type AnvilOptions = {
     userAgent?: string;
     requestLimit?: number;
     requestLimitMS?: number;
+    /**
+     * An undici dispatcher to send requests
+     * with, e.g. a ProxyAgent. Defaults to an Agent of the client's own.
+     */
+    dispatcher?: import('undici').Dispatcher;
 };
 export type GraphQLResponse = {
     statusCode: number;
@@ -19,12 +25,12 @@ export type GraphQLResponseData = {
 };
 export type RESTResponse = {
     statusCode: number;
-    data?: Buffer | Stream | any;
+    data?: Buffer | ArrayBuffer | Stream | any;
     errors?: Array<ResponseError | NodeError>;
     /**
-     * node-fetch Response
+     * The fetch Response
      */
-    response?: any;
+    response?: import('undici').Response;
 };
 export type NodeError = {
     name: string;
@@ -74,12 +80,21 @@ declare class Anvil {
         userAgent: string;
         requestLimit: number;
         requestLimitMS: number;
+        /**
+         * An undici dispatcher to send requests
+         * with, e.g. a ProxyAgent. Defaults to an Agent of the client's own.
+         */
+        dispatcher?: import("undici/types/dispatcher").default;
     };
     authHeader: string;
     hasSetLimiterFromResponse: boolean;
     limiterSettingInProgress: boolean;
     rateLimiterSetupPromise: Promise<any>;
     rateLimiterPromiseResolver: (value: any) => void;
+    /** @type {number[]} */
+    requestTimes: number[];
+    limitTokens: number;
+    limitIntervalMs: number;
     /**
      * @param {Object} options
      * @param {number} options.tokens
@@ -87,9 +102,6 @@ declare class Anvil {
      * @private
      */
     private _setRateLimiter;
-    limitTokens: any;
-    limitIntervalMs: number;
-    limiter: RateLimiter;
     /**
      * Runs the createEtchPacket mutation.
      * @param {Object} data
@@ -184,14 +196,13 @@ declare class Anvil {
      * @returns {Promise<RESTResponse>}
      */
     requestREST(url: string, fetchOptions: any, clientOptions?: any): Promise<RESTResponse>;
-    _request(...args: any[]): any;
     /**
      * @param {string} url
      * @param {Object} options
-     * @returns {Promise}
+     * @returns {Promise<import('undici').Response>}
      * @private
      */
-    private __request;
+    private _request;
     /**
      * @param {CallableFunction} retryableRequestFn
      * @param {Object} [clientOptions]
@@ -226,6 +237,14 @@ declare class Anvil {
      * @private
      */
     private _throttle;
+    /**
+     * Waits until another request would keep us within limitTokens requests in any
+     * limitIntervalMs. The API counts requests the same way, over a sliding window, so
+     * this avoids 429s without holding back requests that are within the limit.
+     * @returns {Promise<void>}
+     * @private
+     */
+    private _waitForRateLimit;
 }
 declare namespace Anvil {
     export { UploadWithOptions };
@@ -233,7 +252,7 @@ declare namespace Anvil {
     export { VERSION_LATEST_PUBLISHED };
 }
 import { Stream } from 'stream';
-import { RateLimiter } from 'limiter';
+import { File } from 'buffer';
 import UploadWithOptions from './UploadWithOptions';
 declare const VERSION_LATEST: -1;
 declare const VERSION_LATEST_PUBLISHED: -2;

@@ -12,7 +12,7 @@ Install the dependencies:
 yarn install
 ```
 
-Lint, and run the unit tests. `yarn test` also builds the client into `dist/` and its types into `types/`.
+Lint, and run the unit tests. `yarn test` also builds the client into `dist/` and its types into `types/`: `types/src/` from the source, and `types/esm/` as a copy for the ESM entry point (see `dev/build-esm-types.mjs`).
 
 ```sh
 yarn lint

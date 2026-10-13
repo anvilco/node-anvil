@@ -163,6 +163,7 @@ class Anvil {
       givenOptions.baseURL = baseUrl
     }
 
+    /** @type {AnvilOptions & typeof defaultOptions & { requestLimit: number, requestLimitMS: number }} */
     this.options = {
       ...defaultOptions,
       requestLimit: 1,

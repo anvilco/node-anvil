@@ -24,6 +24,14 @@ Requires Node 20 or later.
 yarn add @anvilco/anvil
 ```
 
+It works as a CommonJS module or an ES module, in JavaScript or TypeScript:
+
+```js
+const Anvil = require('@anvilco/anvil')
+// or
+import Anvil from '@anvilco/anvil'
+```
+
 ```sh
 npm install @anvilco/anvil
 ```

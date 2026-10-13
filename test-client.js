@@ -87,6 +87,24 @@ async function main () {
   let signerEid
   let weldDataEid
 
+  await check('import (ESM) and require (CommonJS)', async () => {
+    // Importing the package by its own name goes through the "exports" map in package.json,
+    // the same way a consumer's import or require does. eslint's resolver doesn't know Node
+    // resolves a package's own name from inside it.
+    // eslint-disable-next-line import/no-unresolved
+    const { default: AnvilESM } = await import('@anvilco/anvil')
+    // eslint-disable-next-line import/no-unresolved
+    const AnvilCJS = require('@anvilco/anvil')
+    if (AnvilESM !== Anvil) throw new Error('import gave something other than the Anvil class')
+    if (AnvilCJS !== Anvil) throw new Error('require gave something other than the Anvil class')
+
+    // And the class from the ESM entry point works
+    const esmClient = new AnvilESM({ apiKey: API_KEY, baseURL: BASE_URL })
+    const result = await esmClient.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+    assertOK(result)
+    return 'both give the same class'
+  })
+
   await check('requestGraphQL', async () => {
     const result = await client.requestGraphQL({
       query: `

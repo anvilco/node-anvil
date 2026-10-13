@@ -1,0 +1,7 @@
+export default class UploadWithOptions {
+    constructor(streamLikeThing: any, formDataAppendOptions: any);
+    streamLikeThing: any;
+    formDataAppendOptions: any;
+    get options(): any;
+    get file(): any;
+}

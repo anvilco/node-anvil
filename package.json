@@ -32,6 +32,9 @@
   "main": "index.js",
   "files": [
     "package.json",
+    "index.js",
+    "index.mjs",
+    "index.d.mts",
     "README.md",
     "LICENSE.md",
     "CHANGELOG.md",
@@ -42,10 +45,25 @@
     "!**/.DS_Store"
   ],
   "types": "./types/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./index.d.mts",
+        "default": "./index.mjs"
+      },
+      "require": {
+        "types": "./types/src/index.d.ts",
+        "default": "./index.js"
+      }
+    },
+    "./package.json": "./package.json",
+    "./dist/*": "./dist/*",
+    "./types/*": "./types/*"
+  },
   "scripts": {
     "build": "babel src --out-dir ./dist",
     "clean": "yarn rimraf ./dist",
-    "prepare": "yarn tsc && yarn clean && yarn build",
+    "prepare": "yarn tsc && node dev/build-esm-types.mjs && yarn clean && yarn build",
     "release:prepare": "node dev/release.mjs prepare",
     "release:tag": "node dev/release.mjs tag",
     "test": "yarn prepare && mocha --config ./test/mocha.js",

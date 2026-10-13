@@ -126,5 +126,6 @@ jobs:
         key: ${{ runner.os }}-node-${{ needs.prepare-node.outputs.build-node-version }}-${{ env.GITHUB_SHA }}
 
     # Just make sure it installs correctly for now and we'll call it good. No testing.
-    - run: yarn test-e2e:install
+    # npm rather than yarn: this job hasn't run yarn install, and Yarn 4 won't run scripts without one.
+    - run: npm run test-e2e:install
 

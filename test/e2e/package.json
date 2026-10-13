@@ -4,9 +4,7 @@
   "description": "e2e tester",
   "main": "index.js",
   "scripts": {
-    "prep": "npm run clean-cache && yarn remove-files",
-    "remove-files": "rm -rf yarn.lock node_modules/node-anvil",
-    "clean-cache": "rm -rf $(yarn cache dir)/.tmp"
+    "prep": "rm -rf package-lock.json yarn.lock node_modules/node-anvil"
   },
   "author": "",
   "license": "ISC",

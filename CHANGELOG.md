@@ -6,13 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- BREAKING: Drop support for `Node 14` and `Node 16`. The minimum supported version is now `Node 18`.
+- BREAKING: Drop support for `Node 14` and `Node 16`. The minimum supported version is now `Node 18.17`.
 - Add support for `Node 22` and `Node 24`.
 - BREAKING: Use [undici](https://github.com/nodejs/undici)'s `fetch` instead of `node-fetch`. This fixes `Premature close` errors on complete responses, which node-fetch could raise when a response was read after its connection had closed. A response that really is cut short is now always an error, rather than truncated data.
   - The `response` that REST methods resolve with is now undici's fetch `Response`.
   - When a request can't be made at all, methods reject with `TypeError: fetch failed`, with details like `code: 'ECONNREFUSED'` in `error.cause`, instead of a node-fetch `FetchError`.
   - Requests no longer go through Node's `http.globalAgent`, so proxy setups that patch it (like `global-agent`) no longer apply. Pass an undici `ProxyAgent` as the new `dispatcher` option instead.
   - Options that only node-fetch supported, like `agent`, `timeout`, `size`, `follow` and `compress`, are ignored in `requestREST`'s `fetchOptions`.
+  - Requests now time out. node-fetch waited forever; undici's `Agent` waits up to 5 minutes for the response headers, and up to 5 minutes between chunks of the body, before rejecting with `TypeError: fetch failed` and a `HeadersTimeoutError` or `BodyTimeoutError` in `cause`. To change these, pass your own `Agent` as the `dispatcher` option.
+  - Connections are now kept alive and reused between requests. A request sent on a connection the server has just closed can fail with `TypeError: fetch failed` and `code: 'UND_ERR_SOCKET'` in `cause`; the client doesn't retry it.
   - Requires `Node 18.17` or later.
 - Add a `dispatcher` option, for sending requests through your own undici `Dispatcher`, such as a `ProxyAgent`.
 - `requestREST` accepts a stream as `fetchOptions.body`.

@@ -10,7 +10,7 @@ module.exports = {
   timeout: 2000,
   spec: './test/**/*.test.js',
   // Silly, Mocha. Don't run all the tests you can find...
-  ignore: './test/**/node_modules/**/*',
+  ignore: '**/node_modules/**',
   require: [
     // https://mochajs.org/#-require-module-r-module
     '@babel/register',

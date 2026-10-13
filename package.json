@@ -40,7 +40,6 @@
     "CHANGELOG.md",
     "dist/",
     "types/",
-    "example/",
     "!**/.DS_STORE",
     "!**/.DS_Store"
   ],

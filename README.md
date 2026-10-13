@@ -655,7 +655,7 @@ See the [PDF filling API docs](https://useanvil.com/docs/api/fill-pdf) for more 
 
 ## Examples
 
-Check out the [example](https://github.com/anvilco/node-anvil/tree/main/example) folder for running usage examples!
+The [examples](https://github.com/anvilco/node-anvil/tree/main/examples) folder has complete, runnable examples in JavaScript and TypeScript: filling a PDF, generating a PDF from Markdown or HTML, e-signing with a template or an uploaded PDF, and embedded signing with a download of the signed documents.
 
 ## Development
 

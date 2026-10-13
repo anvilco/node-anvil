@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Helps release the package. See "Publishing" in the README.
+ * Helps release the package. See "Publishing" in CONTRIBUTING.md.
  *
  *   yarn release:prepare <version>   Bumps package.json and CHANGELOG.md on a release
  *                                    branch and commits, ready for a PR to main.

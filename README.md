@@ -18,6 +18,8 @@ Learn more on our [Anvil developer page](https://www.useanvil.com/developers/). 
 
 This library and the Anvil APIs are intended to be used on a server or server-like environment. It will fail in a browser environment.
 
+Requires Node 18 or later.
+
 ```sh
 yarn add @anvilco/anvil
 ```
@@ -74,10 +76,16 @@ fs.writeFileSync('output.pdf', data, { encoding: null })
 * [generatePDF(payload[, options])](#generatepdfpayload-options)
 * [createEtchPacket(options)](#createetchpacketoptions)
 * [getEtchPacket(options)](#getetchpacketoptions)
-* [generateEtchSignURL(options)](#generateetchsignurloptions)
+* [generateEtchSignUrl(options)](#generateetchsignurloptions)
 * [downloadDocuments(documentGroupEid[, options])](#downloaddocumentsdocumentgroupeid-options)
+* [forgeSubmit(options)](#forgesubmitoptions)
+* [removeWeldData(options)](#removewelddataoptions)
 * [requestGraphQL(queryInfo[, options])](#requestgraphqlqueryinfo-options)
 * [requestREST(url, fetchOptions[, clientOptions])](#requestresturl-fetchoptions-clientoptions)
+* [prepareGraphQLFile(pathOrStreamLikeThing[, options])](#preparegraphqlfilepathorstreamlikething-options)
+* [Options](#options), including [authentication](#authentication) and [baseURL](#baseurl)
+* [Constants](#constants)
+* [Errors](#errors)
 
 ### Instance Methods
 
@@ -142,6 +150,7 @@ fs.writeFileSync('filled.pdf', data, { encoding: null })
     * For example `{ "someFieldId": "Hello World!" }`
 * `options` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'arrayBuffer'` and `'stream'` are also supported.
+  * `versionNumber` (Number) - _optional_ The version of the PDF template to fill. Defaults to the latest published version, or the latest version if the template has never been published. See [Constants](#constants).
 * Returns a `Promise` that resolves to an `Object`
   * `statusCode` (Number) - the HTTP status code; `200` is success
   * `data` (Buffer | ArrayBuffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer, ArrayBuffer, or a Stream, depending on `dataType` option supplied to the request.
@@ -237,6 +246,43 @@ fs.writeFileSync('generated.pdf', data, { encoding: null })
 
 Creates an Etch Packet and optionally sends it to the first signer.
 
+```js
+const anvilClient = new Anvil({ apiKey })
+
+const { statusCode, data, errors } = await anvilClient.createEtchPacket({
+  variables: {
+    name: 'Example packet',
+    // Test packets use development signatures and are not billed
+    isTest: true,
+    // Send it to the first signer right away
+    isDraft: false,
+    files: [{
+      id: 'uploadedNDA',
+      title: 'Demo NDA',
+      file: Anvil.prepareGraphQLFile('./nda.pdf'),
+      fields: [{
+        id: 'signatureOne',
+        type: 'signature',
+        pageNum: 0,
+        rect: { x: 100, y: 100, width: 150, height: 30 },
+      }],
+    }],
+    signers: [{
+      id: 'signerOne',
+      name: 'Sally Signer',
+      email: 'sally@example.com',
+      // 'embedded' signers sign in your app with a URL from generateEtchSignUrl.
+      // The default, 'email', sends them an email.
+      signerType: 'embedded',
+      fields: [{ fileId: 'uploadedNDA', fieldId: 'signatureOne' }],
+    }],
+  },
+})
+
+const etchPacket = data.data.createEtchPacket
+const signerEid = etchPacket.documentGroup.signers[0].eid
+```
+
 * `options` (Object) - An object with the following structure:
   * `variables` (Object) - See the [API Documentation](#api-documentation) area for details. See [Examples](#examples) area for examples.
   * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the mutation response. Can be left out to use default.
@@ -260,6 +306,14 @@ Creates an Etch Packet and optionally sends it to the first signer.
 ##### getEtchPacket(options)
 
 Gets the details of an Etch Packet.
+
+```js
+const { statusCode, data, errors } = await anvilClient.getEtchPacket({
+  variables: { eid: etchPacketEid },
+})
+const { status, documentGroup } = data.data.etchPacket
+```
+
 * `options` (Object) - An object with the following structure:
   * `variables` (Object) - Requires `eid`
     * `eid` (String) - your Etch Packet eid
@@ -267,15 +321,41 @@ Gets the details of an Etch Packet.
 
 ##### generateEtchSignUrl(options)
 
-Generates an Etch sign URL for an Etch Packet signer. The Etch Packet and its signers must have already been created.
+Generates an Etch sign URL for an Etch Packet signer. The Etch Packet and its signers must have already been created, the packet must have been sent, and the signer must be an `embedded` signer.
+
+```js
+const { statusCode, url, errors } = await anvilClient.generateEtchSignUrl({
+  variables: {
+    signerEid,
+    // Your ID for the user who will be signing
+    clientUserId: 'user-123',
+  },
+})
+// Send your user to `url` to sign
+```
+
 * `options` (Object) - An object with the following structure:
   * `variables` (Object) - Requires `clientUserId` and `signerEid`
-    * `clientUserId` (String) - your user eid
+    * `clientUserId` (String) - your ID for the user who will sign
     * `signerEid` (String) - the eid of the Etch Packet signer, found in the response of the `createEtchPacket` instance method
+* Returns a `Promise` that resolves to an `Object`
+  * `statusCode` (Number) - the HTTP status code; `200` is success
+  * `url` (String) - the signing URL
+  * `errors` (Array of Objects) - Will be present if there was a problem. See [Errors](#errors)
 
 ##### downloadDocuments(documentGroupEid[, options])
 
 Returns a Buffer, ArrayBuffer, or Stream of the document group specified by the documentGroupEid in Zip file format.
+
+```js
+const { statusCode, data, errors } = await anvilClient.downloadDocuments(documentGroupEid)
+fs.writeFileSync('documents.zip', data, { encoding: null })
+
+// Or stream it
+const { data: stream } = await anvilClient.downloadDocuments(documentGroupEid, { dataType: 'stream' })
+stream.pipe(fs.createWriteStream('documents.zip'))
+```
+
 * `documentGroupEid` (string) - the eid of the document group to download
 * `options` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'arrayBuffer'` and `'stream'` are also supported.
@@ -286,6 +366,49 @@ Returns a Buffer, ArrayBuffer, or Stream of the document group specified by the 
    * `errors` (Array of Objects) - Will be present if status >= 400. See Errors
       * `message` (String)
 
+##### forgeSubmit(options)
+
+Creates or updates a submission to a webform in a Workflow, the same as someone filling in and submitting that webform. Webforms are called Forges in the API.
+
+```js
+const { statusCode, data, errors } = await anvilClient.forgeSubmit({
+  variables: {
+    // The webform's eid
+    forgeEid: 'your-forge-eid',
+    // Keys are the IDs of the webform's fields
+    payload: {
+      name: 'Sally Jones',
+      email: 'sally@example.com',
+    },
+    isTest: true,
+  },
+})
+const submission = data.data.forgeSubmit
+const weldDataEid = submission.weldData.eid
+```
+
+* `options` (Object) - An object with the following structure:
+  * `variables` (Object) - Requires `forgeEid` and `payload`. Pass `weldDataEid` and `submissionEid` to update an existing submission. See the [GraphQL reference](https://www.useanvil.com/docs/api/graphql/reference/) for all variables.
+  * `responseQuery` (String) - _optional_ A GraphQL Query compliant query to use for the data desired in the mutation response. Can be left out to use default.
+  * `mutation` (String) - _optional_ Your own complete GraphQL mutation. `responseQuery` is ignored if this is passed.
+* Returns a `Promise` that resolves to an `Object` with `statusCode`, `data` and `errors`, like [requestGraphQL](#requestgraphqlqueryinfo-options)
+
+##### removeWeldData(options)
+
+Deletes a Workflow submission (a `WeldData`) and everything in it.
+
+```js
+const { statusCode, data, errors } = await anvilClient.removeWeldData({
+  variables: { eid: weldDataEid },
+})
+const removed = data.data.removeWeldData // true
+```
+
+* `options` (Object) - An object with the following structure:
+  * `variables` (Object) - Requires `eid`
+    * `eid` (String) - the eid of the WeldData to remove
+  * `mutation` (String) - _optional_ Your own complete GraphQL mutation.
+* Returns a `Promise` that resolves to an `Object` with `statusCode`, `data` and `errors`, like [requestGraphQL](#requestgraphqlqueryinfo-options)
 
 ##### requestGraphQL(queryInfo[, options])
 
@@ -306,24 +429,24 @@ const result = await client.requestGraphQL({
   `,
   variables: { eid: 'nxflNZqxDUbltLUbYWK' },
 })
-const statusCode = result.statusCode
-const httpErrors = result.errors
+const { statusCode, data, errors } = result
 
-// These will only be available if the statusCode === 200
-const graphqlErrors = result.data.errors
-const resultObject = result.data.data.weldData
+if (errors) {
+  // GraphQL errors (with a 200 statusCode) or HTTP errors. See Errors.
+} else {
+  const weldData = data.data.weldData
+}
 ```
 
-* `queryInfo` (Object) - The JSON data that will fill the PDF template
+* `queryInfo` (Object)
   * `query` (String) - GraphQL query or mutation to run. See the [GraphQL reference](https://www.useanvil.com/docs/api/graphql/reference/) for a listing on all possible queries
-  * `variables` (Object) - GraphQL variables for the query
+  * `variables` (Object) - GraphQL variables for the query. Files to upload can be anywhere in here; see [prepareGraphQLFile](#preparegraphqlfilepathorstreamlikething-options).
 * Returns a `Promise` that resolves to an `Object`
-  * `statusCode` (Number) - 200 when successful or when there is a GraphQL error. You will only see > 200 if your query is not found or malformed
-  * `errors` (String) - HTTP errors when status code > 200
-  * `data` (Object) - Contains query result and any GraphQL errors
-    * `errors` (Array of Objects) - If there are validation errors or errors running the query, they will show here
+  * `statusCode` (Number) - The HTTP status code. GraphQL errors come back with a `200`; you will only see other codes if the request itself was a problem, e.g. it was malformed or unauthorized.
+  * `data` (Object) - Present when there are no errors
     * `data` (Object) - Contains the actual result of the query
       * `[queryName]` (Object) - Use the query or mutation name to reference the data that you requested!
+  * `errors` (Array of Objects) - Present when there were GraphQL or HTTP errors. See [Errors](#errors)
 
 ##### requestREST(url, fetchOptions[, clientOptions])
 
@@ -378,23 +501,107 @@ A nice helper to prepare a [File](https://developer.mozilla.org/en-US/docs/Web/A
   * `mimetype` (String) - Optional mimetype to specify with the resulting file that can be used when a `string` path, `Buffer` or `ReadStream` are provided as the first parameter.
 * Returns an `Object` that is properly formatted to be coerced by the client for use against our GraphQL API wherever an `Upload` type is required.
 
-### Types
-
-* [Options](#options)
-
-##### Options
+### Options
 
 Options for the Anvil Client. Defaults are shown after each option key.
 
 ```js
 {
-  apiKey: <your_api_key>, // Required. Your API key from your Anvil  organization settings
+  // One of apiKey or accessToken is required. See Authentication.
+  apiKey: <your_api_key>,
+  accessToken: <oauth_access_token>,
+
+  // Where to send requests. See baseURL.
+  baseURL: 'https://app.useanvil.com',
+
+  // Sent as the User-Agent header
+  userAgent: 'Anvil API Client/<version>',
+
+  // How many requests to allow per requestLimitMS until the first response from
+  // the API tells the client your actual limits. See Rate Limits.
+  requestLimit: 1,
+  requestLimitMS: 1000,
 }
 ```
 
+##### Authentication
+
+Authenticate with either an API key or an OAuth access token.
+
+**API key:** Find your API keys in your Anvil organization's settings. Requests use HTTP Basic auth: `Basic base64(apiKey + ':')`.
+
+```js
+const anvilClient = new Anvil({ apiKey: 'your-api-key' })
+```
+
+**OAuth access token:** Requests use Bearer auth. Anvil's access tokens are JWTs, which are sent as-is: `Bearer <accessToken>`. Any other kind of token is base64 encoded: `Bearer base64(accessToken)`.
+
+```js
+const anvilClient = new Anvil({ accessToken: 'your-oauth-access-token' })
+```
+
+If you pass both, the `accessToken` is used.
+
+##### baseURL
+
+By default, requests go to production, `https://app.useanvil.com`. Set `baseURL` to send them somewhere else. All requests go to that host:
+
+* REST: `{baseURL}/api/v1/...`
+* GraphQL: `{baseURL}/graphql`
+* Document downloads: `{baseURL}/api/document-group/{eid}.zip`
+
+```js
+const anvilClient = new Anvil({
+  apiKey: 'your-api-key',
+  baseURL: 'https://anvil.example.com',
+})
+```
+
+Don't include a trailing slash.
+
+### Constants
+
+* `Anvil.VERSION_LATEST` (`-1`) - With `fillPDF`'s `versionNumber` option, fills the most recent version of a PDF template, published or not. Use it to fill drafts.
+* `Anvil.VERSION_LATEST_PUBLISHED` (`-2`) - Fills the latest published version. Unlike leaving `versionNumber` out, this returns an error if the template has never been published.
+
+### Errors
+
+The client's methods don't reject because of a problem response from the API. Instead, they resolve with an `errors` array alongside the `statusCode`. Each item has a `message`, a `name`, or both.
+
+```js
+const { statusCode, data, errors } = await anvilClient.fillPDF(pdfTemplateID, payload)
+if (errors) {
+  console.log(statusCode, errors)
+}
+```
+
+`errors` looks like one of these:
+
+* **GraphQL errors**, as returned by the API, often with a `200` `statusCode`:
+  ```js
+  [{ message: 'Not Found', path: ['etchPacket'], locations: [{ line: 2, column: 3 }] }]
+  ```
+* **A REST error.** Validation errors have no `message`, but list each problem field:
+  ```js
+  [{ name: 'AssertionError', message: 'PDF did not generate properly from given HTML!' }]
+  [{ name: 'ValidationError', status: 400, fields: [{ message: 'Required', property: 'data' }] }]
+  ```
+* **A response that isn't JSON**, like a `502` from a proxy. The `name` and `message` are the HTTP status text:
+  ```js
+  [{ name: 'Bad Gateway', message: 'Bad Gateway' }]
+  ```
+* **A JSON response that couldn't be parsed.** This is the parsing error's `name`, `message`, `code`, `cause` and `stack`:
+  ```js
+  [{ name: 'SyntaxError', message: 'Unexpected end of JSON input', stack: '...' }]
+  ```
+
+The methods do reject when a request can't be made at all, e.g. because of a network error. They also throw for invalid arguments, like an unsupported `dataType`.
+
 ### Rate Limits
 
-Our API has request rate limits in place. The initial request made by this client will parse the limits for your account from the response headers, and then handle the throttling of subsequent requests for you automatically. In the event that this client still receives a `429 Too Many Requests` error response, it will wait the specified duration then retry the request. The client attempts to avoid `429` errors by throttling requests after the number of requests within the specified time period has been reached.
+Our API has request rate limits in place. The initial request made by this client will parse the limits for your account from the `X-RateLimit-Limit` and `X-RateLimit-Interval-Ms` response headers, and then handle the throttling of subsequent requests for you automatically. Any requests made while waiting for that first response will wait for it before being sent.
+
+In the event that this client still receives a `429 Too Many Requests` error response, it will wait for the number of seconds in the `Retry-After` header, plus 50ms, then retry the request.
 
 See the [Anvil API docs](https://www.useanvil.com/docs/api/getting-started/#rate-limits) for more information on the specifics of the rate limits.
 
@@ -410,61 +617,4 @@ Check out the [example](https://github.com/anvilco/node-anvil/tree/main/example)
 
 ## Development
 
-First install the dependencies
-
-```sh
-yarn install
-```
-
-Running tests
-
-```sh
-yarn test
-yarn test:watch
-```
-
-Building with babel will output in the `/lib` directory.
-
-```sh
-yarn test
-
-# Watches the `src` and `test` directories
-yarn test:watch
-```
-
-### Publishing
-
-Publishing to npm is done by the [Publish workflow](.github/workflows/publish.yml) when a version tag is pushed. Merging to `main` does not publish anything.
-
-1. On a branch, bump the version and release the `[Unreleased]` section of `CHANGELOG.md`:
-   ```sh
-   yarn release:prepare 4.0.0
-   ```
-   This sets `version` in `package.json`, renames `[Unreleased]` to `[v4.0.0]`, and commits. If you're on `main`, it creates a `release/v4.0.0` branch first. Push the branch, open a PR, and merge it to `main`.
-1. Tag that commit on `main` and push the tag:
-   ```sh
-   git checkout main && git pull
-   yarn release:tag
-   ```
-   This checks that `main` is up to date with `origin/main`, that `v4.0.0` doesn't already exist, and that `CHANGELOG.md` has a `[v4.0.0]` section, then tags and pushes.
-
-Both commands accept `--dry-run`. For a pre-release, run `yarn release:prepare 4.0.0-beta.1`: it bumps the version but leaves `CHANGELOG.md` alone, so the notes stay under `[Unreleased]` for the final release.
-
-The workflow then:
-
-1. Checks the tag is on `main` and matches the `package.json` version.
-1. Lints, tests and builds the commit that was tagged.
-1. Publishes to npm. Versions like `v4.0.0` go to the `latest` dist-tag. Pre-releases like `v4.0.0-beta.1` go to a dist-tag named after their label (`beta`), and are marked as pre-releases on GitHub.
-1. Creates a GitHub release, using that version's `CHANGELOG.md` section as the release notes.
-
-#### Setup
-
-The workflow uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers), so there is no npm token to store in GitHub secrets. Before the first release, a maintainer of the npm package needs to add a trusted publisher on npmjs.com, under the package's Settings:
-
-* Publisher: GitHub Actions
-* Organization or user: `anvilco`
-* Repository: `node-anvil`
-* Workflow filename: `publish.yml`
-* Allow `npm publish`
-
-npm automatically adds [provenance](https://docs.npmjs.com/generating-provenance-statements) to packages published this way. No GitHub secrets are needed: the release is created with the workflow's own `GITHUB_TOKEN`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to run the tests and publish a release.

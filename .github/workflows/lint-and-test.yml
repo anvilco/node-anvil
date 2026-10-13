@@ -7,6 +7,8 @@ on:
 
 env:
   GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+  # Corepack provides the Yarn version pinned in package.json
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
   TARBALL_PATH: test/e2e/node-anvil.tgz
 
 jobs:
@@ -14,41 +16,43 @@ jobs:
   # Several things need this, so we do it up front once for caching/performance
   prepare-node:
     name: Prepare Node
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     outputs:
       build-node-version: ${{ steps.setup-node.outputs.node-version }}
 
     steps:
     - uses: actions/checkout@v7
 
+    - run: corepack enable
     - name: Setup Node.js
       id: setup-node
       uses: actions/setup-node@v7
       with:
-        node-version-file: '.nvmrc'
+        node-version-file: 'package.json'
         cache: 'yarn'
-    - run: yarn install --frozen-lockfile
+    - run: yarn install --immutable
 
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: prepare-node
 
     steps:
     - uses: actions/checkout@v7
 
+    - run: corepack enable
     - name: Setup Node.js
       uses: actions/setup-node@v7
       with:
-        node-version-file: '.nvmrc'
+        node-version-file: 'package.json'
         cache: 'yarn'
 
-    - run: yarn install --frozen-lockfile
+    - run: yarn install --immutable
     - run: yarn lint:quiet
 
   unit-test:
     name: Unit Test
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs:
       - prepare-node
     strategy:
@@ -58,28 +62,30 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    - run: corepack enable
     - name: Setup Node.js
       id: setup-node
       uses: actions/setup-node@v7
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'yarn'
-    - run: yarn install --frozen-lockfile
+    - run: yarn install --immutable
     - run: yarn test
 
   build-e2e-package:
     name: Build E2E Package
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: prepare-node
 
     steps:
     - uses: actions/checkout@v7
 
+    - run: corepack enable
     - name: Setup Node.js
       id: setup-node
       uses: actions/setup-node@v7
       with:
-        node-version-file: '.nvmrc'
+        node-version-file: 'package.json'
         cache: 'yarn'
 
     - name: Cache Package Build
@@ -89,12 +95,12 @@ jobs:
         path: ${{ env.TARBALL_PATH }}
         key: ${{ runner.os }}-node-${{ needs.prepare-node.outputs.build-node-version }}-${{ env.GITHUB_SHA }}
 
-    - run: yarn install --frozen-lockfile
+    - run: yarn install --immutable
     - run: yarn test-e2e:build
 
   supported-version-sanity-checks:
     name: Sanity Checks
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs:
       - prepare-node
       - build-e2e-package
@@ -104,6 +110,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    - run: corepack enable
     - name: Setup Node.js
       id: setup-node
       uses: actions/setup-node@v7
@@ -119,5 +126,6 @@ jobs:
         key: ${{ runner.os }}-node-${{ needs.prepare-node.outputs.build-node-version }}-${{ env.GITHUB_SHA }}
 
     # Just make sure it installs correctly for now and we'll call it good. No testing.
-    - run: yarn test-e2e:install
+    # npm rather than yarn: this job hasn't run yarn install, and Yarn 4 won't run scripts without one.
+    - run: npm run test-e2e:install
 

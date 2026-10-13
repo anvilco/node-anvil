@@ -1,7 +1,7 @@
 name: Publish
 
 # Publishes to npm when a version tag (like v4.0.0 or v4.0.0-beta.1) is pushed.
-# See "Publishing" in the README.
+# See "Publishing" in CONTRIBUTING.md.
 on:
   push:
     tags:
@@ -14,12 +14,16 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Corepack provides the Yarn version pinned in package.json
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+
 jobs:
   # Installs, tests and packs without any permission to publish, so dependency
   # install scripts never run where they could get a publishing token.
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     outputs:
       dist-tag: ${{ steps.dist-tag.outputs.tag }}
       prerelease: ${{ steps.dist-tag.outputs.prerelease }}
@@ -60,14 +64,15 @@ jobs:
           echo "prerelease=true" >> "$GITHUB_OUTPUT"
         fi
 
+    - run: corepack enable
     - name: Setup Node.js
       uses: actions/setup-node@v7
       with:
-        node-version-file: '.nvmrc'
+        node-version-file: 'package.json'
         # Don't restore a cache in a release
         package-manager-cache: false
 
-    - run: yarn install --frozen-lockfile
+    - run: yarn install --immutable
     - run: yarn lint:quiet
     # Also builds dist/ and types/
     - run: yarn test
@@ -93,7 +98,7 @@ jobs:
   publish:
     name: Publish to npm
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       # To create the GitHub release
       contents: write

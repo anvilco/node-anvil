@@ -436,13 +436,19 @@ yarn test:watch
 
 Publishing to npm is done by the [Publish workflow](.github/workflows/publish.yml) when a version tag is pushed. Merging to `main` does not publish anything.
 
-1. In a PR, bump `version` in `package.json` and rename the `[Unreleased]` section of `CHANGELOG.md` to the new version, e.g. `[v4.0.0]`. Merge it to `main`.
+1. On a branch, bump the version and release the `[Unreleased]` section of `CHANGELOG.md`:
+   ```sh
+   yarn release:prepare 4.0.0
+   ```
+   This sets `version` in `package.json`, renames `[Unreleased]` to `[v4.0.0]`, and commits. If you're on `main`, it creates a `release/v4.0.0` branch first. Push the branch, open a PR, and merge it to `main`.
 1. Tag that commit on `main` and push the tag:
    ```sh
    git checkout main && git pull
-   git tag v4.0.0
-   git push origin v4.0.0
+   yarn release:tag
    ```
+   This checks that `main` is up to date with `origin/main`, that `v4.0.0` doesn't already exist, and that `CHANGELOG.md` has a `[v4.0.0]` section, then tags and pushes.
+
+Both commands accept `--dry-run`. For a pre-release, run `yarn release:prepare 4.0.0-beta.1`: it bumps the version but leaves `CHANGELOG.md` alone, so the notes stay under `[Unreleased]` for the final release.
 
 The workflow then:
 

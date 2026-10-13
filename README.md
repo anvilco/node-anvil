@@ -18,7 +18,7 @@ Learn more on our [Anvil developer page](https://www.useanvil.com/developers/). 
 
 This library and the Anvil APIs are intended to be used on a server or server-like environment. It will fail in a browser environment.
 
-Requires Node 18.17 or later.
+Requires Node 20 or later.
 
 ```sh
 yarn add @anvilco/anvil

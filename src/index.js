@@ -1,3 +1,4 @@
+import { File } from 'buffer'
 import fs from 'fs'
 import { basename } from 'path'
 import { performance } from 'perf_hooks'
@@ -134,9 +135,9 @@ const FILENAME_IGNORE_MESSAGE = 'If you think you can ignore this, please pass `
 const failBufferMS = 50
 
 // Our own connection pool. Without one, undici uses a process-wide default that, on
-// Node 18 and 20, Node's own older copy of undici takes over as soon as anything touches
-// the global fetch, FormData or Headers. That copy doesn't notice when a chunked response
-// is cut short, and would hand back truncated data as a success.
+// Node 20, Node's own older copy of undici takes over as soon as anything touches the
+// global fetch, FormData or Headers. That copy doesn't notice when a chunked response is
+// cut short, and would hand back truncated data as a success.
 const defaultDispatcher = new Agent()
 
 // Three dot-separated base64url segments. The signature can be empty.
@@ -475,10 +476,11 @@ class Anvil {
     if (filesMap.size) {
       const abortController = new AbortController()
       // If a file stream errors, cancel the API call
-      const abortOnError = (stream) => stream.on('error', (err) => {
+      const abortRequest = (err) => {
         console.warn(err)
         abortController.abort()
-      })
+      }
+      const abortOnError = (stream) => stream.on('error', abortRequest)
       const form = new FormData()
 
       form.append('operations', operationJSON)
@@ -515,10 +517,11 @@ class Anvil {
           filename ??= basename(filePath)
           // Only opened when the request is sent, and streamed rather than read into memory.
           // Opened again if the request is retried.
-          file = streamedFile(() => abortOnError(fs.createReadStream(filePath)), {
+          file = new StreamedFile(() => abortOnError(fs.createReadStream(filePath)), {
             name: filename,
             size: fs.statSync(filePath).size,
             type: mimetype,
+            onError: abortRequest,
           })
         } else if (file instanceof Buffer) {
           // https://developer.mozilla.org/en-US/docs/Web/API/Blob/Blob
@@ -531,6 +534,7 @@ class Anvil {
 
           let getStream
           let size
+          let canSend
           if (streamPath) {
             // A file stream: we know its size, and can open it again if the request is retried
             // @ts-ignore
@@ -548,15 +552,18 @@ class Anvil {
           } else {
             // Any other stream can only be read once, and is sent without a size
             let used = false
-            getStream = () => {
+            canSend = () => {
               if (used) {
                 throw new Error(`Can't send ${filename || 'a stream'} again because its stream has already been read. To upload a file in a request that may be retried, pass a path, a file stream or a Buffer.`)
               }
+            }
+            getStream = () => {
+              canSend()
               used = true
               return stream
             }
           }
-          file = streamedFile(getStream, { name: filename, size, type: mimetype })
+          file = new StreamedFile(getStream, { name: filename, size, type: mimetype, onError: abortRequest, canSend })
         } else if (file.constructor.name !== 'File') {
           // Like a Blob or something
           if (!filename) {
@@ -572,8 +579,10 @@ class Anvil {
         }
 
         // https://developer.mozilla.org/en-US/docs/Web/API/FormData/append
-        // Passing an undefined filename would name the file "undefined"
-        if (filename === undefined) {
+        // Passing an undefined filename would name the file "undefined". A StreamedFile
+        // carries its own name, and passing one would make FormData copy it into a plain
+        // File, which reads the whole file into memory and loses the stream.
+        if (filename === undefined || file instanceof StreamedFile) {
           form.append(`${++i}`, file)
         } else {
           form.append(`${++i}`, file, filename)
@@ -658,6 +667,15 @@ class Anvil {
     // fetch needs this to send a stream body
     if (isStreamBody(opts.body) && !opts.duplex) {
       opts.duplex = 'half'
+    }
+    // Refuse up front to send a file whose stream has already been read, with a clear error.
+    // An error thrown while the body is being sent would not reach the caller.
+    if (opts.body instanceof FormData) {
+      for (const value of opts.body.values()) {
+        if (value instanceof StreamedFile) {
+          value.checkCanSend()
+        }
+      }
     }
     return fetch(url, opts)
   }
@@ -927,32 +945,55 @@ function decodeJSONSegment (segment) {
 }
 
 /**
- * A File-like object whose contents come from a stream. FormData reads it with
- * stream(), so the file is sent without reading it all into memory.
- * @param {() => any} getStream A function that returns a Node stream, opened when the file is sent
- * @param {Object} options
- * @param {string} [options.name]
- * @param {number} [options.size] Leave out if unknown. The request is then sent chunked.
- * @param {string} [options.type]
- * @returns {Object}
+ * A File whose contents come from a stream. FormData only accepts real Files, and reads
+ * them with stream() and size, so the file is sent without reading it all into memory.
  * @private
  */
-function streamedFile (getStream, { name, size, type }) {
-  return {
-    [Symbol.toStringTag]: 'File',
+class StreamedFile extends File {
+  /**
+   * @param {() => any} getStream A function that returns a Node stream, opened when the file is sent
+   * @param {Object} options
+   * @param {string} [options.name]
+   * @param {number} [options.size] Leave out if unknown. The request is then sent chunked.
+   * @param {string} [options.type]
+   * @param {(err: Error) => void} options.onError Called if the stream fails while being sent
+   * @param {() => void} [options.canSend] Throws if the file can't be sent (again)
+   */
+  constructor (getStream, { name, size, type, onError, canSend }) {
     // Without a name, the part would have no filename and the API would treat it as text
-    name: name || 'blob',
-    size,
-    type: type || '',
-    // FormData only handles chunks that are bytes, and stops at an empty one
-    stream: async function * () {
-      for await (const chunk of getStream()) {
+    super([], name || 'blob', { type: type || '' })
+    this.getStream = getStream
+    this.streamedSize = size
+    this.onError = onError
+    this.canSend = canSend
+  }
+
+  // @ts-ignore File's size is a number; this one is unknown for streams without a path
+  get size () {
+    return this.streamedSize
+  }
+
+  checkCanSend () {
+    if (this.canSend) {
+      this.canSend()
+    }
+  }
+
+  // FormData only handles chunks that are bytes, and stops at an empty one.
+  // This must never throw: undici doesn't catch errors from a body being sent, so one
+  // would be an unhandled rejection. Errors cancel the request through onError instead.
+  // @ts-ignore File's stream() returns a web ReadableStream; FormData is fine with any async iterable
+  async * stream () {
+    try {
+      for await (const chunk of this.getStream()) {
         const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : chunk
         if (bytes.length) {
           yield bytes
         }
       }
-    },
+    } catch (err) {
+      this.onError(err)
+    }
   }
 }
 

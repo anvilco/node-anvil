@@ -700,9 +700,33 @@ describe('Anvil API Client over HTTP', function () {
           .then(() => null, (err) => err)
 
         expect(server.requests).to.have.length(1)
-        expect(error.message).to.eql('fetch failed')
-        expect(error.cause.message).to.match(/^Can't send once.pdf again because its stream has already been read/)
+        expect(error.message).to.match(/^Can't send once.pdf again because its stream has already been read/)
       })
+    })
+
+    it('cancels the request, rather than crashing, when a stream fails while being sent', async function () {
+      const client = createClient()
+      let unhandled
+      const onUnhandled = (err) => { unhandled = err }
+      process.on('unhandledRejection', onUnhandled)
+      const stream = new Readable({
+        read () {
+          this.push(Buffer.from('data'))
+          this.destroy(new Error('disk on fire'))
+        },
+      })
+      const file = Anvil.prepareGraphQLFile(stream, { filename: 'bad.pdf' })
+      sinon.stub(console, 'warn')
+
+      const error = await client.createEtchPacket({ variables: { files: [{ id: 'file1', file }] } })
+        .then(() => null, (err) => err)
+      await new Promise((resolve) => setImmediate(resolve))
+      process.off('unhandledRejection', onUnhandled)
+
+      // fetch rejects with a DOMException, which chai doesn't count as an Error
+      expect(error.name).to.eql('AbortError')
+      expect(console.warn).to.have.been.calledWith(sinon.match({ message: 'disk on fire' }))
+      expect(unhandled).to.be.undefined
     })
 
     it('does not follow redirects for uploads', async function () {

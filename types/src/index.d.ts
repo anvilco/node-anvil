@@ -1,3 +1,4 @@
+/// <reference types="node" />
 export default Anvil;
 export type AnvilOptions = {
     apiKey?: string;
@@ -251,6 +252,7 @@ declare namespace Anvil {
     export { VERSION_LATEST_PUBLISHED };
 }
 import { Stream } from 'stream';
+import { File } from 'buffer';
 import UploadWithOptions from './UploadWithOptions';
 declare const VERSION_LATEST: -1;
 declare const VERSION_LATEST_PUBLISHED: -2;

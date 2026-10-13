@@ -87,6 +87,21 @@ fs.writeFileSync('output.pdf', data, { encoding: null })
 * [Constants](#constants)
 * [Errors](#errors)
 
+#### Method names
+
+Every method with an acronym in its name can also be called with the acronym in plain camel case, and vice versa. Use whichever you prefer; they are the same method.
+
+| | |
+|---|---|
+| `fillPDF` | `fillPdf` |
+| `generatePDF` | `generatePdf` |
+| `generateEtchSignUrl` | `generateEtchSignURL` |
+| `requestGraphQL` | `requestGraphql` or `requestGraphQl` |
+| `requestREST` | `requestRest` |
+| `prepareGraphQLFile` | `prepareGraphqlFile` or `prepareGraphQlFile` |
+
+The `baseURL` option is also accepted as `baseUrl`.
+
 ### Instance Methods
 
 ##### new Anvil(options)
@@ -511,7 +526,7 @@ Options for the Anvil Client. Defaults are shown after each option key.
   apiKey: <your_api_key>,
   accessToken: <oauth_access_token>,
 
-  // Where to send requests. See baseURL.
+  // Where to send requests. See baseURL. Also accepted as baseUrl.
   baseURL: 'https://app.useanvil.com',
 
   // Sent as the User-Agent header

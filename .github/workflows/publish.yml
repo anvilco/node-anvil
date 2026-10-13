@@ -1,7 +1,7 @@
 name: Publish
 
 # Publishes to npm when a version tag (like v4.0.0 or v4.0.0-beta.1) is pushed.
-# See "Publishing" in the README.
+# See "Publishing" in CONTRIBUTING.md.
 on:
   push:
     tags:

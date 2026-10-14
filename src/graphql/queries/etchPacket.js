@@ -12,7 +12,6 @@ const defaultResponseQuery = `{
   createdAt
   updatedAt
   documentGroup {
-    id
     eid
     status
     files

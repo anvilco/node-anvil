@@ -15,7 +15,6 @@ const defaultResponseQuery = `{
     routingOrder
   }
   weldData {
-    id
     eid
     isTest
     isComplete

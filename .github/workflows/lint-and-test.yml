@@ -49,6 +49,8 @@ jobs:
 
     - run: yarn install --immutable
     - run: yarn lint:quiet
+    # The client's queries and mutations must match the API schema in @anvilco/types
+    - run: yarn check:graphql
 
   unit-test:
     name: Unit Test

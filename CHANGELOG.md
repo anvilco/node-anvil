@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v4.0.0]
 - BREAKING: Drop support for `Node 14`, `Node 16` and `Node 18`. The minimum supported version is now `Node 20`.
 - Add support for `Node 22`, `Node 24` and `Node 26`.
 - BREAKING: Use [undici](https://github.com/nodejs/undici)'s `fetch` instead of `node-fetch`. This fixes `Premature close` errors on complete responses, which node-fetch could raise when a response was read after its connection had closed. A response that really is cut short is now always an error, rather than truncated data.

@@ -98,7 +98,10 @@ jobs:
   publish:
     name: Publish to npm
     needs: build
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    # Not Blacksmith: npm trusted publishing only accepts OIDC tokens from GitHub-hosted
+    # runners (https://docs.npmjs.com/trusted-publishers). On a self-hosted runner npm
+    # silently falls back to token auth and the publish fails with a 404.
+    runs-on: ubuntu-latest
     permissions:
       # To create the GitHub release
       contents: write

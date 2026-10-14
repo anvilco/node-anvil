@@ -69,7 +69,7 @@ The workflow then:
 
 ### Setup
 
-The workflow uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers), so there is no npm token to store in GitHub secrets. Before the first release, a maintainer of the npm package needs to add a trusted publisher on npmjs.com, under the package's Settings:
+The workflow uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers), so there is no npm token to store in GitHub secrets. Its publish job runs on a GitHub-hosted runner, not Blacksmith, because npm only accepts OIDC tokens from GitHub-hosted runners. Before the first release, a maintainer of the npm package needs to add a trusted publisher on npmjs.com, under the package's Settings:
 
 * Publisher: GitHub Actions
 * Organization or user: `anvilco`

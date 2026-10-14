@@ -133,8 +133,10 @@ jobs:
         fi
 
     - name: Publish
-      # npm adds provenance automatically when publishing with trusted publishing
-      run: npm publish ./*.tgz --access public --tag "${{ needs.build.outputs.dist-tag }}"
+      # npm adds provenance automatically when publishing with trusted publishing.
+      # Verbose, because npm only logs the trusted-publishing (OIDC) exchange, and why it
+      # failed, at that level; without it a failure shows as an unexplained 404 from npm.
+      run: npm publish ./*.tgz --access public --tag "${{ needs.build.outputs.dist-tag }}" --loglevel verbose
 
     - name: Create the GitHub release
       env:

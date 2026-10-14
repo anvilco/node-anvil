@@ -44,7 +44,7 @@ Everything it creates is test data. It creates a test Etch packet each run, and 
 
 ## Publishing
 
-Publishing to npm is done by the [Publish workflow](.github/workflows/publish.yml) when a version tag is pushed. Merging to `main` does not publish anything.
+Publishing to npm is done by the [Publish workflow](.github/workflows/publish.yml) when a version tag is pushed, in two steps: the workflow stages the version on npm, and a maintainer approves it with 2FA. Merging to `main` does not publish anything.
 
 1. On a branch, bump the version and release the `[Unreleased]` section of `CHANGELOG.md`:
    ```sh
@@ -57,6 +57,7 @@ Publishing to npm is done by the [Publish workflow](.github/workflows/publish.ym
    yarn release:tag
    ```
    This checks that `main` is up to date with `origin/main`, that `v4.0.0` doesn't already exist, and that `CHANGELOG.md` has a `[v4.0.0]` section, then tags and pushes.
+1. When the workflow has finished, approve the staged version with 2FA: on npmjs.com under the package's **Staged Packages** tab, or with `npm stage list @anvilco/anvil` to find the stage id and `npm stage approve <stage-id>`. Until then the version isn't installable. The workflow's job summary has the same instructions.
 
 Both commands accept `--dry-run`. For a pre-release, run `yarn release:prepare 4.0.0-beta.1`: it bumps the version but leaves `CHANGELOG.md` alone, so the notes stay under `[Unreleased]` for the final release.
 
@@ -64,8 +65,8 @@ The workflow then:
 
 1. Checks the tag is on `main` and matches the `package.json` version.
 1. Lints, tests and builds the commit that was tagged.
-1. Publishes to npm. Versions like `v4.0.0` go to the `latest` dist-tag. Pre-releases like `v4.0.0-beta.1` go to a dist-tag named after their label (`beta`), and are marked as pre-releases on GitHub.
-1. Creates a GitHub release, using that version's `CHANGELOG.md` section as the release notes.
+1. Stages the version on npm with `npm stage publish`. On approval, versions like `v4.0.0` go to the `latest` dist-tag, and pre-releases like `v4.0.0-beta.1` to a dist-tag named after their label (`beta`).
+1. Creates a GitHub release, using that version's `CHANGELOG.md` section as the release notes. Pre-releases are marked as such on GitHub.
 
 ### Setup
 
@@ -75,6 +76,6 @@ The workflow uses [npm trusted publishing](https://docs.npmjs.com/trusted-publis
 * Organization or user: `anvilco`
 * Repository: `node-anvil`
 * Workflow filename: `publish.yml`
-* Allow `npm publish`
+* Allowed actions: none. Staging (`npm stage publish`) is always allowed, and that's all the workflow does. Leaving `npm publish` unticked means a compromised workflow can stage a version but can't make it public.
 
 npm automatically adds [provenance](https://docs.npmjs.com/generating-provenance-statements) to packages published this way. No GitHub secrets are needed: the release is created with the workflow's own `GITHUB_TOKEN`.

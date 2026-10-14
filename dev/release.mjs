@@ -6,7 +6,7 @@
  *   yarn release:prepare <version>   Bumps package.json and CHANGELOG.md on a release
  *                                    branch and commits, ready for a PR to main.
  *   yarn release:tag                 Tags the current commit on main and pushes the tag,
- *                                    which runs the Publish workflow.
+ *                                    which runs the Publish workflow to stage it on npm.
  *
  * Both accept --dry-run to print what they would do without changing anything.
  */
@@ -141,7 +141,7 @@ function tag () {
   run(`Tagging ${head.slice(0, 8)} as ${tagName}`, () => git('tag', tagName))
   run(`Pushing ${tagName} to origin`, () => git('push', 'origin', tagName))
 
-  console.log(`\nThe Publish workflow will publish ${tagName} to npm: ${WORKFLOW_URL}`)
+  console.log(`\nThe Publish workflow will stage ${tagName} on npm: ${WORKFLOW_URL}\nWhen it has finished, approve the staged version with 2FA on npmjs.com (Staged Packages tab).`)
 }
 
 switch (command) {

@@ -19,62 +19,66 @@ class Warning extends Error {}
 
 let extractFiles
 
+// The shapes shared by Anvil's SDKs, and the API's own types, come from @anvilco/types:
+// https://www.npmjs.com/package/@anvilco/types
+
 /**
- * @typedef AnvilOptions
- * @type {Object}
- * @property {string} [apiKey]
- * @property {string} [accessToken]
- * @property {string} [baseURL]
- * @property {string} [baseUrl] Another spelling of baseURL
- * @property {string} [userAgent]
- * @property {number} [requestLimit]
- * @property {number} [requestLimitMS]
- * @property {import('undici').Dispatcher} [dispatcher] An undici dispatcher to send requests
- *   with, e.g. a ProxyAgent. Defaults to an Agent of the client's own.
+ * @typedef {import('@anvilco/types').AnvilOptions & {
+ *   baseUrl?: string,
+ *   dispatcher?: import('undici').Dispatcher,
+ * }} AnvilOptions
+ *   `baseUrl` is another spelling of `baseURL`. `dispatcher` is an undici dispatcher to send
+ *   requests with, e.g. a ProxyAgent; it defaults to an Agent of the client's own.
+ */
+
+/** @typedef {import('@anvilco/types').GraphQLResponse<GraphQLResponseData>} GraphQLResponse */
+
+/**
+ * The body of a GraphQL response: the query's result under `data`
+ * @typedef {{ data: {[key: string]: any} }} GraphQLResponseData
  */
 
 /**
- * @typedef GraphQLResponse
- * @type {Object}
- * @property {number} statusCode
- * @property {GraphQLResponseData} [data]
- * @property {Array<ResponseError | NodeError>} [errors]
+ * @typedef {import('@anvilco/types').RESTResponse<any> & {
+ *   response?: import('undici').Response,
+ * }} RESTResponse
+ *   `data` is a Buffer, ArrayBuffer, Node stream or parsed JSON, depending on the request's
+ *   `dataType`. `response` is the fetch Response.
  */
 
-/** @typedef {{
-  data: {[ key: string]: any }
-}} GraphQLResponseData */
+/** @typedef {import('@anvilco/types').RuntimeError} NodeError */
+/** @typedef {import('@anvilco/types').ResponseError} ResponseError */
+/** @typedef {import('@anvilco/types').ResponseErrorField} ResponseErrorField */
+
+// The OpenAPI spec marks `outputFormat` as required on these, but the API defaults it to
+// 'pdf', and nobody passes it. So it's optional here.
+/** @template T @typedef {Omit<T, 'outputFormat'> & { outputFormat?: 'pdf' | 'url' }} WithOptionalOutputFormat */
+/** @typedef {WithOptionalOutputFormat<import('@anvilco/types').FillPdfPayload>} FillPdfPayload */
+/** @typedef {WithOptionalOutputFormat<import('@anvilco/types').components['schemas']['GenerateMarkdownPdfRequest']> | WithOptionalOutputFormat<import('@anvilco/types').components['schemas']['GenerateHtmlPdfRequest']>} GeneratePdfPayload */
 
 /**
- * @typedef RESTResponse
- * @type {Object}
- * @property {number} statusCode
- * @property {Buffer|ArrayBuffer|Stream|Object} [data]
- * @property {Array<ResponseError | NodeError>} [errors]
- * @property {import('undici').Response} [response] The fetch Response
+ * Options for a request
+ * @typedef {Object} ClientOptions
+ * @property {'json' | 'buffer' | 'arrayBuffer' | 'stream'} [dataType] What `data` to resolve with
+ * @property {boolean} [debug] Log problems parsing responses
  */
 
-/** @typedef {{
-  name: string;
-  message: string;
-  stack: string;
-  code: string;
-  cause?: any;
-}} NodeError */
+/**
+ * A file to upload: a path, a Buffer, a stream, a Blob or File, the result of
+ * prepareGraphQLFile, or one of the API's other forms of the Upload scalar
+ * @typedef {string | Buffer | Stream | Blob | File | UploadWithOptions | import('@anvilco/types').GraphQL.Scalars['Upload']} FileInput
+ */
 
-/** @typedef {{
-  message: string,
-  status?: number,
-  name?: string,
-  fields?: Array<ResponseErrorField>
-  [key: string]: any
-}} ResponseError */
+/**
+ * A file in an Etch packet: the API's EtchFile, with `file` accepting what prepareGraphQLFile does
+ * @typedef {Omit<import('@anvilco/types').GraphQL.Type<'EtchFile'>, 'file'> & { file?: FileInput | null }} EtchFile
+ */
 
-/** @typedef {{
-  message: string,
-  property?: string,
-  [key: string]: any
-}} ResponseErrorField */
+/**
+ * @typedef {Omit<import('@anvilco/types').GraphQL.MutationArgs<'createEtchPacket'>, 'files'> & {
+ *   files?: Array<EtchFile> | null,
+ * }} CreateEtchPacketVariables
+ */
 
 /** @typedef {{
   path: string
@@ -299,9 +303,10 @@ class Anvil {
   /**
    * Runs the createEtchPacket mutation.
    * @param {Object} data
-   * @param {Object} data.variables
+   * @param {CreateEtchPacketVariables} data.variables
    * @param {string} [data.responseQuery]
-   * @param {string} [data.mutation]
+   * @param {string} [data.mutation] Your own mutation. Its variables may differ from the
+   *   API's createEtchPacket arguments, so cast them if TypeScript objects.
    * @returns {Promise<GraphQLResponse>}
    */
   createEtchPacket ({ variables, responseQuery, mutation }) {
@@ -316,7 +321,7 @@ class Anvil {
 
   /**
    * @param {string} documentGroupEid
-   * @param {Object} [clientOptions]
+   * @param {ClientOptions} [clientOptions]
    * @returns {Promise<RESTResponse>}
    */
   downloadDocuments (documentGroupEid, clientOptions = {}) {
@@ -336,8 +341,8 @@ class Anvil {
 
   /**
    * @param {string} pdfTemplateID
-   * @param {Object} payload
-   * @param {Object} [clientOptions]
+   * @param {FillPdfPayload} payload
+   * @param {ClientOptions & { versionNumber?: import('@anvilco/types').FillPdfVersionNumber }} [clientOptions]
    * @returns {Promise<RESTResponse>}
    */
   fillPDF (pdfTemplateID, payload, clientOptions = {}) {
@@ -369,9 +374,9 @@ class Anvil {
 
   /**
    * @param {Object} data
-   * @param {Object} data.variables
+   * @param {import('@anvilco/types').GraphQL.MutationArgs<'forgeSubmit'>} data.variables
    * @param {string} [data.responseQuery]
-   * @param {string} [data.mutation]
+   * @param {string} [data.mutation] Your own mutation; cast `variables` if they differ
    * @returns {Promise<GraphQLResponse>}
    */
   forgeSubmit ({ variables, responseQuery, mutation }) {
@@ -385,8 +390,8 @@ class Anvil {
   }
 
   /**
-   * @param {Object} payload
-   * @param {Object} [clientOptions]
+   * @param {GeneratePdfPayload} payload
+   * @param {ClientOptions} [clientOptions]
    * @returns {Promise<RESTResponse>}
    */
   generatePDF (payload, clientOptions = {}) {
@@ -413,7 +418,7 @@ class Anvil {
 
   /**
    * @param {Object} data
-   * @param {Object} data.variables
+   * @param {import('@anvilco/types').GraphQL.QueryArgs<'etchPacket'>} data.variables
    * @param {string} [data.responseQuery]
    * @returns {Promise<GraphQLResponse>}
    */
@@ -429,7 +434,7 @@ class Anvil {
 
   /**
    * @param {Object} data
-   * @param {Object} data.variables
+   * @param {import('@anvilco/types').GraphQL.MutationArgs<'generateEtchSignURL'>} data.variables
    * @returns {Promise<{url?: string, errors?: Array<ResponseError | NodeError>, statusCode: number}>}
    */
   async generateEtchSignUrl ({ variables }) {
@@ -450,8 +455,8 @@ class Anvil {
 
   /**
    * @param {Object} data
-   * @param {Object} data.variables
-   * @param {string} [data.mutation]
+   * @param {import('@anvilco/types').GraphQL.MutationArgs<'removeWeldData'>} data.variables
+   * @param {string} [data.mutation] Your own mutation; cast `variables` if they differ
    * @returns {Promise<GraphQLResponse>}
    */
   removeWeldData ({ variables, mutation }) {
@@ -467,8 +472,8 @@ class Anvil {
   /**
    * @param {Object} data
    * @param {string} data.query
-   * @param {Object} [data.variables]
-   * @param {Object} [clientOptions]
+   * @param {Record<string, any>} [data.variables] Files to upload can be anywhere in here
+   * @param {ClientOptions} [clientOptions]
    * @returns {Promise<GraphQLResponse>}
    */
   async requestGraphQL ({ query, variables = {} }, clientOptions) {
@@ -649,8 +654,8 @@ class Anvil {
 
   /**
    * @param {string} url
-   * @param {Object} fetchOptions
-   * @param {Object} [clientOptions]
+   * @param {import('undici').RequestInit} fetchOptions
+   * @param {ClientOptions} [clientOptions]
    * @returns {Promise<RESTResponse>}
    */
   async requestREST (url, fetchOptions, clientOptions) {

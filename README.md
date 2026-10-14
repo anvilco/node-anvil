@@ -32,6 +32,19 @@ const Anvil = require('@anvilco/anvil')
 import Anvil from '@anvilco/anvil'
 ```
 
+### TypeScript
+
+The client's types come from [`@anvilco/types`](https://www.npmjs.com/package/@anvilco/types), which is generated from the Anvil API's GraphQL schema and OpenAPI spec and installed with the client. The `variables` of each GraphQL method and the payloads of `fillPDF` and `generatePDF` are typed from them, so a misspelled or missing argument is a compile error. For your own queries, and for the types of what the API returns, use its `GraphQL` namespace:
+
+```ts
+import type { GraphQL } from '@anvilco/types'
+
+type Packet = GraphQL.Type<'EtchPacket'>
+type PacketArgs = GraphQL.MutationArgs<'createEtchPacket'>
+```
+
+If you pass your own `mutation` to a method, its variables may differ from the API's arguments for that mutation; cast them if TypeScript objects.
+
 ```sh
 npm install @anvilco/anvil
 ```

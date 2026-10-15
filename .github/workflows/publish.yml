@@ -1,6 +1,7 @@
 name: Publish
 
-# Publishes to npm when a version tag (like v4.0.0 or v4.0.0-beta.1) is pushed.
+# Stages a release on npm when a version tag (like v4.0.0 or v4.0.0-beta.1) is pushed.
+# A maintainer then approves it on npmjs.com, with 2FA, to make it public.
 # See "Publishing" in CONTRIBUTING.md.
 on:
   push:
@@ -96,7 +97,7 @@ jobs:
         if-no-files-found: error
 
   publish:
-    name: Publish to npm
+    name: Stage on npm
     needs: build
     # Not Blacksmith: npm trusted publishing only accepts OIDC tokens from GitHub-hosted
     # runners (https://docs.npmjs.com/trusted-publishers). On a self-hosted runner npm
@@ -105,7 +106,8 @@ jobs:
     permissions:
       # To create the GitHub release
       contents: write
-      # For npm trusted publishing (OIDC). No npm token needed.
+      # For npm trusted publishing (OIDC). No npm token needed, and the trusted
+      # publisher only needs to allow staging, which it always does.
       id-token: write
 
     steps:
@@ -116,25 +118,44 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v7
       with:
-        # Trusted publishing needs npm 11.5.1+, which Node 24 comes with
+        # Staged publishing needs npm 11.15+, which Node 24 comes with
         node-version: 24
         registry-url: 'https://registry.npmjs.org'
         package-manager-cache: false
 
-    - name: Check npm supports trusted publishing
+    - name: Check npm supports staged publishing
       run: |
         NPM_VERSION=$(npm --version)
         if ! node -e '
-          const [major, minor, patch] = process.argv[1].split(".").map(Number)
-          process.exit(major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))) ? 0 : 1)
+          const [major, minor] = process.argv[1].split(".").map(Number)
+          process.exit(major > 11 || (major === 11 && minor >= 15) ? 0 : 1)
         ' "$NPM_VERSION"; then
-          echo "::error::npm $NPM_VERSION is too old for trusted publishing. It needs 11.5.1 or later."
+          echo "::error::npm $NPM_VERSION is too old for staged publishing. It needs 11.15 or later."
           exit 1
         fi
 
-    - name: Publish
-      # npm adds provenance automatically when publishing with trusted publishing
-      run: npm publish ./*.tgz --access public --tag "${{ needs.build.outputs.dist-tag }}"
+    - name: Stage on npm
+      # Staged, not published: the version isn't installable until a maintainer approves it
+      # with 2FA. npm adds provenance automatically when publishing with trusted publishing.
+      # Verbose, because npm only logs the trusted-publishing (OIDC) exchange, and why it
+      # failed, at that level; without it a failure shows as an unexplained 404 from npm.
+      run: npm stage publish ./*.tgz --access public --tag "${{ needs.build.outputs.dist-tag }}" --loglevel verbose
+
+    - name: Say how to approve it
+      env:
+        DIST_TAG: ${{ needs.build.outputs.dist-tag }}
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        {
+          echo "## @anvilco/anvil@$VERSION is staged on npm, not published"
+          echo
+          echo "It goes to the \`$DIST_TAG\` dist-tag once a maintainer approves it with 2FA, either:"
+          echo
+          echo "- on npmjs.com, under the package's **Staged Packages** tab, or"
+          echo "- with the npm CLI: \`npm stage list @anvilco/anvil\` for the stage id, then \`npm stage approve <stage-id>\`."
+          echo
+          echo "Until then \`npm install @anvilco/anvil@$VERSION\` fails. The GitHub release below exists already, so approve promptly, or reject the staged version if something is wrong."
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Create the GitHub release
       env:

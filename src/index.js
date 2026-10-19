@@ -74,8 +74,12 @@ let extractFiles
  * @typedef {Omit<import('@anvilco/types').GraphQL.Type<'EtchFile'>, 'file'> & { file?: FileInput | null }} EtchFile
  */
 
+/** @typedef {import('@anvilco/types').EtchSigner} EtchSigner A signer in createEtchPacket's `signers` */
+/** @typedef {import('@anvilco/types').EtchSignaturePageOptions} EtchSignaturePageOptions */
+/** @typedef {import('@anvilco/types').EtchFinishPageOptions} EtchFinishPageOptions */
+
 /**
- * @typedef {Omit<import('@anvilco/types').GraphQL.MutationArgs<'createEtchPacket'>, 'files'> & {
+ * @typedef {Omit<import('@anvilco/types').CreateEtchPacketArgs, 'files'> & {
  *   files?: Array<EtchFile> | null,
  * }} CreateEtchPacketVariables
  */

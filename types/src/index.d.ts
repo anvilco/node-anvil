@@ -56,7 +56,13 @@ export type FileInput = string | Buffer | Stream | Blob | File | UploadWithOptio
 export type EtchFile = Omit<import('@anvilco/types').GraphQL.Type<'EtchFile'>, 'file'> & {
     file?: FileInput | null;
 };
-export type CreateEtchPacketVariables = Omit<import('@anvilco/types').GraphQL.MutationArgs<'createEtchPacket'>, 'files'> & {
+/**
+ * A signer in createEtchPacket's `signers`
+ */
+export type EtchSigner = import('@anvilco/types').EtchSigner;
+export type EtchSignaturePageOptions = import('@anvilco/types').EtchSignaturePageOptions;
+export type EtchFinishPageOptions = import('@anvilco/types').EtchFinishPageOptions;
+export type CreateEtchPacketVariables = Omit<import('@anvilco/types').CreateEtchPacketArgs, 'files'> & {
     files?: Array<EtchFile> | null;
 };
 export type Readable = {

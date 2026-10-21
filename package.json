@@ -76,7 +76,7 @@
     "test-e2e:install": "npm --prefix test/e2e run prep && npm --prefix test/e2e install"
   },
   "dependencies": {
-    "@anvilco/types": "^0.2.0",
+    "@anvilco/types": "^0.2.2",
     "extract-files": "^13",
     "undici": "^6.29.0"
   },

@@ -26,7 +26,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@anvilco/anvil@workspace:."
   dependencies:
-    "@anvilco/types": "npm:^0.2.0"
+    "@anvilco/types": "npm:^0.2.2"
     "@babel/cli": "npm:^7.22.10"
     "@babel/core": "npm:^7.18.2"
     "@babel/eslint-parser": "npm:^7.18.2"
@@ -60,10 +60,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@anvilco/types@npm:^0.2.0":
-  version: 0.2.0
-  resolution: "@anvilco/types@npm:0.2.0"
-  checksum: 10c0/8d918ddfdcb62ee29514c76fffbe3f35a57b8629ac67c7de022f2d3f55af0b240cc1609ab04d294522479b00f18b5e7c6fa06de9635257ebc99f288cd87eec1a
+"@anvilco/types@npm:^0.2.2":
+  version: 0.2.2
+  resolution: "@anvilco/types@npm:0.2.2"
+  checksum: 10c0/a01fc8940e11b34f72addce5ec058093398cfb843207e1bf70b78e0b6a3fff7edfd620acea73dc0f21be601c8c51e695713b13e71e2b2a8bb3bc05931f561472
   languageName: node
   linkType: hard
 

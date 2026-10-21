@@ -43,6 +43,20 @@ type Packet = GraphQL.Type<'EtchPacket'>
 type PacketArgs = GraphQL.MutationArgs<'createEtchPacket'>
 ```
 
+The arguments of `createEtchPacket` that the GraphQL schema can only call `JSON` are typed too, and exported by name for building them up separately:
+
+```ts
+import type { EtchSigner } from '@anvilco/anvil'
+
+const signer: EtchSigner = {
+  id: 'signer1',
+  name: 'Sally Signer',
+  email: 'sally@example.com',
+  signerType: 'embedded',
+  fields: [{ fileId: 'lease', fieldId: 'signature1' }],
+}
+```
+
 If you pass your own `mutation` to a method, its variables may differ from the API's arguments for that mutation; cast them if TypeScript objects.
 
 ```sh

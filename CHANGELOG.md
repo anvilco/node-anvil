@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- `createEtchPacket`'s `signers`, `signaturePageOptions` and `finishPageOptions` are typed from the API's schemas, rather than `unknown`, and `EtchSigner`, `EtchSignaturePageOptions` and `EtchFinishPageOptions` are exported. TypeScript now rejects signers the API would reject, and may also reject valid values held in wider types, like a `signerType` typed `string`; narrow or cast those.
 
 ## [v4.0.0]
 - BREAKING: Drop support for `Node 14`, `Node 16` and `Node 18`. The minimum supported version is now `Node 20`.

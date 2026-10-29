@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.1]
+
 ## [v4.1.0]
 - `createEtchPacket`'s `signers`, `signaturePageOptions` and `finishPageOptions` are typed from the API's schemas, rather than `unknown`, and `EtchSigner`, `EtchSignaturePageOptions` and `EtchFinishPageOptions` are exported. TypeScript now rejects signers the API would reject, and may also reject valid values held in wider types, like a `signerType` typed `string`; narrow or cast those.
 

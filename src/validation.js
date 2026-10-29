@@ -40,5 +40,10 @@ export function graphQLUploadSchemaIsValid (schema, parent, key) {
     )
   }
 
+  // URL Upload. `filename` is optional per the Upload scalar.
+  if (schema.url) {
+    return typeof schema.url === 'string'
+  }
+
   return isFile(schema)
 }

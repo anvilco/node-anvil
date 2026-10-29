@@ -709,7 +709,7 @@ describe('Anvil API Client', function () {
             } = options
 
             expect(method).to.eql('POST')
-            if ($.isBase64) {
+            if ($.isInlineUpload) {
               expect(headers).to.eql({
                 'Content-Type': 'application/json',
               })
@@ -770,7 +770,7 @@ describe('Anvil API Client', function () {
           })
 
           context('file is a base64 upload', function () {
-            def('isBase64', () => true)
+            def('isInlineUpload', () => true)
             def('variables', () => {
               return {
                 aNested: {
@@ -785,6 +785,40 @@ describe('Anvil API Client', function () {
 
             it('does not touch the variables at all', async function () {
               await client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+            })
+          })
+
+          context('file is a URL upload', function () {
+            def('isInlineUpload', () => true)
+            def('variables', () => {
+              return {
+                aNested: {
+                  file: {
+                    url: 'https://example.com/omgwow.pdf',
+                    filename: 'omgwow.pdf',
+                  },
+                },
+              }
+            })
+
+            it('does not touch the variables at all', async function () {
+              await client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+            })
+
+            context('without a filename', function () {
+              def('variables', () => {
+                return {
+                  aNested: {
+                    file: {
+                      url: 'https://example.com/omgwow.pdf',
+                    },
+                  },
+                }
+              })
+
+              it('does not touch the variables at all', async function () {
+                await client.requestGraphQL({ query, variables: $.variables }, clientOptions)
+              })
             })
           })
         })

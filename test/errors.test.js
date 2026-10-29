@@ -1,4 +1,5 @@
 import {
+  AnvilRequestError,
   looksLikeJsonError,
   normalizeJsonErrors,
   normalizeNodeError,
@@ -109,6 +110,56 @@ describe('errors', function () {
       expect(normalizeNodeError({ error: undefined, statusText: 'Bad Gateway' })).to.eql([
         { name: 'Bad Gateway', message: 'Bad Gateway' },
       ])
+    })
+  })
+
+  describe('AnvilRequestError', function () {
+    const message = (options) => new AnvilRequestError(options).message
+
+    it('is an Error named AnvilRequestError', function () {
+      const error = new AnvilRequestError({ errors: [{ message: 'problem' }] })
+      expect(error).to.be.an.instanceof(Error)
+      expect(error.name).to.eql('AnvilRequestError')
+      expect(error.stack).to.match(/^AnvilRequestError: problem/)
+    })
+
+    it('keeps what it was given', function () {
+      const errors = [{ message: 'Not Found' }]
+      const data = { etchPacket: null }
+      const response = { status: 200 }
+      const error = new AnvilRequestError({ errors, statusCode: 200, data, response })
+      expect(error.errors).to.equal(errors)
+      expect(error.statusCode).to.eql(200)
+      expect(error.data).to.equal(data)
+      expect(error.response).to.equal(response)
+    })
+
+    it('describes a validation error with its fields, after the status code', function () {
+      const errors = [{ name: 'ValidationError', fields: [{ message: 'Required', property: 'data' }] }]
+      expect(message({ errors, statusCode: 400 })).to.eql('400: ValidationError (data: Required)')
+    })
+
+    it('lists every field', function () {
+      const errors = [{
+        name: 'ValidationError',
+        message: 'Invalid',
+        fields: [{ message: 'Required', property: 'data' }, { message: 'Too long' }],
+      }]
+      expect(message({ errors })).to.eql('ValidationError: Invalid (data: Required, Too long)')
+    })
+
+    it('joins several errors with "; "', function () {
+      const errors = [{ message: 'Not Found', path: ['etchPacket'] }, { message: 'Forbidden' }]
+      expect(message({ errors, statusCode: 200 })).to.eql('200: Not Found; Forbidden')
+    })
+
+    it('leaves out the status code when there is none', function () {
+      expect(message({ errors: [{ name: 'TypeError', message: 'terminated' }] })).to.eql('TypeError: terminated')
+    })
+
+    it('says "Unknown Error" when there is nothing to describe', function () {
+      expect(message({ errors: [], statusCode: 500 })).to.eql('500: Unknown Error')
+      expect(message({ errors: [{}] })).to.eql('Unknown Error')
     })
   })
 })

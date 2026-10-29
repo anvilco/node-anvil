@@ -1,12 +1,16 @@
 /// <reference types="node" />
+export { AnvilRequestError };
 export default Anvil;
 /**
  * `baseUrl` is another spelling of `baseURL`. `dispatcher` is an undici dispatcher to send
  * requests with, e.g. a ProxyAgent; it defaults to an Agent of the client's own.
+ * `throwOnError` makes methods reject with an AnvilRequestError when the API responds with
+ * an error, rather than resolve with `errors`. Off by default.
  */
 export type AnvilOptions = import('@anvilco/types').AnvilOptions & {
     baseUrl?: string;
     dispatcher?: import('undici').Dispatcher;
+    throwOnError?: boolean;
 };
 export type GraphQLResponse = import('@anvilco/types').GraphQLResponse<GraphQLResponseData>;
 /**
@@ -44,6 +48,11 @@ export type ClientOptions = {
      * Log problems parsing responses
      */
     debug?: boolean;
+    /**
+     * Reject with an AnvilRequestError when the API responds
+     * with an error, rather than resolve with `errors`. Overrides the client's `throwOnError`.
+     */
+    throwOnError?: boolean;
 };
 /**
  * A file to upload: a path, a Buffer, a stream, a Blob or File, the result of
@@ -68,6 +77,7 @@ export type CreateEtchPacketVariables = Omit<import('@anvilco/types').CreateEtch
 export type Readable = {
     path: string;
 };
+import { AnvilRequestError } from './errors.mjs';
 declare class Anvil {
     /**
      * Perform some handy/necessary things for a GraphQL file upload to make it work
@@ -278,6 +288,17 @@ declare class Anvil {
      */
     private _wrapRequest;
     /**
+     * Throws an AnvilRequestError for a request that ended in errors, if `throwOnError` is on.
+     * Only call this once _wrapRequest has resolved. A throw inside _wrapRequest or _throttle
+     * could leave the rate limiter's gate closed, and every later request waiting on it.
+     * @param {{ response?: import('undici').Response, statusCode?: number, errors?: Array<ResponseError | NodeError>, partialData?: any }} result
+     *   What _wrapRequest resolved with
+     * @param {ClientOptions | null} [clientOptions]
+     * @returns {void}
+     * @private
+     */
+    private _throwIfError;
+    /**
      * @param {string} path
      * @returns {string}
      * @private
@@ -315,6 +336,7 @@ declare class Anvil {
 }
 declare namespace Anvil {
     export { UploadWithOptions };
+    export { AnvilRequestError };
     export { VERSION_LATEST };
     export { VERSION_LATEST_PUBLISHED };
 }

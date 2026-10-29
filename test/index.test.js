@@ -182,6 +182,20 @@ describe('Anvil API Client', function () {
     })
   })
 
+  describe('exports', function () {
+    it('exports AnvilRequestError by name and on the class', function () {
+      expect(Anvil.AnvilRequestError.name).to.eql('AnvilRequestError')
+      expect(require('../index').AnvilRequestError).to.equal(Anvil.AnvilRequestError)
+      expect(require('../dist').AnvilRequestError).to.equal(Anvil.AnvilRequestError)
+    })
+
+    it('exports AnvilRequestError from the ESM entry point', async function () {
+      const esm = await import('../index.mjs')
+      expect(esm.default).to.equal(Anvil)
+      expect(esm.AnvilRequestError).to.equal(Anvil.AnvilRequestError)
+    })
+  })
+
   describe('version constants', function () {
     it('exposes VERSION_LATEST as -1', function () {
       expect(Anvil.VERSION_LATEST).to.equal(-1)

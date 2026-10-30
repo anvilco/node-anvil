@@ -6,7 +6,7 @@ import { Readable } from 'stream'
 
 import { Agent } from 'undici'
 
-import Anvil from '../index'
+import Anvil, { AnvilRequestError } from '../index'
 
 const assetsDir = path.join(__dirname, 'assets')
 
@@ -557,6 +557,214 @@ describe('Anvil API Client over HTTP', function () {
     })
   })
 
+  describe('throwOnError', function () {
+    const query = { query: '{ currentUser { eid } }' }
+    const validationError = { name: 'ValidationError', fields: [{ message: 'Required', property: 'data' }] }
+    const restError = () => ({ status: 400, json: validationError })
+    const graphQLError = () => ({ json: { data: null, errors: [{ message: 'Not Found', path: ['x'] }] } })
+
+    // Every public method that resolves with `errors`. Their twins (fillPdf etc.) call these.
+    const methods = {
+      fillPDF: [restError, (client, options) => client.fillPDF('castEid123', { data: {} }, options)],
+      generatePDF: [restError, (client, options) => client.generatePDF({ data: [] }, options)],
+      downloadDocuments: [restError, (client, options) => client.downloadDocuments('docGroupEid123', options)],
+      requestREST: [restError, (client, options) => client.requestREST('/api/v1/thing', { method: 'GET' }, { dataType: 'json', ...options })],
+      requestGraphQL: [graphQLError, (client, options) => client.requestGraphQL(query, { dataType: 'json', ...options })],
+      createEtchPacket: [graphQLError, (client) => client.createEtchPacket({ variables: { name: 'Test' } })],
+      getEtchPacket: [graphQLError, (client) => client.getEtchPacket({ variables: { eid: 'packetEid123' } })],
+      generateEtchSignUrl: [graphQLError, (client) => client.generateEtchSignUrl({ variables: { signerEid: 'signerEid123', clientUserId: 'user123' } })],
+      forgeSubmit: [graphQLError, (client) => client.forgeSubmit({ variables: { forgeEid: 'forgeEid123', payload: {} } })],
+      removeWeldData: [graphQLError, (client) => client.removeWeldData({ variables: { eid: 'weldDataEid123' } })],
+    }
+
+    const rejection = (promise) => promise.then(
+      (value) => { throw new Error(`Expected a rejection, but resolved with ${JSON.stringify(value)}`) },
+      (err) => err,
+    )
+    const withoutResponse = ({ response, ...rest }) => rest
+
+    it('covers every public method', function () {
+      const twins = ['fillPdf', 'generatePdf', 'generateEtchSignURL', 'requestGraphql', 'requestGraphQl', 'requestRest']
+      const publicMethods = Object.getOwnPropertyNames(Anvil.prototype)
+        .filter((name) => name !== 'constructor' && !name.startsWith('_') && !twins.includes(name))
+      expect(publicMethods.sort()).to.eql(Object.keys(methods).sort())
+    })
+
+    for (const [name, [errorResponse, call]] of Object.entries(methods)) {
+      it(`${name} rejects with an AnvilRequestError for an error response`, async function () {
+        handler = errorResponse
+        const resolved = await call(createClient())
+
+        const error = await rejection(call(createClient({ throwOnError: true })))
+
+        expect(error).to.be.an.instanceof(AnvilRequestError)
+        expect(error.statusCode).to.eql(resolved.statusCode)
+        expect(error.errors).to.eql(resolved.errors)
+        expect(error.response.status).to.eql(resolved.statusCode)
+      })
+
+      it(`${name} resolves as before with throwOnError off`, async function () {
+        handler = errorResponse
+
+        const byDefault = await call(createClient())
+        const off = await call(createClient({ throwOnError: false }))
+
+        expect(byDefault.errors).to.have.length(1)
+        expect(withoutResponse(off)).to.eql(withoutResponse(byDefault))
+        expect(Object.keys(off).sort()).to.eql(Object.keys(byDefault).sort())
+      })
+    }
+
+    it('resolves a successful request the same as with throwOnError off', async function () {
+      handler = (request) => request.url === '/graphql' ? { json: { data: { ok: true } } } : { body: '%PDF-1.7' }
+      const on = createClient({ throwOnError: true })
+      const off = createClient()
+
+      const pdfOn = await on.fillPDF('castEid123', { data: {} })
+      const pdfOff = await off.fillPDF('castEid123', { data: {} })
+      expect(pdfOn.data.toString()).to.eql('%PDF-1.7')
+      expect(withoutResponse(pdfOn)).to.eql(withoutResponse(pdfOff))
+
+      const graphQLOn = await on.requestGraphQL(query, { dataType: 'json' })
+      expect(graphQLOn).to.eql({ statusCode: 200, data: { data: { ok: true } }, errors: undefined })
+      expect(graphQLOn).to.eql(await off.requestGraphQL(query, { dataType: 'json' }))
+    })
+
+    it('describes a REST error, with its status code, fields and response', async function () {
+      handler = restError
+      const client = createClient({ throwOnError: true })
+
+      const error = await rejection(client.fillPDF('castEid123', { data: {} }))
+
+      expect(error.name).to.eql('AnvilRequestError')
+      expect(error.message).to.eql('400: ValidationError (data: Required)')
+      expect(error.statusCode).to.eql(400)
+      expect(error.errors).to.eql([validationError])
+      expect(error.data).to.be.undefined
+      expect(error.response.headers.get('x-ratelimit-limit')).to.eql('10')
+    })
+
+    it('rejects for a non-JSON error response', async function () {
+      handler = () => ({ status: 502, headers: { 'content-type': 'text/html' }, body: '<html>Bad Gateway</html>' })
+      const client = createClient({ throwOnError: true })
+
+      const error = await rejection(client.downloadDocuments('docGroupEid123'))
+
+      expect(error.message).to.eql('502: Bad Gateway: Bad Gateway')
+      expect(error.errors).to.eql([{ name: 'Bad Gateway', message: 'Bad Gateway' }])
+      // The body is still there to read, as it is in the response the method resolves with today
+      expect(await error.response.text()).to.eql('<html>Bad Gateway</html>')
+    })
+
+    it('rejects for a JSON response that cannot be parsed', async function () {
+      handler = () => ({ headers: { 'content-type': 'application/json' } })
+      const client = createClient({ throwOnError: true })
+
+      const error = await rejection(client.requestREST('/api/v1/thing', { method: 'GET' }, { dataType: 'json' }))
+
+      expect(error).to.be.an.instanceof(AnvilRequestError)
+      expect(error.statusCode).to.eql(200)
+      expect(error.errors[0].name).to.eql('SyntaxError')
+      expect(error.message).to.match(/^200: SyntaxError: /)
+    })
+
+    it('puts the data from a partly successful GraphQL response on the error', async function () {
+      const errors = [{ message: 'Not Found', path: ['etchPacket'] }, { message: 'Forbidden', path: ['weldData'] }]
+      const data = { etchPacket: null, weldData: { eid: 'weldDataEid123' } }
+      handler = () => ({ json: { data, errors } })
+
+      const error = await rejection(createClient({ throwOnError: true }).requestGraphQL(query, { dataType: 'json' }))
+      const resolved = await createClient().requestGraphQL(query, { dataType: 'json' })
+
+      expect(error.message).to.eql('200: Not Found; Forbidden')
+      expect(error.statusCode).to.eql(200)
+      expect(error.errors).to.eql(errors)
+      expect(error.data).to.eql(data)
+      expect(error.response.status).to.eql(200)
+      // The method still doesn't resolve with it
+      expect(resolved).to.eql({ statusCode: 200, data: undefined, errors })
+    })
+
+    it('lets the per-call option override the client option', async function () {
+      handler = restError
+      const on = createClient({ throwOnError: true })
+      const off = createClient({ throwOnError: false })
+      const unset = createClient()
+
+      expect((await on.fillPDF('castEid123', { data: {} }, { throwOnError: false })).statusCode).to.eql(400)
+      expect((await on.requestGraphQL(query, { dataType: 'json', throwOnError: false })).statusCode).to.eql(400)
+
+      expect(await rejection(off.fillPDF('castEid123', { data: {} }, { throwOnError: true }))).to.be.an.instanceof(AnvilRequestError)
+      expect(await rejection(unset.requestREST('/api/v1/thing', { method: 'GET' }, { dataType: 'json', throwOnError: true }))).to.be.an.instanceof(AnvilRequestError)
+    })
+
+    it('still rejects with the fetch error when the server cannot be reached', async function () {
+      const client = createClient({ throwOnError: true })
+      await server.close()
+
+      const error = await rejection(client.requestGraphQL(query, { dataType: 'json' }))
+
+      expect(error).to.not.be.an.instanceof(AnvilRequestError)
+      expect(error).to.be.an.instanceof(TypeError)
+      expect(error.message).to.eql('fetch failed')
+      expect(error.cause.code).to.eql('ECONNREFUSED')
+    })
+
+    it('still throws for invalid arguments', async function () {
+      const client = createClient({ throwOnError: true })
+
+      expect(() => client.fillPDF('castEid123', { data: {} }, { dataType: 'nope' })).to.throw('dataType must be one of')
+    })
+
+    it('retries a 429 rather than rejecting', async function () {
+      handler = (request, index) => index === 0
+        ? { status: 429, headers: { 'retry-after': '0' } }
+        : { json: { data: { ok: true } } }
+      const client = createClient({ throwOnError: true })
+
+      const { statusCode, data } = await client.requestGraphQL(query, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
+      expect(data).to.eql({ data: { ok: true } })
+      expect(server.requests).to.have.length(2)
+    })
+
+    it('lets waiting requests go ahead when the first response is an error', async function () {
+      handler = (request, index) => index === 0
+        ? { ...graphQLError(), delayMS: 50, headers: { 'x-ratelimit-limit': '7', 'x-ratelimit-interval-ms': '700' } }
+        : { json: { data: { ok: true } } }
+      const client = createClient({ throwOnError: true })
+
+      const results = await Promise.allSettled([1, 2, 3].map(() => client.requestGraphQL(query, { dataType: 'json' })))
+
+      expect(results[0].status).to.eql('rejected')
+      expect(results[0].reason).to.be.an.instanceof(AnvilRequestError)
+      expect(results.slice(1).map(({ status, value }) => status === 'fulfilled' && value.statusCode)).to.eql([200, 200])
+      // The error response still set the limits
+      expect(client.limitTokens).to.eql(7)
+      expect(client.limitIntervalMs).to.eql(700)
+
+      const { statusCode } = await client.requestGraphQL(query, { dataType: 'json' })
+      expect(statusCode).to.eql(200)
+    })
+
+    it('still throttles the request after one that rejected', async function () {
+      handler = (request, index) => ({
+        ...(index === 0 ? restError() : { json: { data: { ok: true } } }),
+        headers: { 'x-ratelimit-limit': '1', 'x-ratelimit-interval-ms': '200' },
+      })
+      const client = createClient({ throwOnError: true })
+
+      await rejection(client.requestREST('/api/v1/thing', { method: 'GET' }, { dataType: 'json' }))
+      const { statusCode } = await client.requestGraphQL(query, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
+      const waitedMS = server.requests[1].receivedAt - server.requests[0].receivedAt
+      // 200ms interval + 50ms buffer
+      expect(waitedMS).to.be.within(240, 700)
+    })
+  })
+
   describe('file uploads', function () {
     function getPart (request, name) {
       const boundary = request.headers['content-type'].split('boundary=')[1]
@@ -896,11 +1104,12 @@ describe('Anvil API Client over HTTP', function () {
         rawServer.close()
       })
 
-      function createRawClient () {
+      function createRawClient (options = {}) {
         return new Anvil({
           apiKey: 'test-api-key',
           baseURL: `http://127.0.0.1:${rawServer.address().port}`,
           requestLimit: 10,
+          ...options,
         })
       }
 
@@ -935,6 +1144,28 @@ describe('Anvil API Client over HTTP', function () {
         const client = createRawClient()
 
         await expect(client.fillPDF('castEid123', { data: {} })).to.be.rejectedWith(/terminated/)
+      })
+
+      it('still rejects with TypeError: terminated for binary data with throwOnError on', async function () {
+        writes = [head + 'Content-Type: application/pdf\r\n\r\n', chunk('%PDF-1.7 the first part')]
+        const client = createRawClient({ throwOnError: true })
+
+        const error = await client.fillPDF('castEid123', { data: {} }).then(() => null, (err) => err)
+
+        expect(error).to.be.an.instanceof(TypeError)
+        expect(error.message).to.eql('terminated')
+      })
+
+      it('rejects with an AnvilRequestError when a JSON response is cut short with throwOnError on', async function () {
+        writes = [head + 'Content-Type: application/json\r\n\r\n', chunk(json.slice(0, 1000))]
+        const client = createRawClient({ throwOnError: true })
+
+        const error = await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+          .then(() => null, (err) => err)
+
+        expect(error).to.be.an.instanceof(AnvilRequestError)
+        expect(error.message).to.eql('200: TypeError: terminated')
+        expect(error.errors[0].message).to.eql('terminated')
       })
 
       it('returns an error when the connection closes before a JSON response is complete', async function () {

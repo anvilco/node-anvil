@@ -3,4 +3,6 @@
 // and in TypeScript alike.
 import Anvil from './index.js'
 
+export const AnvilRequestError = Anvil.AnvilRequestError
+
 export default Anvil

@@ -201,6 +201,7 @@ fs.writeFileSync('filled.pdf', data, { encoding: null })
 * `options` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'arrayBuffer'` and `'stream'` are also supported.
   * `versionNumber` (Number) - _optional_ The version of the PDF template to fill. Defaults to the latest published version, or the latest version if the template has never been published. See [Constants](#constants).
+  * `throwOnError` (Boolean) - _optional_ Overrides the client's [`throwOnError`](#throwonerror) for this request.
 * Returns a `Promise` that resolves to an `Object`
   * `statusCode` (Number) - the HTTP status code; `200` is success
   * `data` (Buffer | ArrayBuffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer, ArrayBuffer, or a Stream, depending on `dataType` option supplied to the request.
@@ -286,6 +287,7 @@ fs.writeFileSync('generated.pdf', data, { encoding: null })
     * For example `[{ "label": "Hello World!", "content": "Test" }]`
 * `options` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'arrayBuffer'` and `'stream'` are also supported.
+  * `throwOnError` (Boolean) - _optional_ Overrides the client's [`throwOnError`](#throwonerror) for this request.
 * Returns a `Promise` that resolves to an `Object`
   * `statusCode` (Number) - the HTTP status code; `200` is success
   * `data` (Buffer | ArrayBuffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer, ArrayBuffer, or a Stream, depending on `dataType` option supplied to the request.
@@ -409,6 +411,7 @@ stream.pipe(fs.createWriteStream('documents.zip'))
 * `documentGroupEid` (string) - the eid of the document group to download
 * `options` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, but `'arrayBuffer'` and `'stream'` are also supported.
+  * `throwOnError` (Boolean) - _optional_ Overrides the client's [`throwOnError`](#throwonerror) for this request.
 * Returns a `Promise` that resolves to an `Object`
    * `statusCode` (Number) - the HTTP status code, `200` is success
    * `response` (Object) - the Response object resulting from the client's request to the Anvil app
@@ -491,6 +494,8 @@ if (errors) {
 * `queryInfo` (Object)
   * `query` (String) - GraphQL query or mutation to run. See the [GraphQL reference](https://www.useanvil.com/docs/api/graphql/reference/) for a listing on all possible queries
   * `variables` (Object) - GraphQL variables for the query. Files to upload can be anywhere in here; see [prepareGraphQLFile](#preparegraphqlfilepathorstreamlikething-options).
+* `options` (Object) - _optional_ Any additional options for the request
+  * `throwOnError` (Boolean) - _optional_ Overrides the client's [`throwOnError`](#throwonerror) for this request.
 * Returns a `Promise` that resolves to an `Object`
   * `statusCode` (Number) - The HTTP status code. GraphQL errors come back with a `200`; you will only see other codes if the request itself was a problem, e.g. it was malformed or unauthorized.
   * `data` (Object) - Present when there are no errors
@@ -524,6 +529,7 @@ const result = await this.requestREST(
 * `fetchOptions` (Object) - Options passed to [fetch](https://undici.nodejs.org/#/docs/api/Fetch). The client uses [undici](https://github.com/nodejs/undici)'s `fetch`.
 * `clientOptions` (Object) - _optional_ Any additional options for the request
   * `dataType` (Enum[String]) - _optional_ Set the type of the `data` value that is returned in the resolved `Promise`. Defaults to `'buffer'`, `'arrayBuffer'`, `'stream'`, and `'json'` are also supported.
+  * `throwOnError` (Boolean) - _optional_ Overrides the client's [`throwOnError`](#throwonerror) for this request.
 * Returns a `Promise` that resolves to an `Object`
   * `statusCode` (Number) - the HTTP status code; `200` is success
   * `data` (Buffer | ArrayBuffer | Stream) - The raw binary data of the filled PDF if success. Will be either a Buffer, ArrayBuffer, or a Stream, depending on `dataType` option supplied to the request.
@@ -575,6 +581,10 @@ Options for the Anvil Client. Defaults are shown after each option key.
   // An undici Dispatcher to send requests with, e.g. to use a proxy:
   // new ProxyAgent('http://proxy.example.com:8080'). Defaults to the client's own Agent.
   dispatcher: <undici_dispatcher>,
+
+  // Reject with an AnvilRequestError when the API responds with an error, rather
+  // than resolve with `errors`. See throwOnError.
+  throwOnError: false,
 }
 ```
 
@@ -620,7 +630,7 @@ Don't include a trailing slash.
 
 ### Errors
 
-The client's methods don't reject because of a problem response from the API. Instead, they resolve with an `errors` array alongside the `statusCode`. Each item has a `message`, a `name`, or both.
+By default, the client's methods don't reject because of a problem response from the API. Instead, they resolve with an `errors` array alongside the `statusCode`. Each item has a `message`, a `name`, or both. To have them reject instead, turn on [`throwOnError`](#throwonerror).
 
 ```js
 const { statusCode, data, errors } = await anvilClient.fillPDF(pdfTemplateID, payload)
@@ -663,6 +673,49 @@ try {
 If the connection closes before the whole response arrives, a method that returns binary data (like `fillPDF` or `downloadDocuments`) rejects with `TypeError: terminated`. One that returns JSON resolves with `errors: [{ name: 'TypeError', message: 'terminated' }]`.
 
 They also throw for invalid arguments, like an unsupported `dataType`.
+
+##### throwOnError
+
+Pass `throwOnError: true` and the methods reject with an `AnvilRequestError` whenever they would otherwise resolve with `errors`. That way one `try`/`catch` handles every kind of failure. It's off by default; with it off, the methods behave as described above.
+
+```js
+const Anvil = require('@anvilco/anvil')
+const { AnvilRequestError } = Anvil
+// Or: import Anvil, { AnvilRequestError } from '@anvilco/anvil'
+
+const anvilClient = new Anvil({ apiKey, throwOnError: true })
+
+try {
+  const { data } = await anvilClient.fillPDF(pdfTemplateID, payload)
+  fs.writeFileSync('filled.pdf', data, { encoding: null })
+} catch (error) {
+  if (error instanceof AnvilRequestError) {
+    console.log(error.message) // e.g. '400: ValidationError (data: Required)'
+    console.log(error.statusCode, error.errors)
+  } else {
+    throw error // e.g. 'fetch failed'
+  }
+}
+```
+
+A successful request resolves just as it does with `throwOnError` off.
+
+`fillPDF`, `generatePDF`, `downloadDocuments`, `requestGraphQL` and `requestREST` also accept `throwOnError` in their options, to override the client's setting for one request:
+
+```js
+const { statusCode, errors } = await anvilClient.fillPDF(pdfTemplateID, payload, { throwOnError: false })
+```
+
+An `AnvilRequestError` has:
+
+* `name` (String) - `'AnvilRequestError'`
+* `message` (String) - The status code, then each error's `name` and `message`, and a validation error's fields, separated by `'; '`. For example, `'400: ValidationError (data: Required)'` or `'200: Not Found; Forbidden'`.
+* `statusCode` (Number) - The HTTP status code. GraphQL errors usually come with a `200`.
+* `errors` (Array of Objects) - The `errors` the method would have resolved with. See above.
+* `data` (Object) - Any data the API returned alongside the errors, otherwise `undefined`. A GraphQL request can partly succeed; this is the GraphQL response's `data`, so a query's result is at `error.data.etchPacket`, not `data.data.etchPacket` as when a request succeeds.
+* `response` (Response) - The fetch `Response`, e.g. for the [rate limit](#rate-limits) headers.
+
+Everything that rejects with `throwOnError` off still rejects the same way with it on: network errors, a binary response cut short (`TypeError: terminated`), and invalid arguments. A JSON response cut short, which would resolve with `errors: [{ name: 'TypeError', message: 'terminated' }]`, rejects with an `AnvilRequestError`. A `429` is still retried, not thrown.
 
 ### Rate Limits
 

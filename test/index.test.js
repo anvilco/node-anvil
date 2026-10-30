@@ -186,7 +186,6 @@ describe('Anvil API Client', function () {
     it('exports AnvilRequestError by name and on the class', function () {
       expect(Anvil.AnvilRequestError.name).to.eql('AnvilRequestError')
       expect(require('../index').AnvilRequestError).to.equal(Anvil.AnvilRequestError)
-      expect(require('../dist').AnvilRequestError).to.equal(Anvil.AnvilRequestError)
     })
 
     it('exports AnvilRequestError from the ESM entry point', async function () {

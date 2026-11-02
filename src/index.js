@@ -8,7 +8,7 @@ import { Agent, fetch, FormData } from 'undici'
 
 import UploadWithOptions from './UploadWithOptions'
 import { version, description } from '../package.json'
-import { looksLikeJsonError, normalizeNodeError, normalizeJsonErrors } from './errors'
+import { AnvilRequestError, looksLikeJsonError, normalizeNodeError, normalizeJsonErrors } from './errors'
 import { queries, mutations } from './graphql'
 import {
   isFile,
@@ -26,9 +26,12 @@ let extractFiles
  * @typedef {import('@anvilco/types').AnvilOptions & {
  *   baseUrl?: string,
  *   dispatcher?: import('undici').Dispatcher,
+ *   throwOnError?: boolean,
  * }} AnvilOptions
  *   `baseUrl` is another spelling of `baseURL`. `dispatcher` is an undici dispatcher to send
  *   requests with, e.g. a ProxyAgent; it defaults to an Agent of the client's own.
+ *   `throwOnError` makes methods reject with an AnvilRequestError when the API responds with
+ *   an error, rather than resolve with `errors`. Off by default.
  */
 
 /** @typedef {import('@anvilco/types').GraphQLResponse<GraphQLResponseData>} GraphQLResponse */
@@ -61,6 +64,8 @@ let extractFiles
  * @typedef {Object} ClientOptions
  * @property {'json' | 'buffer' | 'arrayBuffer' | 'stream'} [dataType] What `data` to resolve with
  * @property {boolean} [debug] Log problems parsing responses
+ * @property {boolean} [throwOnError] Reject with an AnvilRequestError when the API responds
+ *   with an error, rather than resolve with `errors`. Overrides the client's `throwOnError`.
  */
 
 /**
@@ -634,20 +639,18 @@ class Anvil {
       options.body = operationJSON
     }
 
-    const {
-      response,
-      statusCode,
-      data,
-      errors,
-    } = await this._wrapRequest(
+    const result = await this._wrapRequest(
       () => this._request('/graphql', options),
       clientOptions,
     )
+    const { response, statusCode, data, errors } = result
 
     // The response isn't returned, so nothing else could read a body that wasn't needed
     if (response && !response.bodyUsed) {
       await discardBody(response)
     }
+
+    this._throwIfError(result, clientOptions)
 
     return {
       statusCode,
@@ -663,15 +666,19 @@ class Anvil {
    * @returns {Promise<RESTResponse>}
    */
   async requestREST (url, fetchOptions, clientOptions) {
-    const {
-      response,
-      statusCode,
-      data,
-      errors,
-    } = await this._wrapRequest(
+    const result = await this._wrapRequest(
       () => this._request(url, fetchOptions),
       clientOptions,
     )
+    const { response, statusCode, data, errors } = result
+
+    // The error carries the response, but nothing will read a body the caller didn't ask for,
+    // and an unread body holds on to its connection
+    if (errors && this._shouldThrow(clientOptions) && response && !response.bodyUsed) {
+      await discardBody(response)
+    }
+
+    this._throwIfError(result, clientOptions)
 
     return {
       response,
@@ -856,7 +863,10 @@ class Anvil {
 
       if (nodeError || isError || statusCode >= 300) {
         const errors = nodeError ? normalizeNodeError({ error: nodeError }) : normalizeJsonErrors({ json, statusText })
-        return { response, statusCode, errors }
+        // A GraphQL response can have data alongside its errors. Only an AnvilRequestError
+        // gets it; the methods have never resolved with it.
+        const partialData = json ? json.data : undefined
+        return { response, statusCode, errors, partialData }
       }
 
       let data
@@ -889,6 +899,32 @@ class Anvil {
         statusCode,
       }
     })
+  }
+
+  /**
+   * Throws an AnvilRequestError for a request that ended in errors, if `throwOnError` is on.
+   * Only call this once _wrapRequest has resolved. A throw inside _wrapRequest or _throttle
+   * could leave the rate limiter's gate closed, and every later request waiting on it.
+   * @param {{ response?: import('undici').Response, statusCode?: number, errors?: Array<ResponseError | NodeError>, partialData?: any }} result
+   *   What _wrapRequest resolved with
+   * @param {ClientOptions | null} [clientOptions]
+   * @returns {void}
+   * @private
+   */
+  _throwIfError ({ response, statusCode, errors, partialData }, clientOptions) {
+    if (errors && this._shouldThrow(clientOptions)) {
+      throw new AnvilRequestError({ errors, statusCode, data: partialData, response })
+    }
+  }
+
+  /**
+   * Whether `throwOnError` is on for a request: its own setting, otherwise the client's.
+   * @param {ClientOptions | null} [clientOptions]
+   * @returns {boolean}
+   * @private
+   */
+  _shouldThrow (clientOptions) {
+    return !!(clientOptions?.throwOnError ?? this.options.throwOnError)
   }
 
   /**
@@ -1010,6 +1046,7 @@ class Anvil {
 }
 
 Anvil.UploadWithOptions = UploadWithOptions
+Anvil.AnvilRequestError = AnvilRequestError
 
 /**
  * @param {string} retryAfterSeconds
@@ -1143,4 +1180,5 @@ function sleep (ms) {
 Anvil.VERSION_LATEST = VERSION_LATEST
 Anvil.VERSION_LATEST_PUBLISHED = VERSION_LATEST_PUBLISHED
 
+export { AnvilRequestError }
 export default Anvil

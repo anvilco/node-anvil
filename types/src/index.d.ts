@@ -299,6 +299,13 @@ declare class Anvil {
      */
     private _throwIfError;
     /**
+     * Whether `throwOnError` is on for a request: its own setting, otherwise the client's.
+     * @param {ClientOptions | null} [clientOptions]
+     * @returns {boolean}
+     * @private
+     */
+    private _shouldThrow;
+    /**
      * @param {string} path
      * @returns {string}
      * @private

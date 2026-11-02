@@ -672,6 +672,12 @@ class Anvil {
     )
     const { response, statusCode, data, errors } = result
 
+    // The error carries the response, but nothing will read a body the caller didn't ask for,
+    // and an unread body holds on to its connection
+    if (errors && this._shouldThrow(clientOptions) && response && !response.bodyUsed) {
+      await discardBody(response)
+    }
+
     this._throwIfError(result, clientOptions)
 
     return {
@@ -906,10 +912,19 @@ class Anvil {
    * @private
    */
   _throwIfError ({ response, statusCode, errors, partialData }, clientOptions) {
-    const throwOnError = clientOptions?.throwOnError ?? this.options.throwOnError
-    if (throwOnError && errors) {
+    if (errors && this._shouldThrow(clientOptions)) {
       throw new AnvilRequestError({ errors, statusCode, data: partialData, response })
     }
+  }
+
+  /**
+   * Whether `throwOnError` is on for a request: its own setting, otherwise the client's.
+   * @param {ClientOptions | null} [clientOptions]
+   * @returns {boolean}
+   * @private
+   */
+  _shouldThrow (clientOptions) {
+    return !!(clientOptions?.throwOnError ?? this.options.throwOnError)
   }
 
   /**

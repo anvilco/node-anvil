@@ -713,7 +713,7 @@ An `AnvilRequestError` has:
 * `statusCode` (Number) - The HTTP status code. GraphQL errors usually come with a `200`.
 * `errors` (Array of Objects) - The `errors` the method would have resolved with. See above.
 * `data` (Object) - Any data the API returned alongside the errors, otherwise `undefined`. A GraphQL request can partly succeed; this is the GraphQL response's `data`, so a query's result is at `error.data.etchPacket`, not `data.data.etchPacket` as when a request succeeds.
-* `response` (Response) - The fetch `Response`, e.g. for the [rate limit](#rate-limits) headers.
+* `response` (Response) - The fetch `Response`, e.g. for the [rate limit](#rate-limits) headers. Its body has already been read.
 
 Everything that rejects with `throwOnError` off still rejects the same way with it on: network errors, a binary response cut short (`TypeError: terminated`), and invalid arguments. A JSON response cut short, which would resolve with `errors: [{ name: 'TypeError', message: 'terminated' }]`, rejects with an `AnvilRequestError`. A `429` is still retried, not thrown.
 

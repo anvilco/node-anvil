@@ -487,6 +487,26 @@ describe('Anvil API Client over HTTP', function () {
       expect(statusCode).to.eql(200)
       expect(connections()).to.eql(1)
     })
+
+    it('reuses the connection after a non-JSON error response to a REST request with throwOnError on', async function () {
+      handler = (request, index) => index === 0
+        ? { status: 502, body: bigBody }
+        : { body: '%PDF-1.7' }
+      const client = createClient({ throwOnError: true })
+
+      const error = await client.fillPDF('castEid123', { data: {} }).then(
+        () => { throw new Error('Expected a rejection') },
+        (err) => err,
+      )
+      expect(error).to.be.an.instanceof(AnvilRequestError)
+      expect(error.statusCode).to.eql(502)
+      // undici returns the connection to its pool a tick after the body has been read
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      const { statusCode } = await client.fillPDF('castEid123', { data: {} })
+
+      expect(statusCode).to.eql(200)
+      expect(connections()).to.eql(1)
+    })
   })
 
   describe('errors', function () {
@@ -652,8 +672,9 @@ describe('Anvil API Client over HTTP', function () {
 
       expect(error.message).to.eql('502: Bad Gateway: Bad Gateway')
       expect(error.errors).to.eql([{ name: 'Bad Gateway', message: 'Bad Gateway' }])
-      // The body is still there to read, as it is in the response the method resolves with today
-      expect(await error.response.text()).to.eql('<html>Bad Gateway</html>')
+      // The body has been read and discarded, so that it doesn't hold on to its connection
+      expect(error.response.bodyUsed).to.eql(true)
+      expect(error.response.status).to.eql(502)
     })
 
     it('rejects for a JSON response that cannot be parsed', async function () {

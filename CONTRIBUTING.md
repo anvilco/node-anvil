@@ -42,6 +42,12 @@ ANVIL_API_KEY=<your staging API key> yarn test-client
 
 Everything it creates is test data. It creates a test Etch packet each run, and removes the Workflow submission it creates.
 
+## Versioning
+
+Versions follow [semver](https://semver.org). The client's TypeScript types are part of its public API, and most of them come from [`@anvilco/types`](https://www.npmjs.com/package/@anvilco/types), which is generated from the API's specs and takes its bumps from them ([its policy](https://github.com/anvilco/anvil-js/tree/main/packages/types#versioning)): a major when the API removes or changes a type, field or argument, a minor for additions, a patch for descriptions. Dependabot opens the PR that bumps it here, and `yarn check:graphql` validates the client's operations against the schema that ships in the package, so an API change that breaks one fails that PR.
+
+That bump sets a floor for the next release: a `@anvilco/types` major is a `BREAKING:` entry in `CHANGELOG.md` and a major of this client; a minor makes the next release at least a minor. The client's own changes can raise the bump, never lower it.
+
 ## Publishing
 
 Publishing to npm is done by the [Publish workflow](.github/workflows/publish.yml) when a version tag is pushed, in two steps: the workflow stages the version on npm, and a maintainer approves it with 2FA. Merging to `main` does not publish anything.

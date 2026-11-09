@@ -7,3 +7,6 @@ updates:
   open-pull-requests-limit: 10
   reviewers:
   - newhouse
+  # The Sync API Types workflow owns this bump: it runs when the package publishes
+  ignore:
+  - dependency-name: "@anvilco/types"

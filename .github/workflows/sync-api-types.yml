@@ -1,0 +1,227 @@
+name: Sync API Types
+
+# Moves the @anvilco/types dependency to the newly published version and
+# opens one PR. The package ships the API's GraphQL schema, which the client's
+# types are written against and dev/check-graphql.mjs validates its operations
+# with, so a new version is how an API change reaches this client. Runs when
+# anvil-js publishes a new @anvilco/types: its release workflow sends
+# `anvilco-types-published` here. That dispatch is best-effort with no retry,
+# so the weekly cron is a backstop for a dropped one. python-anvil's and
+# dotnet-anvil's sync-api-types.yml do the same for their generated types.
+#
+# @anvilco/types takes a major bump when the API removes or changes a type,
+# field or argument, a minor for additions and a patch for descriptions (its
+# README has the policy). Its types are re-exported by this client's typings,
+# so a sync across a major is a breaking change here too: the PR says so, its
+# changelog note is marked BREAKING, it is labelled `breaking`, and the GitHub
+# users in the SYNC_BREAKING_REVIEWERS repository variable (comma separated,
+# optional) are asked to review. The bump is worked out from the range
+# package.json had before and after the refresh, so a release this workflow
+# missed still counts; the dispatch's `bump` can only raise it.
+
+on:
+  repository_dispatch:
+    types: [anvilco-types-published]
+  schedule:
+    - cron: '0 12 * * 1' # Every Monday at noon UTC
+  workflow_dispatch:
+
+# BRANCH is force-pushed, so never let two runs race on it.
+concurrency: sync-api-types
+
+env:
+  BRANCH: chore/sync-api-types
+  DEP_PATHS: package.json yarn.lock
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+
+jobs:
+  sync-api-types:
+    name: Sync API Types
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      # Always main, so a manual run from another branch can't put that
+      # branch's commits in the PR. No persisted credentials: CI_GITHUB_TOKEN
+      # is only handed to git and gh in the step that pushes, not to the
+      # install.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      # Fail before changing anything, rather than after, when the token that
+      # opens the PR is missing. See CONTRIBUTING.md.
+      - name: Check the CI_GITHUB_TOKEN secret is set
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::The CI_GITHUB_TOKEN repository secret is not set. The workflow needs it to push the sync branch and open the PR (the workflow's own GITHUB_TOKEN can't trigger the PR's CI). Add a token with Contents: write and Pull requests: write on this repository under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - run: corepack enable
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: yarn
+
+      - run: yarn install --immutable
+
+      # The published version from the dispatch, or the latest on npm for a
+      # cron or manual run. The range keeps the caret, so consumers of this
+      # client resolve later minors themselves.
+      - name: Move @anvilco/types to the published version
+        id: bump
+        env:
+          TYPES_VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          VERSION=${TYPES_VERSION:-$(npm view @anvilco/types version)}
+          yarn up "@anvilco/types@^$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check for changes
+        id: changes
+        run: |
+          echo "changed=$(git diff --quiet -- $DEP_PATHS && echo false || echo true)" >> "$GITHUB_OUTPUT"
+          git diff --stat
+
+      - name: Open or update PR
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          TYPES_VERSION: ${{ steps.bump.outputs.version }}
+          TYPES_RELEASE_URL: ${{ github.event.client_payload.releaseUrl }}
+          DISPATCH_BUMP: ${{ github.event.client_payload.bump }}
+          REVIEWERS: ${{ vars.SYNC_BREAKING_REVIEWERS }}
+        run: |
+          # Not GITHUB_TOKEN: pushes and PRs made with it don't trigger
+          # workflows, so the PR would never get its CI checks.
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          # A release that didn't move the dependency again would otherwise
+          # force-push an identical commit, re-running CI and discarding any
+          # edits made on the branch.
+          PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$PR" ] && git fetch -q --depth=1 origin "$BRANCH" && git diff --quiet FETCH_HEAD -- $DEP_PATHS; then
+            echo "PR #$PR already has this output"
+            exit 0
+          fi
+
+          # Whether this sync crosses a major, minor or patch release of
+          # @anvilco/types: from the range package.json had on main and has
+          # now. A dispatch's own bump can raise it (never lower it).
+          read -r OLD_VERSION NEW_VERSION TYPES_BUMP < <(node - "$DISPATCH_BUMP" <<'JS'
+          const { execFileSync } = require('child_process')
+          const range = (json) => String(JSON.parse(json).dependencies['@anvilco/types'] ?? '').replace(/^[\^~]/, '')
+          const next = range(require('fs').readFileSync('package.json', 'utf8'))
+          let prev = ''
+          try { prev = range(execFileSync('git', ['show', 'HEAD:package.json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })) } catch {}
+          const parse = (v) => (/^\d+\.\d+\.\d+/.test(v) ? v.split('.').slice(0, 3).map(Number) : [])
+          const a = parse(prev), b = parse(next)
+          let bump = a.length && b.length ? (b[0] !== a[0] ? 'major' : b[1] !== a[1] ? 'minor' : 'patch') : 'patch'
+          const order = ['patch', 'minor', 'major'], dispatched = process.argv[2]
+          if (order.indexOf(dispatched) > order.indexOf(bump)) bump = dispatched
+          console.log(prev || '-', next, bump)
+          JS
+          )
+          TYPES_RELEASE_URL=${TYPES_RELEASE_URL:-https://github.com/anvilco/anvil-js/releases/tag/@anvilco/types@$TYPES_VERSION}
+          echo "@anvilco/types $OLD_VERSION -> $NEW_VERSION: a $TYPES_BUMP sync"
+
+          # Note the sync under Unreleased in the changelog, once per release.
+          # BREAKING on a major, so the next release here is a major: the
+          # package's types come from @anvilco/types, and the API removed or
+          # changed some.
+          if [ "$TYPES_BUMP" = major ]; then
+            NOTE="- BREAKING: Update \`@anvilco/types\` to \`^$TYPES_VERSION\`, in which the API removed or changed types or fields. Each one is listed in the [\`@anvilco/types@$TYPES_VERSION\` release notes]($TYPES_RELEASE_URL)."
+          else
+            NOTE="- Update \`@anvilco/types\` to \`^$TYPES_VERSION\`, with the production API's current types."
+          fi
+          NOTE="$NOTE" node - <<'JS'
+          const fs = require('fs')
+          const path = 'CHANGELOG.md'
+          let text = fs.readFileSync(path, 'utf8')
+          const note = process.env.NOTE
+          const match = /^## \[Unreleased\]\n([\s\S]*?)(?=^## \[|(?![\s\S]))/m.exec(text)
+          if (match && !match[1].includes(note)) {
+            const body = match[1].replace(/\n+$/, '')
+            // Drop an earlier sync note: this one supersedes it
+            const kept = body.split('\n').filter((line) => line && !/^- (BREAKING: )?Update `@anvilco\/types` to/.test(line)).join('\n')
+            const section = `${kept ? `${kept}\n` : ''}${note}\n\n`
+            text = text.slice(0, match.index + match[0].length - match[1].length) + section + text.slice(match.index + match[0].length)
+            fs.writeFileSync(path, text)
+          }
+          JS
+
+          if [ "$EVENT_NAME" = repository_dispatch ]; then
+            TRIGGER="the release of \`@anvilco/types@$TYPES_VERSION\` ($TYPES_RELEASE_URL)."
+          else
+            TRIGGER="a \`$EVENT_NAME\` run."
+          fi
+          {
+            echo "Automated update of the \`@anvilco/types\` dependency to the published version, which ships the production API's GraphQL schema and types. Triggered by $TRIGGER"
+            echo
+            echo "- \`package.json\`: \`@anvilco/types\` moved to \`^$TYPES_VERSION\`, and \`yarn.lock\` with it"
+            echo
+            case "$TYPES_BUMP" in
+              major)
+                echo "**This sync crosses a major release of \`@anvilco/types\` ($OLD_VERSION to $NEW_VERSION): the API removed or changed types or fields, listed in the [\`@anvilco/types@$TYPES_VERSION\` release notes]($TYPES_RELEASE_URL).** This client re-exports those types, so the changelog note is marked BREAKING and the next release must be a major. Review each change before merging. If \`check:graphql\` fails on this PR, one of the client's operations no longer matches the API; fix it on this branch."
+                ;;
+              minor)
+                echo "This sync crosses a minor release of \`@anvilco/types\` ($OLD_VERSION to $NEW_VERSION): the API gained types, fields or values. The next release here is at least a minor."
+                ;;
+              *)
+                echo "This sync is a patch release of \`@anvilco/types\` ($OLD_VERSION to $NEW_VERSION): only descriptions changed."
+                ;;
+            esac
+            echo
+            echo "A later release that moves the dependency again rebuilds this branch from \`main\`, replacing any edits made here."
+          } > "$RUNNER_TEMP/pr-body.md"
+
+          TITLE="Update @anvilco/types to $TYPES_VERSION"
+          if [ "$TYPES_BUMP" = major ]; then
+            TITLE="$TITLE (breaking API changes)"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add -A -- $DEP_PATHS CHANGELOG.md
+          git commit -m "Update @anvilco/types to $TYPES_VERSION"
+          git push --force origin "$BRANCH"
+
+          if [ -n "$PR" ]; then
+            gh pr edit "$PR" --title "$TITLE" --body-file "$RUNNER_TEMP/pr-body.md"
+          else
+            gh pr create \
+              --title "$TITLE" \
+              --body-file "$RUNNER_TEMP/pr-body.md" \
+              --base main \
+              --head "$BRANCH"
+            PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          fi
+
+          # A breaking sync can't merge as routine: flag it and ask for review.
+          if [ "$TYPES_BUMP" = major ]; then
+            gh label create breaking --color B60205 --description "Removes or changes part of the public API" --force >/dev/null 2>&1 || true
+            gh pr edit "$PR" --add-label breaking || echo "::warning::Could not label PR #$PR as breaking"
+            if [ -n "$REVIEWERS" ]; then
+              gh pr edit "$PR" --add-reviewer "$(printf '%s' "$REVIEWERS" | tr -d ' ')" || echo "::warning::Could not request review of PR #$PR from $REVIEWERS"
+            fi
+          fi
+
+      # The dependency moved back to match main (a release was unpublished
+      # before the PR merged), so an open sync PR is now wrong.
+      - name: Close stale PR
+        if: steps.changes.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$PR" ]; then
+            gh pr close "$PR" --delete-branch --comment "main already has this version of @anvilco/types, so this sync is no longer needed."
+          fi

@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- BREAKING: Update `@anvilco/types` to `^1.0.0`, in which the API removed or changed types or fields. Each one is listed in the [`@anvilco/types@1.0.0` release notes](https://github.com/anvilco/anvil-js/releases/tag/@anvilco/types@1.0.0).
 
 ## [v4.2.0]
 - Add a `throwOnError` option. With it on, methods reject with an `AnvilRequestError` whenever they would otherwise resolve with `errors`: GraphQL errors, REST errors, error responses that aren't JSON, and JSON responses that can't be parsed or are cut short. It's off by default, so nothing changes unless you turn it on. Set it on the client, or for one request in the options of `fillPDF`, `generatePDF`, `downloadDocuments`, `requestGraphQL` or `requestREST`. See [Errors](README.md#throwonerror).

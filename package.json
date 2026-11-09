@@ -107,7 +107,7 @@
     "rimraf": "^5.0.0",
     "sinon": "^17.0.1",
     "sinon-chai": "^3.5.0",
-    "typescript": "^5.0.4",
+    "typescript": "^7.0.2",
     "yargs": "^17.4.0"
   }
 }

@@ -63,8 +63,6 @@
     "build": "babel src --out-dir ./dist",
     "clean": "yarn rimraf ./dist",
     "prepare": "yarn tsc && node dev/build-esm-types.mjs && yarn clean && yarn build",
-    "release:prepare": "node dev/release.mjs prepare",
-    "release:tag": "node dev/release.mjs tag",
     "test": "yarn prepare && mocha --config ./test/mocha.js",
     "lint": "eslint 'src/**/*.js' 'test/**/*.js' test-client.js",
     "lint:quiet": "yarn run lint --quiet",

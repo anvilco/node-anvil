@@ -2,7 +2,12 @@ name: Publish
 
 # Stages a release on npm when a version tag (like v4.0.0 or v4.0.0-beta.1) is pushed.
 # A maintainer then approves it on npmjs.com, with 2FA, to make it public.
-# See "Publishing" in CONTRIBUTING.md.
+#
+# The tag comes from the release run in anvilco/package-ops, which bumps the
+# version, releases the changelog, commits, tags and creates the GitHub release.
+# Only the npm step lives here: npm attaches provenance to a package only when
+# the publishing workflow runs in a public repository, and package-ops is
+# private. See "Publishing" in CONTRIBUTING.md.
 on:
   push:
     tags:
@@ -83,13 +88,6 @@ jobs:
         mkdir release
         npm pack --pack-destination release
 
-        # Use this version's CHANGELOG section as the release notes, if there is one
-        awk -v header="## [$GITHUB_REF_NAME]" '
-          index($0, header) == 1 { found = 1; next }
-          /^## \[/ { if (found) exit }
-          found
-        ' CHANGELOG.md > release/release-notes.md
-
     - uses: actions/upload-artifact@v7
       with:
         name: release
@@ -104,8 +102,7 @@ jobs:
     # silently falls back to token auth and the publish fails with a 404.
     runs-on: ubuntu-latest
     permissions:
-      # To create the GitHub release
-      contents: write
+      contents: read
       # For npm trusted publishing (OIDC). No npm token needed, and the trusted
       # publisher only needs to allow staging, which it always does.
       id-token: write
@@ -154,25 +151,5 @@ jobs:
           echo "- on npmjs.com, under the package's **Staged Packages** tab, or"
           echo "- with the npm CLI: \`npm stage list @anvilco/anvil\` for the stage id, then \`npm stage approve <stage-id>\`."
           echo
-          echo "Until then \`npm install @anvilco/anvil@$VERSION\` fails. The GitHub release below exists already, so approve promptly, or reject the staged version if something is wrong."
+          echo "Until then \`npm install @anvilco/anvil@$VERSION\` fails. The GitHub release already exists (package-ops created it with the tag), so approve promptly, or reject the staged version if something is wrong."
         } >> "$GITHUB_STEP_SUMMARY"
-
-    - name: Create the GitHub release
-      env:
-        GH_TOKEN: ${{ github.token }}
-        PRERELEASE: ${{ needs.build.outputs.prerelease }}
-      run: |
-        if [ -s release-notes.md ]; then
-          NOTES=(--notes-file release-notes.md)
-        else
-          NOTES=(--generate-notes)
-        fi
-
-        if [ "$PRERELEASE" = "true" ]; then
-          LATEST=(--prerelease)
-        else
-          LATEST=(--latest)
-        fi
-
-        gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
-          --title "$GITHUB_REF_NAME" "${NOTES[@]}" "${LATEST[@]}"

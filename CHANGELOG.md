@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v4.3.1]
+
 - Published with npm provenance again. 4.3.0 was staged from a private repository, which npm doesn't attach provenance to; nothing else changed.
 
 ## [v4.3.0]

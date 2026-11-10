@@ -1,0 +1,155 @@
+name: Publish
+
+# Stages a release on npm when a version tag (like v4.0.0 or v4.0.0-beta.1) is pushed.
+# A maintainer then approves it on npmjs.com, with 2FA, to make it public.
+#
+# The tag comes from the release run in anvilco/package-ops, which bumps the
+# version, releases the changelog, commits, tags and creates the GitHub release.
+# Only the npm step lives here: npm attaches provenance to a package only when
+# the publishing workflow runs in a public repository, and package-ops is
+# private. See "Publishing" in CONTRIBUTING.md.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Corepack provides the Yarn version pinned in package.json
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+
+jobs:
+  # Installs, tests and packs without any permission to publish, so dependency
+  # install scripts never run where they could get a publishing token.
+  build:
+    name: Build
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    outputs:
+      dist-tag: ${{ steps.dist-tag.outputs.tag }}
+      prerelease: ${{ steps.dist-tag.outputs.prerelease }}
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # So we can check that the tag is on main
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Check the tag is on main
+      run: |
+        if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+          echo "::error::$GITHUB_REF_NAME is not on main. Only tag commits that are on main."
+          exit 1
+        fi
+
+    - name: Check the tag matches package.json
+      run: |
+        PACKAGE_VERSION="v$(node -p 'require("./package.json").version')"
+        if [ "$PACKAGE_VERSION" != "$GITHUB_REF_NAME" ]; then
+          echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $PACKAGE_VERSION."
+          exit 1
+        fi
+
+    - name: Pick the npm dist-tag
+      id: dist-tag
+      run: |
+        # v4.0.0 -> latest, v4.0.0-beta.1 -> beta, v4.0.0-1 -> next
+        PRERELEASE="${GITHUB_REF_NAME#*-}"
+        if [ "$PRERELEASE" = "$GITHUB_REF_NAME" ]; then
+          echo "tag=latest" >> "$GITHUB_OUTPUT"
+          echo "prerelease=false" >> "$GITHUB_OUTPUT"
+        else
+          LABEL=$(echo "$PRERELEASE" | grep -oE '^[A-Za-z]+' || true)
+          echo "tag=${LABEL:-next}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - run: corepack enable
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version-file: 'package.json'
+        # Don't restore a cache in a release
+        package-manager-cache: false
+
+    - run: yarn install --immutable
+    - run: yarn lint:quiet
+    # Also builds dist/ and types/
+    - run: yarn test
+
+    - name: Pack
+      run: |
+        mkdir release
+        npm pack --pack-destination release
+
+    - uses: actions/upload-artifact@v7
+      with:
+        name: release
+        path: release/
+        if-no-files-found: error
+
+  publish:
+    name: Stage on npm
+    needs: build
+    # Not Blacksmith: npm trusted publishing only accepts OIDC tokens from GitHub-hosted
+    # runners (https://docs.npmjs.com/trusted-publishers). On a self-hosted runner npm
+    # silently falls back to token auth and the publish fails with a 404.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # For npm trusted publishing (OIDC). No npm token needed, and the trusted
+      # publisher only needs to allow staging, which it always does.
+      id-token: write
+
+    steps:
+    - uses: actions/download-artifact@v8
+      with:
+        name: release
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        # Staged publishing needs npm 11.15+, which Node 24 comes with
+        node-version: 24
+        registry-url: 'https://registry.npmjs.org'
+        package-manager-cache: false
+
+    - name: Check npm supports staged publishing
+      run: |
+        NPM_VERSION=$(npm --version)
+        if ! node -e '
+          const [major, minor] = process.argv[1].split(".").map(Number)
+          process.exit(major > 11 || (major === 11 && minor >= 15) ? 0 : 1)
+        ' "$NPM_VERSION"; then
+          echo "::error::npm $NPM_VERSION is too old for staged publishing. It needs 11.15 or later."
+          exit 1
+        fi
+
+    - name: Stage on npm
+      # Staged, not published: the version isn't installable until a maintainer approves it
+      # with 2FA. npm adds provenance automatically when publishing with trusted publishing.
+      # Verbose, because npm only logs the trusted-publishing (OIDC) exchange, and why it
+      # failed, at that level; without it a failure shows as an unexplained 404 from npm.
+      run: npm stage publish ./*.tgz --access public --tag "${{ needs.build.outputs.dist-tag }}" --loglevel verbose
+
+    - name: Say how to approve it
+      env:
+        DIST_TAG: ${{ needs.build.outputs.dist-tag }}
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        {
+          echo "## @anvilco/anvil@$VERSION is staged on npm, not published"
+          echo
+          echo "It goes to the \`$DIST_TAG\` dist-tag once a maintainer approves it with 2FA, either:"
+          echo
+          echo "- on npmjs.com, under the package's **Staged Packages** tab, or"
+          echo "- with the npm CLI: \`npm stage list @anvilco/anvil\` for the stage id, then \`npm stage approve <stage-id>\`."
+          echo
+          echo "Until then \`npm install @anvilco/anvil@$VERSION\` fails. The GitHub release already exists (package-ops created it with the tag), so approve promptly, or reject the staged version if something is wrong."
+        } >> "$GITHUB_STEP_SUMMARY"

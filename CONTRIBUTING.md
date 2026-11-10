@@ -50,38 +50,10 @@ That bump sets a floor for the next release: a `@anvilco/types` major is a `BREA
 
 ## Publishing
 
-Publishing to npm is done by the [Publish workflow](.github/workflows/publish.yml) when a version tag is pushed, in two steps: the workflow stages the version on npm, and a maintainer approves it with 2FA. Merging to `main` does not publish anything.
+Releases are run from [anvilco/package-ops](https://github.com/anvilco/package-ops), the private repository that releases every Anvil package: Actions → **Release** → **Run workflow**, pick `anvilco/node-anvil` and the increment. Merging to `main` does not publish anything, and nothing in this repository publishes.
 
-1. On a branch, bump the version and release the `[Unreleased]` section of `CHANGELOG.md`:
-   ```sh
-   yarn release:prepare 4.0.0
-   ```
-   This sets `version` in `package.json`, renames `[Unreleased]` to `[v4.0.0]`, and commits. If you're on `main`, it creates a `release/v4.0.0` branch first. Push the branch, open a PR, and merge it to `main`.
-1. Tag that commit on `main` and push the tag:
-   ```sh
-   git checkout main && git pull
-   yarn release:tag
-   ```
-   This checks that `main` is up to date with `origin/main`, that `v4.0.0` doesn't already exist, and that `CHANGELOG.md` has a `[v4.0.0]` section, then tags and pushes.
-1. When the workflow has finished, approve the staged version with 2FA: on npmjs.com under the package's **Staged Packages** tab, or with `npm stage list @anvilco/anvil` to find the stage id and `npm stage approve <stage-id>`. Until then the version isn't installable. The workflow's job summary has the same instructions.
+The run checks out `main`, runs `yarn lint:quiet` and `yarn test`, checks the release floor (the last tag matches `package.json`, `CHANGELOG.md` has notes under `[Unreleased]`, and the increment isn't below what the synced `@anvilco/types` demands; see Versioning), then bumps `package.json`, turns `[Unreleased]` into `[vX.Y.Z]`, commits `Release vX.Y.Z` to `main`, tags `vX.Y.Z`, creates the GitHub release with that changelog section as its notes, packs, and stages the package on npm with [trusted publishing](https://docs.npmjs.com/trusted-publishers). A dry run (the default) shows all of that and changes nothing; run one first.
 
-Both commands accept `--dry-run`. For a pre-release, run `yarn release:prepare 4.0.0-beta.1`: it bumps the version but leaves `CHANGELOG.md` alone, so the notes stay under `[Unreleased]` for the final release.
+A staged version isn't installable until a maintainer approves it with 2FA, either on npmjs.com under the package's **Staged Packages** tab, or with `npm stage list @anvilco/anvil` for the stage id and `npm stage approve <stage-id>`. The run's job summary says the same. Versions like `v4.0.0` go to the `latest` dist-tag, pre-releases like `v4.0.0-beta.1` to a dist-tag named after their label (`beta`). npm adds [provenance](https://docs.npmjs.com/generating-provenance-statements) to packages published this way.
 
-The workflow then:
-
-1. Checks the tag is on `main` and matches the `package.json` version.
-1. Lints, tests and builds the commit that was tagged.
-1. Stages the version on npm with `npm stage publish`. On approval, versions like `v4.0.0` go to the `latest` dist-tag, and pre-releases like `v4.0.0-beta.1` to a dist-tag named after their label (`beta`).
-1. Creates a GitHub release, using that version's `CHANGELOG.md` section as the release notes. Pre-releases are marked as such on GitHub.
-
-### Setup
-
-The workflow uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers), so there is no npm token to store in GitHub secrets. Its publish job runs on a GitHub-hosted runner, not Blacksmith, because npm only accepts OIDC tokens from GitHub-hosted runners. Before the first release, a maintainer of the npm package needs to add a trusted publisher on npmjs.com, under the package's Settings:
-
-* Publisher: GitHub Actions
-* Organization or user: `anvilco`
-* Repository: `node-anvil`
-* Workflow filename: `publish.yml`
-* Allowed actions: none. Staging (`npm stage publish`) is always allowed, and that's all the workflow does. Leaving `npm publish` unticked means a compromised workflow can stage a version but can't make it public.
-
-npm automatically adds [provenance](https://docs.npmjs.com/generating-provenance-statements) to packages published this way. No GitHub secrets are needed: the release is created with the workflow's own `GITHUB_TOKEN`.
+Who may run a real release, the npm trusted publisher (staging allowed, publishing not, so a compromised workflow can stage a version but can't make it public), and the GitHub App that pushes the release commit are set up in package-ops; its README has the details and how to add a repository.

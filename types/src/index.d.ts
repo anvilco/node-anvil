@@ -6,11 +6,24 @@ export default Anvil;
  * requests with, e.g. a ProxyAgent; it defaults to an Agent of the client's own.
  * `throwOnError` makes methods reject with an AnvilRequestError when the API responds with
  * an error, rather than resolve with `errors`. Off by default.
+ * `timeout` is how long, in milliseconds, to wait for the response headers and then for each
+ * chunk of the body before giving up (5 minutes). `null` or `0` waits forever. It has no
+ * effect with a `dispatcher` of your own: set the timeouts on that.
+ * `maxRetries` is how many times a request that failed with a 500, 502, 503 or 504, or
+ * couldn't connect, is sent again (5). `0` never retries. Rate limited requests are always
+ * retried.
+ * `shareRateLimiter` (on) makes every client in the process with the same `baseURL` and
+ * credentials share one rate limiter, as the API's limit is per account. `rateLimiter` is
+ * one to use instead.
  */
 export type AnvilOptions = import('@anvilco/types').AnvilOptions & {
     baseUrl?: string;
     dispatcher?: import('undici').Dispatcher;
     throwOnError?: boolean;
+    timeout?: number | null;
+    maxRetries?: number;
+    shareRateLimiter?: boolean;
+    rateLimiter?: RateLimiter;
 };
 export type GraphQLResponse = import('@anvilco/types').GraphQLResponse<GraphQLResponseData>;
 /**
@@ -45,7 +58,7 @@ export type ClientOptions = {
      */
     dataType?: 'json' | 'buffer' | 'arrayBuffer' | 'stream';
     /**
-     * Log problems parsing responses
+     * Log problems parsing responses, and retries
      */
     debug?: boolean;
     /**
@@ -53,6 +66,10 @@ export type ClientOptions = {
      * with an error, rather than resolve with `errors`. Overrides the client's `throwOnError`.
      */
     throwOnError?: boolean;
+    /**
+     * Overrides the client's `timeout` for this request
+     */
+    timeout?: number | null;
 };
 /**
  * A file to upload: a path, a Buffer, a stream, a Blob or File, the result of
@@ -109,20 +126,32 @@ declare class Anvil {
      * @param {AnvilOptions?} options
      */
     constructor(options: AnvilOptions | null);
-    /** @type {AnvilOptions & typeof defaultOptions & { requestLimit: number, requestLimitMS: number }} */
-    options: AnvilOptions & typeof defaultOptions & {
+    /** @type {AnvilOptions & typeof defaultOptions & { requestLimit: number, requestLimitMS: number, maxRetries: number, shareRateLimiter: boolean }} */
+    options: import("@anvilco/types").AnvilOptions & {
+        baseUrl?: string;
+        dispatcher?: import("undici/types/dispatcher").default;
+        throwOnError?: boolean;
+        timeout?: number;
+        maxRetries?: number;
+        shareRateLimiter?: boolean;
+        rateLimiter?: RateLimiter;
+    } & {
+        baseURL: string;
+        userAgent: string;
+    } & {
         requestLimit: number;
         requestLimitMS: number;
+        maxRetries: number;
+        shareRateLimiter: boolean;
     };
     authHeader: string;
-    hasSetLimiterFromResponse: boolean;
-    limiterSettingInProgress: boolean;
-    rateLimiterSetupPromise: Promise<any>;
-    rateLimiterPromiseResolver: (value: any) => void;
-    /** @type {number[]} */
-    requestTimes: number[];
-    limitTokens: number;
-    limitIntervalMs: number;
+    rateLimiter: RateLimiter;
+    dispatcher: import("undici/types/dispatcher").default;
+    /** Requests allowed per `limitIntervalMs`, from the API once it has answered */
+    get limitTokens(): number;
+    get limitIntervalMs(): number;
+    /** Whether the limits have been read from an API response yet */
+    get hasSetLimiterFromResponse(): boolean;
     /**
      * @param {Object} options
      * @param {number} options.tokens
@@ -177,6 +206,15 @@ declare class Anvil {
      * @returns {Promise<RESTResponse>}
      */
     generatePDF(payload: GeneratePdfPayload, clientOptions?: ClientOptions): Promise<RESTResponse>;
+    /**
+     * The user the API key or access token belongs to, with their organizations
+     * @param {Object} [data]
+     * @param {string} [data.responseQuery]
+     * @returns {Promise<GraphQLResponse>}
+     */
+    getCurrentUser({ responseQuery }?: {
+        responseQuery?: string;
+    }): Promise<GraphQLResponse>;
     /**
      * @param {Object} data
      * @param {import('@anvilco/types').GraphQL.QueryArgs<'etchPacket'>} data.variables
@@ -274,6 +312,15 @@ declare class Anvil {
      */
     requestRest(url: string, fetchOptions: import("undici").RequestInit, clientOptions?: ClientOptions): ReturnType<Anvil['requestREST']>;
     /**
+     * The fetch options with a dispatcher for a request's own `timeout`, if it has one and
+     * nothing else chose the dispatcher
+     * @param {Object} options
+     * @param {ClientOptions | null} [clientOptions]
+     * @returns {Object}
+     * @private
+     */
+    private _withTimeout;
+    /**
      * @param {string} url
      * @param {Object} options
      * @returns {Promise<import('undici').Response>}
@@ -327,19 +374,13 @@ declare class Anvil {
      */
     private _addDefaultHeaders;
     /**
+     * Runs `fn` when the rate limit allows. `fn` gets a `retry(ms)` that runs it again after
+     * `ms`, within the rate limit again.
      * @param {CallableFunction} fn
      * @returns {Promise<*>}
      * @private
      */
     private _throttle;
-    /**
-     * Waits until another request would keep us within limitTokens requests in any
-     * limitIntervalMs. The API counts requests the same way, over a sliding window, so
-     * this avoids 429s without holding back requests that are within the limit.
-     * @returns {Promise<void>}
-     * @private
-     */
-    private _waitForRateLimit;
 }
 declare namespace Anvil {
     export { UploadWithOptions };
@@ -347,6 +388,7 @@ declare namespace Anvil {
     export { VERSION_LATEST };
     export { VERSION_LATEST_PUBLISHED };
 }
+import { RateLimiter } from './rate-limiter';
 import { Stream } from 'stream';
 import { File } from 'buffer';
 import UploadWithOptions from './UploadWithOptions';

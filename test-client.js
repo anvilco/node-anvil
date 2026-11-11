@@ -14,6 +14,8 @@
  *                           in your organization that has example data.
  *   ANVIL_FORGE_EID         Optional. The webform (Forge) in a Workflow to submit to.
  *                           Defaults to the first one in your organization.
+ *   ANVIL_ACCESS_TOKEN      Optional. An OAuth access token for the same environment, to
+ *                           test Bearer auth. Skipped when not set.
  *
  * Everything this creates is test data: the Etch packet is a test packet, and the
  * Workflow submission is a test submission that gets removed at the end.
@@ -28,6 +30,7 @@ const API_KEY = process.env.ANVIL_API_KEY
 const BASE_URL = process.env.ANVIL_BASE_URL || 'https://staging.useanvil.com'
 const PDF_TEMPLATE_ID = process.env.ANVIL_PDF_TEMPLATE_ID
 const FORGE_EID = process.env.ANVIL_FORGE_EID
+const ACCESS_TOKEN = process.env.ANVIL_ACCESS_TOKEN
 
 const PDF_TO_SIGN = path.join(__dirname, 'test', 'assets', 'dummy.pdf')
 
@@ -144,6 +147,52 @@ async function main () {
     }
 
     return `organization ${organization.eid}`
+  })
+
+  await check('getCurrentUser', async () => {
+    const result = await client.getCurrentUser()
+    assertOK(result)
+    const { currentUser } = result.data.data
+    if (!currentUser || !currentUser.eid) throw new Error('Expected a currentUser with an eid')
+    const organizations = currentUser.organizations || []
+    return `${currentUser.eid}, ${organizations.length} organization${organizations.length === 1 ? '' : 's'}`
+  })
+
+  await check('rate limiting', async () => {
+    // A burst past the limit the API taught the client. The limiter should space the
+    // requests out so none of them comes back 429; a 429 the client retried counts as
+    // a failure too, since the point is to stay within the limit.
+    const limit = client.limitTokens
+    const intervalMs = client.limitIntervalMs
+    if (!client.hasSetLimiterFromResponse) throw new Error('The client has not learned the rate limit from a response yet')
+    const count = limit * 2 + 1
+    let rateLimited = 0
+    const request = client._request.bind(client)
+    client._request = async (...args) => {
+      const response = await request(...args)
+      if (response.status === 429) rateLimited++
+      return response
+    }
+    const start = Date.now()
+    try {
+      const results = await Promise.all(Array.from({ length: count }, () =>
+        client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' }),
+      ))
+      results.forEach(assertOK)
+    } finally {
+      client._request = request
+    }
+    const elapsed = ((Date.now() - start) / 1000).toFixed(2)
+    if (rateLimited) throw new Error(`${rateLimited} of ${count} requests came back 429 and were retried`)
+    return `${limit} per ${intervalMs}ms learned from the API; ${count} requests took ${elapsed}s, no 429s`
+  })
+
+  await check('OAuth access token', async () => {
+    skipUnless(ACCESS_TOKEN, 'Set ANVIL_ACCESS_TOKEN to test Bearer auth')
+    const bearerClient = new Anvil({ accessToken: ACCESS_TOKEN, baseURL: BASE_URL })
+    const result = await bearerClient.getCurrentUser({ responseQuery: '{ eid }' })
+    assertOK(result)
+    return `currentUser ${result.data.data.currentUser.eid}`
   })
 
   await check('requestREST', async () => {

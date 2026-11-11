@@ -110,6 +110,7 @@ fs.writeFileSync('output.pdf', data, { encoding: null })
 * [fillPDF(pdfTemplateID, payload[, options])](#fillpdfpdftemplateid-payload-options)
 * [generatePDF(payload[, options])](#generatepdfpayload-options)
 * [createEtchPacket(options)](#createetchpacketoptions)
+* [getCurrentUser([options])](#getcurrentuseroptions)
 * [getEtchPacket(options)](#getetchpacketoptions)
 * [generateEtchSignUrl(options)](#generateetchsignurloptions)
 * [downloadDocuments(documentGroupEid[, options])](#downloaddocumentsdocumentgroupeid-options)
@@ -355,6 +356,20 @@ const signerEid = etchPacket.documentGroup.signers[0].eid
       }
     ```
 
+##### getCurrentUser([options])
+
+The user your API key or access token belongs to, with their organizations. Useful for checking a credential works, and for finding your organization's `eid`.
+
+```js
+const { statusCode, data, errors } = await anvilClient.getCurrentUser()
+const { eid, email, organizations } = data.data.currentUser
+```
+
+* `options` (Object, optional)
+  * `responseQuery` (String) - A GraphQL selection to replace the default one, which selects `eid`, `name`, `email`, `role` and each organization's `eid`, `name` and `slug`.
+
+<br />
+
 ##### getEtchPacket(options)
 
 Gets the details of an Etch Packet.
@@ -578,8 +593,21 @@ Options for the Anvil Client. Defaults are shown after each option key.
   requestLimit: 1,
   requestLimitMS: 1000,
 
+  // Share one rate limiter with every client in this process that has the same
+  // baseURL and credentials, as the API's limit is per account. See Rate Limits.
+  shareRateLimiter: true,
+
+  // How many times to send a request again after a 500, 502, 503 or 504, or when it
+  // couldn't connect. 0 never retries. See Retries.
+  maxRetries: 5,
+
+  // Milliseconds to wait for the response headers, and then for each chunk of the
+  // body, before giving up. null or 0 waits forever. See Timeouts.
+  timeout: 300000,
+
   // An undici Dispatcher to send requests with, e.g. to use a proxy:
   // new ProxyAgent('http://proxy.example.com:8080'). Defaults to the client's own Agent.
+  // With a dispatcher of your own, `timeout` has no effect: set the timeouts on it.
   dispatcher: <undici_dispatcher>,
 
   // Reject with an AnvilRequestError when the API responds with an error, rather
@@ -604,7 +632,7 @@ const anvilClient = new Anvil({ apiKey: 'your-api-key' })
 const anvilClient = new Anvil({ accessToken: 'your-oauth-access-token' })
 ```
 
-If you pass both, the `accessToken` is used.
+If you pass both, the `accessToken` is used. With neither, the client reads the API key from the `ANVIL_API_KEY` environment variable, and throws if that isn't set either.
 
 ##### baseURL
 
@@ -719,13 +747,27 @@ Everything that rejects with `throwOnError` off still rejects the same way with 
 
 ### Rate Limits
 
-Our API has request rate limits in place. The initial request made by this client will parse the limits for your account from the `X-RateLimit-Limit` and `X-RateLimit-Interval-Ms` response headers, and then handle the throttling of subsequent requests for you automatically. Any requests made while waiting for that first response will wait for it before being sent.
+Our API has request rate limits in place. The first request made by this client will parse the limits for your account from the `X-RateLimit-Limit` and `X-RateLimit-Interval-Ms` response headers, and then handle the throttling of subsequent requests for you automatically. Any requests made while waiting for that first response will wait for it before being sent.
 
-Like the API, the client counts requests over a sliding window: it only holds a request back when `X-RateLimit-Limit` requests have already been sent in the last `X-RateLimit-Interval-Ms`.
+Like the API, the client counts requests over a sliding window: it only holds a request back when `X-RateLimit-Limit` requests have been sent in the last `X-RateLimit-Interval-Ms`. A request counts from when it is sent until an interval after its response arrives, so a slow response can't let an extra request through.
 
-In the event that this client still receives a `429 Too Many Requests` error response, it will wait for the number of seconds in the `Retry-After` header, plus 50ms, then retry the request.
+The limit is per account, so every client in the process with the same `baseURL` and credentials shares one limiter, and the limits the first of them learned. Pass `shareRateLimiter: false` for a client with a limiter of its own.
+
+In the event that this client still receives a `429 Too Many Requests` error response, it will wait for the number of seconds in the `Retry-After` header (at most 60), plus 50ms, then retry the request. Without a usable `Retry-After`, it waits a second. Rate limited requests are retried until they get through.
 
 See the [Anvil API docs](https://www.useanvil.com/docs/api/getting-started/#rate-limits) for more information on the specifics of the rate limits.
+
+### Retries
+
+A request that fails with a `500`, `502`, `503` or `504`, or that couldn't connect (the host can't be reached, DNS fails, or the connection closes before any response), is sent again, up to `maxRetries` times (5). The client waits 100ms before the first retry, doubling each time, or for the response's `Retry-After` if it has one. A request that got no complete response because of a timeout, or because the connection dropped mid-response, is not retried: the API may have processed it.
+
+Files given to `prepareGraphQLFile` as a path, a file stream or a `Buffer` are read again for a retry. Any other stream can only be read once, so the retry fails with an error instead.
+
+Set `maxRetries: 0` to turn retries off. Pass `debug: true` in a request's options to log each retry.
+
+### Timeouts
+
+Each request waits up to `timeout` milliseconds (5 minutes) for the response headers, and then for each chunk of the body. A request that runs out of time rejects with a `TypeError: fetch failed` whose `cause.code` is `UND_ERR_HEADERS_TIMEOUT` or `UND_ERR_BODY_TIMEOUT`. Set `timeout` on the client, or for one request in the options of `fillPDF`, `generatePDF`, `downloadDocuments`, `requestGraphQL` or `requestREST`; `null` or `0` waits forever. With a `dispatcher` of your own, set the timeouts on it instead.
 
 ## API Documentation
 

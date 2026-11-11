@@ -39,6 +39,7 @@ ANVIL_API_KEY=<your staging API key> yarn test-client
 * `ANVIL_BASE_URL` - _optional_ Test another environment instead, e.g. `http://localhost:3000`.
 * `ANVIL_PDF_TEMPLATE_ID` - _optional_ The PDF template to test `fillPDF` with. Defaults to the first template in your organization that has example data.
 * `ANVIL_FORGE_EID` - _optional_ The webform (Forge) in a Workflow to test `forgeSubmit` with. Defaults to the first one in your organization.
+* `ANVIL_ACCESS_TOKEN` - _optional_ An OAuth access token for the same environment, to test Bearer auth. Skipped when not set.
 
 Everything it creates is test data. It creates a test Etch packet each run, and removes the Workflow submission it creates.
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Retry a request that fails with a `500`, `502`, `503` or `504`, or that couldn't connect, up to `maxRetries` times (5) with exponential backoff from 100ms, or after the response's `Retry-After`. A timeout or a response cut short is not retried. `maxRetries: 0` turns it off. See [Retries](README.md#retries).
+- Add a `timeout` option (5 minutes): how long to wait for the response headers, and then for each chunk of the body. Also per request, in the options of `fillPDF`, `generatePDF`, `downloadDocuments`, `requestGraphQL` and `requestREST`. See [Timeouts](README.md#timeouts).
+- Share one rate limiter between every client in the process with the same `baseURL` and credentials, as the API's limit is per account, so they stay within it together and only one of them has to learn it. `shareRateLimiter: false` gives a client its own.
+- Count a request against the rate limit from when it is sent until an interval after its response arrives, not just for an interval after it was sent, so a slow response can't let an extra request through.
+- Wait a second, not 50ms, before retrying a `429` that has no usable `Retry-After`, and at most 60 seconds when it has one.
+- Keep reading the rate limit headers until a response has them, rather than settling on the starting limits after a first response without them.
+- Read the API key from `ANVIL_API_KEY` when neither `apiKey` nor `accessToken` is given, as python-anvil and dotnet-anvil do.
+- Add `getCurrentUser([{ responseQuery }])`: the user the credentials belong to, with their organizations.
+- The test-client checks rate limiting (a burst past the limit with no `429` surfacing) and Bearer auth (with `ANVIL_ACCESS_TOKEN`).
+
 ## [v4.3.1]
 
 - Published with npm provenance again. 4.3.0 was staged from a private repository, which npm doesn't attach provenance to; nothing else changed.

@@ -1,7 +1,6 @@
 import { File } from 'buffer'
 import fs from 'fs'
 import { basename } from 'path'
-import { performance } from 'perf_hooks'
 import { Readable as NodeReadable, Stream } from 'stream'
 
 import { Agent, fetch, FormData } from 'undici'
@@ -10,6 +9,17 @@ import UploadWithOptions from './UploadWithOptions'
 import { version, description } from '../package.json'
 import { AnvilRequestError, looksLikeJsonError, normalizeNodeError, normalizeJsonErrors } from './errors'
 import { queries, mutations } from './graphql'
+import {
+  DEFAULT_MAX_RETRIES,
+  DEFAULT_REQUEST_LIMIT,
+  DEFAULT_REQUEST_LIMIT_MS,
+  RETRY_AFTER_HEADER,
+  RETRY_STATUSES,
+  RateLimiter,
+  backoffMs,
+  retryDelayMs,
+  sharedLimiter,
+} from './rate-limiter'
 import {
   isFile,
   graphQLUploadSchemaIsValid,
@@ -27,11 +37,24 @@ let extractFiles
  *   baseUrl?: string,
  *   dispatcher?: import('undici').Dispatcher,
  *   throwOnError?: boolean,
+ *   timeout?: number | null,
+ *   maxRetries?: number,
+ *   shareRateLimiter?: boolean,
+ *   rateLimiter?: RateLimiter,
  * }} AnvilOptions
  *   `baseUrl` is another spelling of `baseURL`. `dispatcher` is an undici dispatcher to send
  *   requests with, e.g. a ProxyAgent; it defaults to an Agent of the client's own.
  *   `throwOnError` makes methods reject with an AnvilRequestError when the API responds with
  *   an error, rather than resolve with `errors`. Off by default.
+ *   `timeout` is how long, in milliseconds, to wait for the response headers and then for each
+ *   chunk of the body before giving up (5 minutes). `null` or `0` waits forever. It has no
+ *   effect with a `dispatcher` of your own: set the timeouts on that.
+ *   `maxRetries` is how many times a request that failed with a 500, 502, 503 or 504, or
+ *   couldn't connect, is sent again (5). `0` never retries. Rate limited requests are always
+ *   retried.
+ *   `shareRateLimiter` (on) makes every client in the process with the same `baseURL` and
+ *   credentials share one rate limiter, as the API's limit is per account. `rateLimiter` is
+ *   one to use instead.
  */
 
 /** @typedef {import('@anvilco/types').GraphQLResponse<GraphQLResponseData>} GraphQLResponse */
@@ -63,9 +86,10 @@ let extractFiles
  * Options for a request
  * @typedef {Object} ClientOptions
  * @property {'json' | 'buffer' | 'arrayBuffer' | 'stream'} [dataType] What `data` to resolve with
- * @property {boolean} [debug] Log problems parsing responses
+ * @property {boolean} [debug] Log problems parsing responses, and retries
  * @property {boolean} [throwOnError] Reject with an AnvilRequestError when the API responds
  *   with an error, rather than resolve with `errors`. Overrides the client's `throwOnError`.
+ * @property {number | null} [timeout] Overrides the client's `timeout` for this request
  */
 
 /**
@@ -116,6 +140,10 @@ const {
   },
   queries: {
     // @ts-ignore
+    currentUser: {
+      generateQuery: generateCurrentUserQuery,
+    },
+    // @ts-ignore
     etchPacket: {
       generateQuery: generateEtchPacketQuery,
     },
@@ -146,13 +174,52 @@ const defaultOptions = {
 
 const FILENAME_IGNORE_MESSAGE = 'If you think you can ignore this, please pass `options.ignoreFilenameValidation` as `true`.'
 
-const failBufferMS = 50
+// How long to wait for the response headers, and then for each chunk of the body
+const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000
 
-// Our own connection pool. Without one, undici uses a process-wide default that, on
-// Node 20, Node's own older copy of undici takes over as soon as anything touches the
-// global fetch, FormData or Headers. That copy doesn't notice when a chunked response is
-// cut short, and would hand back truncated data as a success.
-const defaultDispatcher = new Agent()
+// Our own connection pools, one per timeout. Without one, undici uses a process-wide
+// default that, on Node 20, Node's own older copy of undici takes over as soon as anything
+// touches the global fetch, FormData or Headers. That copy doesn't notice when a chunked
+// response is cut short, and would hand back truncated data as a success.
+/** @type {Map<number, Agent>} */
+const agents = new Map()
+
+/**
+ * @param {number | null | undefined} timeout
+ * @returns {Agent}
+ * @private
+ */
+function agentWithTimeout (timeout) {
+  // 0 turns undici's timeouts off
+  const ms = timeout > 0 && Number.isFinite(timeout) ? Math.round(timeout) : 0
+  let agent = agents.get(ms)
+  if (!agent) {
+    agent = new Agent({ headersTimeout: ms, bodyTimeout: ms })
+    agents.set(ms, agent)
+  }
+  return agent
+}
+
+// What fetch rejects with when the request never got a response: nothing to connect to,
+// a DNS failure, or the connection closed before the response. These are retried; a
+// timeout or a response cut short is not, as the API may have processed the request.
+const CONNECTION_ERROR_CODES = new Set([
+  'ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'EPIPE', 'EHOSTUNREACH', 'ENETUNREACH',
+  'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT',
+])
+
+/**
+ * @param {any} err
+ * @returns {boolean}
+ * @private
+ */
+function isConnectionError (err) {
+  const cause = err?.cause ?? err
+  if (!cause) return false
+  if (CONNECTION_ERROR_CODES.has(cause.code)) return true
+  // Node reports a failure to connect to any of a host's addresses as an AggregateError
+  return Array.isArray(cause.errors) && cause.errors.some((e) => CONNECTION_ERROR_CODES.has(e?.code))
+}
 
 // Three dot-separated base64url segments. The signature can be empty.
 const JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/
@@ -176,16 +243,25 @@ class Anvil {
       givenOptions.baseURL = baseUrl
     }
 
-    /** @type {AnvilOptions & typeof defaultOptions & { requestLimit: number, requestLimitMS: number }} */
+    /** @type {AnvilOptions & typeof defaultOptions & { requestLimit: number, requestLimitMS: number, maxRetries: number, shareRateLimiter: boolean }} */
     this.options = {
       ...defaultOptions,
-      requestLimit: 1,
-      requestLimitMS: 1000,
+      requestLimit: DEFAULT_REQUEST_LIMIT,
+      requestLimitMS: DEFAULT_REQUEST_LIMIT_MS,
+      timeout: DEFAULT_TIMEOUT_MS,
+      maxRetries: DEFAULT_MAX_RETRIES,
+      shareRateLimiter: true,
       ...givenOptions,
     }
 
+    // With neither, the API key in the environment, as python-anvil and dotnet-anvil do
+    if (!(this.options.apiKey || this.options.accessToken) && process.env.ANVIL_API_KEY) {
+      this.options.apiKey = process.env.ANVIL_API_KEY
+    }
     const { apiKey, accessToken } = this.options
     if (!(apiKey || accessToken)) throw new Error('apiKey or accessToken required')
+
+    this.options.maxRetries = Math.max(parseInt(String(this.options.maxRetries)) || 0, 0)
 
     if (accessToken) {
       // Anvil's OAuth access tokens are JWTs, which the API wants as-is. Anything
@@ -197,24 +273,31 @@ class Anvil {
       this.authHeader = `Basic ${Buffer.from(`${apiKey}:`, 'ascii').toString('base64')}`
     }
 
-    // Indicates that we have not dynamically set the Rate Limit from the API response
-    this.hasSetLimiterFromResponse = false
-    // Indicates that we are in the process setting the Rate Limit from an API response
-    this.limiterSettingInProgress = false
-    // A Promise that all early requests will have to wait for before continuing on. This
-    // promise will be resolved by the first API response
-    this.rateLimiterSetupPromise = new Promise((resolve) => {
-      this.rateLimiterPromiseResolver = resolve
-    })
+    // The API's limit is per account, so clients with the same base URL and credentials
+    // share one limiter, and the limits its first response taught. The starting limits
+    // only apply to the client that makes it.
+    const { requestLimit, requestLimitMS } = this.options
+    this.rateLimiter = this.options.rateLimiter || (
+      this.options.shareRateLimiter
+        ? sharedLimiter(this.options.baseURL, this.authHeader, requestLimit, requestLimitMS)
+        : new RateLimiter({ limit: requestLimit, intervalMs: requestLimitMS })
+    )
 
-    // When the requests in the current rate limit window were sent, oldest first
-    /** @type {number[]} */
-    this.requestTimes = []
+    this.dispatcher = this.options.dispatcher || agentWithTimeout(this.options.timeout)
+  }
 
-    // Set our initial limits, falling back to 1 request per second if those given are invalid
-    this.limitTokens = 1
-    this.limitIntervalMs = 1000
-    this._setRateLimiter({ tokens: this.options.requestLimit, intervalMs: this.options.requestLimitMS })
+  /** Requests allowed per `limitIntervalMs`, from the API once it has answered */
+  get limitTokens () {
+    return this.rateLimiter.limit
+  }
+
+  get limitIntervalMs () {
+    return this.rateLimiter.intervalMs
+  }
+
+  /** Whether the limits have been read from an API response yet */
+  get hasSetLimiterFromResponse () {
+    return this.rateLimiter.hasSetFromResponse
   }
 
   /**
@@ -224,14 +307,7 @@ class Anvil {
    * @private
    */
   _setRateLimiter ({ tokens, intervalMs }) {
-    // Both must be positive numbers
-    if (!(tokens > 0 && intervalMs > 0)) {
-      return
-    }
-
-    // requestTimes carries over, so requests already sent still count against the new limits
-    this.limitTokens = tokens
-    this.limitIntervalMs = intervalMs
+    this.rateLimiter.setLimits(tokens, intervalMs)
   }
 
   /**
@@ -422,6 +498,21 @@ class Anvil {
         ...clientOptions,
         dataType,
       },
+    )
+  }
+
+  /**
+   * The user the API key or access token belongs to, with their organizations
+   * @param {Object} [data]
+   * @param {string} [data.responseQuery]
+   * @returns {Promise<GraphQLResponse>}
+   */
+  getCurrentUser ({ responseQuery } = {}) {
+    return this.requestGraphQL(
+      {
+        query: generateCurrentUserQuery(responseQuery),
+      },
+      { dataType: DATA_TYPE_JSON },
     )
   }
 
@@ -640,7 +731,7 @@ class Anvil {
     }
 
     const result = await this._wrapRequest(
-      () => this._request('/graphql', options),
+      () => this._request('/graphql', this._withTimeout(options, clientOptions)),
       clientOptions,
     )
     const { response, statusCode, data, errors } = result
@@ -667,7 +758,7 @@ class Anvil {
    */
   async requestREST (url, fetchOptions, clientOptions) {
     const result = await this._wrapRequest(
-      () => this._request(url, fetchOptions),
+      () => this._request(url, this._withTimeout(fetchOptions, clientOptions)),
       clientOptions,
     )
     const { response, statusCode, data, errors } = result
@@ -762,6 +853,22 @@ class Anvil {
   // ******************************************************************************
 
   /**
+   * The fetch options with a dispatcher for a request's own `timeout`, if it has one and
+   * nothing else chose the dispatcher
+   * @param {Object} options
+   * @param {ClientOptions | null} [clientOptions]
+   * @returns {Object}
+   * @private
+   */
+  _withTimeout (options, clientOptions) {
+    const timeout = clientOptions?.timeout
+    if (timeout === undefined || options?.dispatcher || this.options.dispatcher) {
+      return options
+    }
+    return { ...options, dispatcher: agentWithTimeout(timeout) }
+  }
+
+  /**
    * @param {string} url
    * @param {Object} options
    * @returns {Promise<import('undici').Response>}
@@ -772,7 +879,7 @@ class Anvil {
       url = this._url(url)
     }
     const opts = {
-      dispatcher: this.options.dispatcher || defaultDispatcher,
+      dispatcher: this.dispatcher,
       ...this._addDefaultHeaders(options),
     }
     // fetch needs this to send a stream body
@@ -798,6 +905,9 @@ class Anvil {
    * @private
    */
   _wrapRequest (retryableRequestFn, clientOptions) {
+    // Retries of a failed request, not of rate limited ones: those are always retried
+    let attempt = 0
+    const { maxRetries } = this.options
     return this._throttle(async (retry) => {
       // Nothing before the try below may throw: a throw here on the first request would
       // leave the gate in _throttle closed, and every later request waiting on it
@@ -806,36 +916,37 @@ class Anvil {
       try {
         response = await retryableRequestFn()
       } catch (err) {
-        if (!this.hasSetLimiterFromResponse) {
-          // There won't be a response to set the limits from, so let any requests waiting for
-          // one go ahead at the starting limits, rather than waiting forever
-          this.limiterSettingInProgress = false
-          this.rateLimiterPromiseResolver()
+        // There won't be a response to set the limits from, so let the next request
+        // waiting for one go ahead instead
+        this.rateLimiter.releaseSetupGate()
+        if (isConnectionError(err) && attempt < maxRetries) {
+          const delay = backoffMs(attempt++)
+          if (debug) console.warn(`Request failed (${err.cause?.message || err.message}). Retrying in ${delay}ms.`)
+          return retry(delay)
         }
         throw err
       }
 
-      if (!this.hasSetLimiterFromResponse) {
-        // OK, this is the response sets the rate-limiter values from the
-        // server response:
-
-        // Set up the new Rate Limiter
-        const tokens = parseInt(response.headers.get('x-ratelimit-limit'))
-        const intervalMs = parseInt(response.headers.get('x-ratelimit-interval-ms'))
-        this._setRateLimiter({ tokens, intervalMs })
-
-        // Adjust the gates that make this only happen once.
-        this.hasSetLimiterFromResponse = true
-        this.limiterSettingInProgress = false
-        // Resolve the Promise that everyone else was waiting for
-        this.rateLimiterPromiseResolver()
+      // The first response, whatever it carries, lets the requests waiting on it go. The
+      // limits come from the first response that has the headers.
+      if (!this.rateLimiter.hasSetFromResponse) {
+        this.rateLimiter.updateFromHeaders(response.headers)
       }
 
       const { status: statusCode, statusText } = response
 
       if (statusCode === 429) {
         await discardBody(response)
-        return retry(getRetryMS(response.headers.get('retry-after')))
+        const delay = retryDelayMs(response.headers.get(RETRY_AFTER_HEADER))
+        if (debug) console.warn(`Rate limited: the request was not accepted. Retrying in ${delay}ms.`)
+        return retry(delay)
+      }
+
+      if (RETRY_STATUSES.includes(statusCode) && attempt < maxRetries) {
+        await discardBody(response)
+        const delay = backoffMs(attempt++, response.headers.get(RETRY_AFTER_HEADER))
+        if (debug) console.warn(`The API responded ${statusCode}. Retrying in ${delay}ms.`)
+        return retry(delay)
       }
 
       let json
@@ -987,75 +1098,38 @@ class Anvil {
   }
 
   /**
+   * Runs `fn` when the rate limit allows. `fn` gets a `retry(ms)` that runs it again after
+   * `ms`, within the rate limit again.
    * @param {CallableFunction} fn
    * @returns {Promise<*>}
    * @private
    */
   async _throttle (fn) {
-    // If this is one of the first requests being made, we'll want to dynamically
-    // set the Rate Limiter values from the API response, and hold up everyone else
-    // while this is happening.
-    // If we've already gone through the whole setup from the response, then nothing
-    // special to do
-    if (!this.hasSetLimiterFromResponse) {
-      // If limiter setting is already in progress, then this request will have to wait
-      if (this.limiterSettingInProgress) {
-        await this.rateLimiterSetupPromise
-      } else {
-        // Set the gate so that subsequent calls will have to wait for the resolution
-        this.limiterSettingInProgress = true
+    await this.rateLimiter.acquire()
+    let finished = false
+    const finish = () => {
+      if (!finished) {
+        finished = true
+        this.rateLimiter.finish()
       }
     }
-
-    await this._waitForRateLimit()
     const retry = async (ms) => {
+      // The request counts even though it will be sent again
+      finish()
       await sleep(ms)
       return this._throttle(fn)
     }
 
-    return fn(retry)
-  }
-
-  /**
-   * Waits until another request would keep us within limitTokens requests in any
-   * limitIntervalMs. The API counts requests the same way, over a sliding window, so
-   * this avoids 429s without holding back requests that are within the limit.
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _waitForRateLimit () {
-    for (;;) {
-      // Not Date.now(), so that changes to the system clock can't hold requests up
-      const now = performance.now()
-      // Requests sent before this no longer count. The buffer allows for requests that
-      // were sent further apart than they arrive.
-      const windowStart = now - this.limitIntervalMs - failBufferMS
-      while (this.requestTimes.length && this.requestTimes[0] <= windowStart) {
-        this.requestTimes.shift()
-      }
-
-      if (this.requestTimes.length < this.limitTokens) {
-        this.requestTimes.push(now)
-        return
-      }
-
-      // Wait for the oldest request to leave the window, then check again
-      await sleep(this.requestTimes[0] - windowStart)
+    try {
+      return await fn(retry)
+    } finally {
+      finish()
     }
   }
 }
 
 Anvil.UploadWithOptions = UploadWithOptions
 Anvil.AnvilRequestError = AnvilRequestError
-
-/**
- * @param {string} retryAfterSeconds
- * @returns {number}
- * @private
- */
-function getRetryMS (retryAfterSeconds) {
-  return Math.round((Math.abs(parseFloat(retryAfterSeconds)) || 0) * 1000) + failBufferMS
-}
 
 /**
  * Whether a token is a JWT: three base64url segments where the header and

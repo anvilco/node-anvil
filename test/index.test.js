@@ -170,15 +170,55 @@ describe('Anvil API Client', function () {
     })
 
     it('starts with a limit of 1 request per second', async function () {
-      const client = new Anvil({ apiKey: 'abc123' })
+      const client = new Anvil({ apiKey: 'abc123', shareRateLimiter: false })
       expect(client.limitTokens).to.equal(1)
       expect(client.limitIntervalMs).to.equal(1000)
     })
 
     it('accepts custom starting rate limits', async function () {
-      const client = new Anvil({ apiKey: 'abc123', requestLimit: 5, requestLimitMS: 500 })
+      const client = new Anvil({ apiKey: 'abc123', requestLimit: 5, requestLimitMS: 500, shareRateLimiter: false })
       expect(client.limitTokens).to.equal(5)
       expect(client.limitIntervalMs).to.equal(500)
+    })
+
+    it('shares one rate limiter between clients with the same baseURL and credentials', function () {
+      const a = new Anvil({ apiKey: 'shared-key', requestLimit: 5, requestLimitMS: 500 })
+      const b = new Anvil({ apiKey: 'shared-key' })
+      const other = new Anvil({ apiKey: 'other-key' })
+      const elsewhere = new Anvil({ apiKey: 'shared-key', baseURL: 'https://elsewhere.example.com' })
+      expect(b.rateLimiter).to.equal(a.rateLimiter)
+      // The starting limits are the first client's; the API's replace them anyway
+      expect(b.limitTokens).to.equal(5)
+      expect(other.rateLimiter).to.not.equal(a.rateLimiter)
+      expect(elsewhere.rateLimiter).to.not.equal(a.rateLimiter)
+      expect(new Anvil({ apiKey: 'shared-key', shareRateLimiter: false }).rateLimiter).to.not.equal(a.rateLimiter)
+    })
+
+    it('takes a rate limiter of your own', function () {
+      const rateLimiter = new Anvil({ apiKey: 'abc123', shareRateLimiter: false }).rateLimiter
+      expect(new Anvil({ apiKey: 'xyz789', rateLimiter }).rateLimiter).to.equal(rateLimiter)
+    })
+
+    it('reads the API key from ANVIL_API_KEY when given neither credential', function () {
+      const previous = process.env.ANVIL_API_KEY
+      process.env.ANVIL_API_KEY = 'from-the-environment'
+      try {
+        const client = new Anvil({ shareRateLimiter: false })
+        expect(client.options.apiKey).to.equal('from-the-environment')
+        expect(client.authHeader).to.equal(`Basic ${Buffer.from('from-the-environment:').toString('base64')}`)
+        // A given credential wins
+        expect(new Anvil({ accessToken: 'def345', shareRateLimiter: false }).authHeader).to.match(/^Bearer /)
+      } finally {
+        if (previous === undefined) delete process.env.ANVIL_API_KEY
+        else process.env.ANVIL_API_KEY = previous
+      }
+    })
+
+    it('defaults to 5 retries and a 5 minute timeout', function () {
+      const client = new Anvil({ apiKey: 'abc123', shareRateLimiter: false })
+      expect(client.options.maxRetries).to.equal(5)
+      expect(client.options.timeout).to.equal(300000)
+      expect(new Anvil({ apiKey: 'abc123', maxRetries: -2, shareRateLimiter: false }).options.maxRetries).to.equal(0)
     })
   })
 
@@ -209,7 +249,7 @@ describe('Anvil API Client', function () {
     let client
 
     beforeEach(async function () {
-      client = new Anvil({ apiKey: 'abc123' })
+      client = new Anvil({ apiKey: 'abc123', shareRateLimiter: false })
       sinon.stub(client, '_request')
     })
 
@@ -323,8 +363,8 @@ describe('Anvil API Client', function () {
       it('sets the rate limiter from the response headers', async function () {
         // Originally, these are true
         expect(client.hasSetLimiterFromResponse).to.eql(false)
-        expect(client.limiterSettingInProgress).to.eql(false)
-        expect(client.rateLimiterSetupPromise).to.be.an.instanceof(Promise)
+        expect(client.rateLimiter.settingInProgress).to.eql(false)
+        expect(client.rateLimiter.setupPromise).to.be.an.instanceof(Promise)
         expect(client.limitTokens).to.eql(1)
         expect(client.limitIntervalMs).to.eql(1000)
 
@@ -1026,6 +1066,31 @@ describe('Anvil API Client', function () {
           expect(result).to.eql('the result')
         })
       }
+    })
+
+    describe('getCurrentUser', function () {
+      beforeEach(function () {
+        sinon.stub(client, 'requestGraphQL')
+      })
+
+      it('calls requestGraphQL with the default responseQuery', async function () {
+        await client.getCurrentUser()
+
+        expect(client.requestGraphQL).to.have.been.calledOnce
+        const [options, clientOptions] = client.requestGraphQL.lastCall.args
+        expect(options.query).to.include('currentUser {')
+        expect(options.query).to.include('organizations {')
+        expect(options.variables).to.be.undefined
+        expect(clientOptions).to.eql({ dataType: 'json' })
+      })
+
+      it('calls requestGraphQL with an overridden responseQuery', async function () {
+        await client.getCurrentUser({ responseQuery: '{ eid }' })
+
+        const [options] = client.requestGraphQL.lastCall.args
+        expect(options.query).to.include('currentUser { eid }')
+        expect(options.query).to.not.include('organizations')
+      })
     })
 
     describe('getEtchPacket', function () {

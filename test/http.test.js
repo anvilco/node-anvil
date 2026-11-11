@@ -91,14 +91,17 @@ describe('Anvil API Client over HTTP', function () {
   let server
   let handler
 
-  // A generous starting limit so the client doesn't throttle requests that
-  // aren't about throttling.
+  // A generous starting limit so the client doesn't throttle requests that aren't
+  // about throttling; no retries, so a test about an error sees one request; and no
+  // shared limiter, since a later test's server can get an earlier one's port back.
   function createClient (options = {}) {
     return new Anvil({
       apiKey: 'test-api-key',
       baseURL: server.baseURL,
       requestLimit: 10,
       requestLimitMS: 1000,
+      maxRetries: 0,
+      shareRateLimiter: false,
       ...options,
     })
   }
@@ -271,18 +274,70 @@ describe('Anvil API Client over HTTP', function () {
       expect(client.limitIntervalMs).to.eql(700)
     })
 
-    it('keeps the starting limits when the response has no rate limit headers', async function () {
-      handler = () => ({
+    it('keeps the starting limits when the response has no rate limit headers, until one does', async function () {
+      handler = (request, index) => ({
         json: { data: { ok: true } },
-        headers: { 'x-ratelimit-limit': '', 'x-ratelimit-interval-ms': '' },
+        headers: index === 0
+          ? { 'x-ratelimit-limit': '', 'x-ratelimit-interval-ms': '' }
+          : { 'x-ratelimit-limit': '7', 'x-ratelimit-interval-ms': '700' },
       })
       const client = createClient()
 
       await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
 
-      expect(client.hasSetLimiterFromResponse).to.eql(true)
+      // A proxy's response, or an error served before the API's rate limit middleware,
+      // doesn't fix the client at its starting limits for good
+      expect(client.hasSetLimiterFromResponse).to.eql(false)
       expect(client.limitTokens).to.eql(10)
       expect(client.limitIntervalMs).to.eql(1000)
+
+      await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+      expect(client.hasSetLimiterFromResponse).to.eql(true)
+      expect(client.limitTokens).to.eql(7)
+      expect(client.limitIntervalMs).to.eql(700)
+    })
+
+    it('counts a request from when it is sent until an interval after its response', async function () {
+      this.timeout(5000)
+      // Two slow requests fill the limit; the third must wait for one of their responses,
+      // however long that takes, not just for an interval after they were sent
+      const intervalMs = 100
+      handler = () => ({
+        json: { data: { ok: true } },
+        headers: { 'x-ratelimit-limit': '2', 'x-ratelimit-interval-ms': String(intervalMs) },
+        delayMS: 400,
+      })
+      const client = createClient({ requestLimit: 2, requestLimitMS: intervalMs })
+
+      await Promise.all([1, 2, 3].map(() =>
+        client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' }),
+      ))
+
+      // The first request goes alone (it sets the limits), then two go out together
+      const [first, second, third] = server.requests
+      expect(second.receivedAt).to.be.at.least(first.respondedAt)
+      expect(third.receivedAt).to.be.at.least(first.respondedAt + intervalMs)
+      expect(third.receivedAt).to.be.below(second.respondedAt + 50)
+    })
+
+    it('shares the limits one client learned with every client on the same account', async function () {
+      handler = () => ({
+        json: { data: { ok: true } },
+        headers: { 'x-ratelimit-limit': '3', 'x-ratelimit-interval-ms': '300' },
+      })
+      // A key of this test's own: the limiter outlives the clients until they are collected
+      const apiKey = `shared-${Date.now()}`
+      const first = createClient({ apiKey, shareRateLimiter: true })
+      const second = createClient({ apiKey, shareRateLimiter: true })
+      expect(second.rateLimiter).to.equal(first.rateLimiter)
+
+      await first.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
+
+      expect(second.hasSetLimiterFromResponse).to.eql(true)
+      expect(second.limitTokens).to.eql(3)
+      expect(second.limitIntervalMs).to.eql(300)
+      expect(createClient({ apiKey: 'another-key', shareRateLimiter: true }).rateLimiter).to.not.equal(first.rateLimiter)
     })
 
     it('holds concurrent requests until the first response sets the limits', async function () {
@@ -330,7 +385,7 @@ describe('Anvil API Client over HTTP', function () {
 
     it('sends the first request right away', async function () {
       // The default starting limit of 1 request per second
-      const client = new Anvil({ apiKey: 'test-api-key', baseURL: server.baseURL })
+      const client = new Anvil({ apiKey: 'test-api-key', baseURL: server.baseURL, shareRateLimiter: false })
 
       const start = Date.now()
       await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
@@ -343,7 +398,7 @@ describe('Anvil API Client over HTTP', function () {
         json: { data: { ok: true } },
         headers: { 'x-ratelimit-limit': '5', 'x-ratelimit-interval-ms': '1000' },
       })
-      const client = new Anvil({ apiKey: 'test-api-key', baseURL: server.baseURL })
+      const client = new Anvil({ apiKey: 'test-api-key', baseURL: server.baseURL, shareRateLimiter: false })
 
       const start = Date.now()
       for (let i = 0; i < 5; i++) {
@@ -360,7 +415,7 @@ describe('Anvil API Client over HTTP', function () {
         headers: { 'x-ratelimit-limit': '1', 'x-ratelimit-interval-ms': '200' },
       })
       // requestLimitMS defaults to 1000
-      const client = new Anvil({ apiKey: 'test-api-key', baseURL: server.baseURL })
+      const client = new Anvil({ apiKey: 'test-api-key', baseURL: server.baseURL, shareRateLimiter: false })
 
       await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
       await client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' })
@@ -372,7 +427,8 @@ describe('Anvil API Client over HTTP', function () {
 
     it('lets waiting requests go ahead when the first request fails', async function () {
       handler = (request, index) => index === 0 ? { destroy: true, delayMS: 50 } : { json: { data: { ok: true } } }
-      const client = createClient()
+      // No retries, so the first request fails for good
+      const client = createClient({ maxRetries: 0 })
 
       const results = await Promise.allSettled([1, 2, 3].map(() =>
         client.requestGraphQL({ query: '{ currentUser { eid } }' }, { dataType: 'json' }),
@@ -427,7 +483,8 @@ describe('Anvil API Client over HTTP', function () {
       expect(waitedMS).to.be.within(340, 700)
     })
 
-    it('retries a 429 after only the 50ms buffer when there is no retry-after', async function () {
+    it('retries a 429 after a second plus the buffer when there is no retry-after', async function () {
+      this.timeout(4000)
       handler = (request, index) => index === 0
         ? { status: 429 }
         : { json: { data: { ok: true } } }
@@ -437,7 +494,16 @@ describe('Anvil API Client over HTTP', function () {
 
       expect(statusCode).to.eql(200)
       const waitedMS = server.requests[1].receivedAt - server.requests[0].respondedAt
-      expect(waitedMS).to.be.within(40, 300)
+      // Retrying every 50ms would hammer a server that is already turning requests away
+      expect(waitedMS).to.be.within(1040, 1600)
+    })
+
+    it('caps a 429 retry-after at 60 seconds', async function () {
+      // Checked through the delay function rather than by waiting a minute
+      const { retryDelayMs } = require('../src/rate-limiter')
+      expect(retryDelayMs('3600')).to.eql(60050)
+      expect(retryDelayMs('0.3')).to.eql(350)
+      expect(retryDelayMs('Wed, 21 Oct 2026 07:28:00 GMT')).to.eql(1050)
     })
 
     it('keeps retrying until the request is not rate limited', async function () {
@@ -450,6 +516,132 @@ describe('Anvil API Client over HTTP', function () {
 
       expect(statusCode).to.eql(200)
       expect(server.requests).to.have.length(4)
+    })
+  })
+
+  describe('retries', function () {
+    const query = { query: '{ currentUser { eid } }' }
+    const gap = (index) => server.requests[index].receivedAt - server.requests[index - 1].respondedAt
+
+    it('retries a 5xx with exponential backoff', async function () {
+      this.timeout(4000)
+      handler = (request, index) => index < 2 ? { status: 503 } : { json: { data: { ok: true } } }
+      const client = createClient({ maxRetries: 5 })
+
+      const { statusCode, errors } = await client.requestGraphQL(query, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
+      expect(errors).to.be.undefined
+      expect(server.requests).to.have.length(3)
+      // 100ms, then 200ms. Allow a little timer slop below, more above.
+      expect(gap(1)).to.be.within(90, 400)
+      expect(gap(2)).to.be.within(190, 600)
+    })
+
+    it('waits for a 5xx retry-after instead of backing off', async function () {
+      handler = (request, index) => index === 0
+        ? { status: 503, headers: { 'retry-after': '0.3' } }
+        : { json: { data: { ok: true } } }
+      const client = createClient({ maxRetries: 5 })
+
+      const { statusCode } = await client.requestGraphQL(query, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
+      expect(gap(1)).to.be.within(290, 700)
+    })
+
+    it('gives up after maxRetries and resolves with the last error', async function () {
+      handler = () => ({ status: 502, json: { name: 'BadGateway', message: 'Bad Gateway' } })
+      const client = createClient({ maxRetries: 2 })
+
+      const { statusCode, errors } = await client.requestGraphQL(query, { dataType: 'json' })
+
+      expect(statusCode).to.eql(502)
+      expect(errors).to.eql([{ name: 'BadGateway', message: 'Bad Gateway' }])
+      expect(server.requests).to.have.length(3)
+    })
+
+    it('does not retry a 4xx', async function () {
+      handler = () => ({ status: 400, json: { name: 'ValidationError', message: 'Bad' } })
+      const client = createClient({ maxRetries: 5 })
+
+      const { statusCode } = await client.requestGraphQL(query, { dataType: 'json' })
+
+      expect(statusCode).to.eql(400)
+      expect(server.requests).to.have.length(1)
+    })
+
+    it('retries when the connection drops before a response', async function () {
+      handler = (request, index) => index === 0 ? { destroy: true } : { json: { data: { ok: true } } }
+      const client = createClient({ maxRetries: 5 })
+
+      const { statusCode } = await client.requestGraphQL(query, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
+      expect(server.requests).to.have.length(2)
+    })
+
+    it('retries a file upload by reading the file again', async function () {
+      handler = (request, index) => index === 0 ? { status: 503 } : { json: { data: { ok: true } } }
+      const client = createClient({ maxRetries: 5 })
+
+      const { statusCode } = await client.createEtchPacket({
+        variables: {
+          name: 'Test',
+          files: [{ id: 'file', title: 'File', file: Anvil.prepareGraphQLFile(path.join(assetsDir, 'dummy.pdf')) }],
+        },
+      })
+
+      expect(statusCode).to.eql(200)
+      expect(server.requests).to.have.length(2)
+      expect(server.requests[1].body.length).to.eql(server.requests[0].body.length)
+    })
+
+    it('rejects with the error when retries are off', async function () {
+      handler = (request, index) => index === 0 ? { destroy: true } : { json: { data: { ok: true } } }
+      const client = createClient({ maxRetries: 0 })
+
+      const error = await client.requestGraphQL(query, { dataType: 'json' }).then(() => null, (err) => err)
+
+      expect(error.message).to.eql('fetch failed')
+      expect(server.requests).to.have.length(1)
+    })
+  })
+
+  describe('timeout', function () {
+    // undici checks its timeouts about once a second, so these use seconds
+    const query = { query: '{ currentUser { eid } }' }
+
+    it('rejects, and does not retry, when the response headers take longer than the timeout', async function () {
+      this.timeout(8000)
+      handler = () => ({ json: { data: { ok: true } }, delayMS: 2500 })
+      const client = createClient({ timeout: 1000, maxRetries: 5 })
+
+      const error = await client.requestGraphQL(query, { dataType: 'json' }).then(() => null, (err) => err)
+
+      expect(error).to.be.an.instanceof(TypeError)
+      expect(error.cause.code).to.eql('UND_ERR_HEADERS_TIMEOUT')
+      expect(server.requests).to.have.length(1)
+    })
+
+    it('can be overridden for one request', async function () {
+      this.timeout(8000)
+      handler = () => ({ json: { data: { ok: true } }, delayMS: 2500 })
+      const client = createClient({ timeout: 1000 })
+
+      const { statusCode } = await client.requestGraphQL(query, { dataType: 'json', timeout: 0 })
+
+      expect(statusCode).to.eql(200)
+    })
+
+    it('is left to a dispatcher of your own', async function () {
+      this.timeout(8000)
+      handler = () => ({ json: { data: { ok: true } }, delayMS: 1500 })
+      const client = createClient({ timeout: 1000, dispatcher: new Agent() })
+
+      const { statusCode } = await client.requestGraphQL(query, { dataType: 'json' })
+
+      expect(statusCode).to.eql(200)
     })
   })
 
@@ -591,6 +783,7 @@ describe('Anvil API Client over HTTP', function () {
       requestREST: [restError, (client, options) => client.requestREST('/api/v1/thing', { method: 'GET' }, { dataType: 'json', ...options })],
       requestGraphQL: [graphQLError, (client, options) => client.requestGraphQL(query, { dataType: 'json', ...options })],
       createEtchPacket: [graphQLError, (client) => client.createEtchPacket({ variables: { name: 'Test' } })],
+      getCurrentUser: [graphQLError, (client) => client.getCurrentUser()],
       getEtchPacket: [graphQLError, (client) => client.getEtchPacket({ variables: { eid: 'packetEid123' } })],
       generateEtchSignUrl: [graphQLError, (client) => client.generateEtchSignUrl({ variables: { signerEid: 'signerEid123', clientUserId: 'user123' } })],
       forgeSubmit: [graphQLError, (client) => client.forgeSubmit({ variables: { forgeEid: 'forgeEid123', payload: {} } })],
@@ -606,6 +799,7 @@ describe('Anvil API Client over HTTP', function () {
     it('covers every public method', function () {
       const twins = ['fillPdf', 'generatePdf', 'generateEtchSignURL', 'requestGraphql', 'requestGraphQl', 'requestRest']
       const publicMethods = Object.getOwnPropertyNames(Anvil.prototype)
+        .filter((name) => typeof Object.getOwnPropertyDescriptor(Anvil.prototype, name).value === 'function')
         .filter((name) => name !== 'constructor' && !name.startsWith('_') && !twins.includes(name))
       expect(publicMethods.sort()).to.eql(Object.keys(methods).sort())
     })

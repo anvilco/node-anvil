@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.4.0]
+
 - Retry a request that fails with a `500`, `502`, `503` or `504`, or that couldn't connect, up to `maxRetries` times (5) with exponential backoff from 100ms, or after the response's `Retry-After`. A timeout or a response cut short is not retried. `maxRetries: 0` turns it off. See [Retries](README.md#retries).
 - Add a `timeout` option (5 minutes): how long to wait for the response headers, and then for each chunk of the body. Also per request, in the options of `fillPDF`, `generatePDF`, `downloadDocuments`, `requestGraphQL` and `requestREST`. See [Timeouts](README.md#timeouts).
 - Share one rate limiter between every client in the process with the same `baseURL` and credentials, as the API's limit is per account, so they stay within it together and only one of them has to learn it. `shareRateLimiter: false` gives a client its own.

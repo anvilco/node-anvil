@@ -3,7 +3,7 @@
 
 # Anvil API Client for Node
 
-This library will allow you to interact with the [Anvil API](www.useanvil.com/developers) in JavaScript / NodeJS.
+This library will allow you to interact with the [Anvil API](https://www.useanvil.com/developers) in JavaScript / NodeJS.
 
 [Anvil](https://www.useanvil.com/developers/) provides easy APIs for all things paperwork.
 

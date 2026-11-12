@@ -75,7 +75,7 @@
   },
   "dependencies": {
     "@anvilco/types": "^1.1.0",
-    "extract-files": "^13",
+    "extract-files": "^14",
     "undici": "^6.29.0"
   },
   "devDependencies": {
